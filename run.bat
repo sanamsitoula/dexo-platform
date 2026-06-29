@@ -1,0 +1,357 @@
+@echo off
+REM ==============================================================================
+REM  Dexo Platform v5 - Windows Startup Script with Timestamped Logging
+REM ==============================================================================
+REM
+REM  LOCKED PORT MAP (v5):
+REM    :3001  apps/platform-web       Platform marketing + sign-up
+REM    :3002  apps/platform-admin     Platform staff panel
+REM    :4000  apps/api                Shared API
+REM    :4005  apps/tenant-website     Tenant public website
+REM    :4006  apps/tenant-admin       Tenant owner + staff portal
+REM    :4007  apps/tenant-app         Tenant customer-facing app
+REM    :8081  apps/mobile             Expo mobile
+REM    :5433  PostgreSQL
+REM    :6379  Redis
+REM    :9000  MinIO
+REM    :8025  MailHog
+REM
+REM  TENANT RESOLUTION: hostname middleware (NEVER [subdomain] URL segments)
+REM  In dev: use DEV_TENANT env var (e.g. vrfitness, spicegarden) or X-Dev-Tenant header
+REM
+REM ==============================================================================
+
+set "PROJECT_ROOT=%~dp0"
+cd /d "%PROJECT_ROOT%"
+
+set "TEMPFILE=%TEMP%\dexo_timestamp_%RANDOM%.txt"
+powershell -NoProfile -Command "Get-Date -Format 'yyyy-MM-dd-HHmmss' | Out-File -FilePath '%TEMPFILE%' -Encoding ASCII -NoNewline" >nul 2>&1
+set /p TIMESTAMP=<"%TEMPFILE%" 2>nul
+del "%TEMPFILE%" 2>nul
+if "%TIMESTAMP%"=="" set "TIMESTAMP=2026-01-01-000000"
+
+REM ============================================
+REM  Setup logs directory
+REM ============================================
+for %%D in (orchestrator api platform-web platform-admin tenant-website tenant-admin tenant-app mobile expo-go) do (
+  if not exist "logs\%%D" mkdir "logs\%%D"
+)
+
+set "ORCHESTRATOR_LOG=logs\orchestrator\orchestrator-%TIMESTAMP%.log"
+echo [%date% %time:~0,8%] Dexo Platform v5 - Startup initiated > "%ORCHESTRATOR_LOG%"
+echo. >> "%ORCHESTRATOR_LOG%"
+
+REM ============================================
+REM  Prerequisite checks
+REM ============================================
+echo.
+echo ========================================
+echo   Dexo Platform v5 - Development Server
+echo   Session: %TIMESTAMP%
+echo ========================================
+echo.
+
+where node >nul 2>nul
+if %ERRORLEVEL% NEQ 0 (
+    echo [ERROR] Node.js is not installed or not in PATH
+    echo [%date% %time:~0,8%] [ERROR] Node.js missing >> "%ORCHESTRATOR_LOG%"
+    echo Please install Node.js ^>= 18.0.0 from https://nodejs.org/
+    pause
+    exit /b 1
+)
+echo [INFO] Node.js version:
+node --version
+echo [%date% %time:~0,8%] [INFO] Node.js: >> "%ORCHESTRATOR_LOG%"
+node --version >> "%ORCHESTRATOR_LOG%" 2>&1
+echo.
+
+REM ============================================
+REM  Docker checks
+REM ============================================
+docker info >nul 2>nul
+if %ERRORLEVEL% NEQ 0 (
+    echo [ERROR] Docker Desktop is not running.
+    echo [%date% %time:~0,8%] [ERROR] Docker not running >> "%ORCHESTRATOR_LOG%"
+    echo Please start Docker Desktop and try again.
+    pause
+    exit /b 1
+)
+echo [INFO] Docker is running.
+echo [%date% %time:~0,8%] [INFO] Docker is running >> "%ORCHESTRATOR_LOG%"
+echo.
+
+REM ============================================
+REM  Start Docker Services
+REM ============================================
+echo [INFO] Starting Docker services...
+echo [%date% %time:~0,8%] [INFO] Starting Docker services... >> "%ORCHESTRATOR_LOG%"
+
+set "DOCKER_LOG=logs\orchestrator\docker-%TIMESTAMP%.log"
+
+docker ps --filter "name=dexo-postgres" --format "{{.Names}}" 2>nul | findstr "dexo-postgres" >nul
+if %ERRORLEVEL% NEQ 0 (
+    docker run -d --name dexo-postgres -e POSTGRES_PASSWORD=postgres -e POSTGRES_DB=dexo_db -p 5433:5432 postgres:16-alpine >> "%DOCKER_LOG%" 2>&1
+    echo [INFO] PostgreSQL started on port 5433
+) else (
+    docker start dexo-postgres >> "%DOCKER_LOG%" 2>&1
+    echo [INFO] PostgreSQL already exists, started.
+)
+
+docker ps --filter "name=dexo-redis" --format "{{.Names}}" 2>nul | findstr "dexo-redis" >nul
+if %ERRORLEVEL% NEQ 0 (
+    docker run -d --name dexo-redis -p 6379:6379 redis:7-alpine >> "%DOCKER_LOG%" 2>&1
+    echo [INFO] Redis started on port 6379
+) else (
+    docker start dexo-redis >> "%DOCKER_LOG%" 2>&1
+    echo [INFO] Redis already exists, started.
+)
+
+docker ps --filter "name=dexo-minio" --format "{{.Names}}" 2>nul | findstr "dexo-minio" >nul
+if %ERRORLEVEL% NEQ 0 (
+    docker run -d --name dexo-minio -p 9000:9000 -p 9001:9001 -e MINIO_ROOT_USER=minioadmin -e MINIO_ROOT_PASSWORD=minioadmin minio/minio server /data --console-address ":9001" >> "%DOCKER_LOG%" 2>&1
+    echo [INFO] MinIO started on ports 9000/9001
+) else (
+    docker start dexo-minio >> "%DOCKER_LOG%" 2>&1
+    echo [INFO] MinIO already exists, started.
+)
+
+docker ps --filter "name=dexo-mailhog" --format "{{.Names}}" 2>nul | findstr "dexo-mailhog" >nul
+if %ERRORLEVEL% NEQ 0 (
+    docker run -d --name dexo-mailhog -p 1025:1025 -p 8025:8025 mailhog/mailhog >> "%DOCKER_LOG%" 2>&1
+    echo [INFO] MailHog started on ports 1025/8025
+) else (
+    docker start dexo-mailhog >> "%DOCKER_LOG%" 2>&1
+    echo [INFO] MailHog already exists, started.
+)
+
+echo [INFO] All Docker services started.
+echo.
+
+echo [INFO] Waiting for PostgreSQL to be ready (5s)...
+timeout /t 5 /nobreak >nul
+
+REM ============================================
+REM  Install dependencies if needed
+REM ============================================
+if not exist "node_modules\" (
+    echo [INFO] Installing dependencies...
+    call npm install
+    if %ERRORLEVEL% NEQ 0 (
+        echo [ERROR] Failed to install dependencies
+        pause
+        exit /b 1
+    )
+    echo.
+)
+
+REM ============================================
+REM  Create .env if missing
+REM ============================================
+if not exist ".env" (
+    echo [INFO] Creating .env file...
+    (
+        echo # Dexo Platform v5 Environment Variables
+        echo DATABASE_URL=postgresql://postgres:postgres@localhost:5433/dexo_db
+        echo JWT_SECRET=dev-jwt-secret-key-change-in-production
+        echo REDIS_URL=redis://localhost:6379
+        echo MINIO_ENDPOINT=localhost
+        echo MINIO_PORT=9000
+        echo MINIO_ACCESS_KEY=minioadmin
+        echo MINIO_SECRET_KEY=minioadmin
+        echo SMTP_HOST=localhost
+        echo SMTP_PORT=1025
+        echo NODE_ENV=development
+        echo # Default dev tenant
+        echo DEV_TENANT=vrfitness
+    ) > .env
+    echo [INFO] Created .env file.
+    echo.
+)
+
+REM ============================================
+REM  Seed demo users (platform + tenant)
+REM ============================================
+echo [INFO] Seeding demo users (platform + tenant)...
+echo [%date% %time:~0,8%] [INFO] Seeding demo users >> "%ORCHESTRATOR_LOG%"
+call npm run db:seed:demo >> "%ORCHESTRATOR_LOG%" 2>&1
+if %ERRORLEVEL% NEQ 0 (
+    echo [WARN] Demo seed failed - continuing. Check logs\orchestrator for details.
+) else (
+    echo [INFO] Demo users ready.
+)
+echo.
+
+REM ============================================
+REM  Kill any existing processes on all v5 ports
+REM ============================================
+echo [INFO] Cleaning up old processes...
+for %%P in (3001 3002 4000 4005 4006 4007 8081) do (
+    for /f "tokens=5" %%a in ('netstat -aon ^| findstr ":%%P " ^| findstr "LISTENING" 2^>nul') do taskkill /PID %%a /F >nul 2>nul
+)
+timeout /t 2 /nobreak >nul
+echo [INFO] Ports cleared.
+
+if exist "%TEMP%\turbod" (
+    del /q /f "%TEMP%\turbod\*.pid" 2>nul
+    echo [INFO] Cleared stale turbo pid files.
+)
+
+echo [INFO] Cleaning nested .bin symlinks...
+for /f "delims=" %%d in ('dir /s /b /ad "node_modules\node_modules\.bin" 2^>nul') do (
+    if exist "%%d" del /q /f "%%d\*.*" 2>nul
+)
+echo [INFO] Cleaned.
+echo.
+
+REM ============================================
+REM  Start API Server (port 4000)
+REM ============================================
+set "API_LOG=logs\api\api-%TIMESTAMP%.log"
+echo [INFO] Starting API Server on port 4000...
+echo [INFO] Logs: %API_LOG%
+start "Dexo API" /MIN powershell -NoProfile -ExecutionPolicy Bypass -File "%~dp0scripts\start-app.ps1" -App api
+timeout /t 18 /nobreak >nul
+
+REM ============================================
+REM  Start platform-web (port 3001)
+REM ============================================
+set "PLAT_WEB_LOG=logs\platform-web\platform-web-%TIMESTAMP%.log"
+echo [INFO] Starting Platform Web (port 3001)...
+echo [INFO] Logs: %PLAT_WEB_LOG%
+start "Dexo platform-web" /MIN powershell -NoProfile -ExecutionPolicy Bypass -File "%~dp0scripts\start-app.ps1" -App platform-web
+timeout /t 12 /nobreak >nul
+
+REM ============================================
+REM  Start platform-admin (port 3002)
+REM ============================================
+set "PLAT_ADM_LOG=logs\platform-admin\platform-admin-%TIMESTAMP%.log"
+echo [INFO] Starting Platform Admin (port 3002)...
+echo [INFO] Logs: %PLAT_ADM_LOG%
+start "Dexo platform-admin" /MIN powershell -NoProfile -ExecutionPolicy Bypass -File "%~dp0scripts\start-app.ps1" -App platform-admin
+timeout /t 12 /nobreak >nul
+
+REM ============================================
+REM  Start tenant-website (port 4005) - DEV_TENANT=vrfitness
+REM ============================================
+set "TEN_WEB_LOG=logs\tenant-website\tenant-website-%TIMESTAMP%.log"
+echo [INFO] Starting Tenant Website (port 4005)...
+echo [INFO] Logs: %TEN_WEB_LOG%
+start "Dexo tenant-website" /MIN powershell -NoProfile -ExecutionPolicy Bypass -File "%~dp0scripts\start-app.ps1" -App tenant-website
+timeout /t 10 /nobreak >nul
+
+REM ============================================
+REM  Start tenant-admin (port 4006)
+REM ============================================
+set "TEN_ADM_LOG=logs\tenant-admin\tenant-admin-%TIMESTAMP%.log"
+echo [INFO] Starting Tenant Admin (port 4006)...
+echo [INFO] Logs: %TEN_ADM_LOG%
+start "Dexo tenant-admin" /MIN powershell -NoProfile -ExecutionPolicy Bypass -File "%~dp0scripts\start-app.ps1" -App tenant-admin
+timeout /t 10 /nobreak >nul
+
+REM ============================================
+REM  Start tenant-app (port 4007)
+REM ============================================
+set "TEN_APP_LOG=logs\tenant-app\tenant-app-%TIMESTAMP%.log"
+echo [INFO] Starting Tenant App (port 4007)...
+echo [INFO] Logs: %TEN_APP_LOG%
+start "Dexo tenant-app" /MIN powershell -NoProfile -ExecutionPolicy Bypass -File "%~dp0scripts\start-app.ps1" -App tenant-app
+timeout /t 10 /nobreak >nul
+
+REM ============================================
+REM  Start Mobile (Expo) - port 8081
+REM ============================================
+set "MOBILE_LOG=logs\mobile\mobile-%TIMESTAMP%.log"
+set "EXPO_LOG=logs\expo-go\expo-go-%TIMESTAMP%.log"
+echo [INFO] Starting Mobile (Expo) on port 8081...
+echo [INFO] Logs: %MOBILE_LOG%
+start "Dexo Mobile" /MIN powershell -NoProfile -ExecutionPolicy Bypass -File "%~dp0scripts\start-app.ps1" -App mobile
+timeout /t 25 /nobreak >nul
+
+REM ============================================
+REM  Show Status
+REM ============================================
+echo.
+echo ========================================
+echo   All Services Started (v5)
+echo   Session: %TIMESTAMP%
+echo ========================================
+echo.
+echo   APPLICATIONS (locked port map):
+echo     Platform Web (marketing):  http://localhost:3001   (admin@test.com)
+echo     Platform Admin (staff):    http://localhost:3002   (admin@test.com)
+echo     Tenant Website (public):   http://localhost:4005   (admin@vrfitness.com)
+echo     Tenant Admin (owner):      http://localhost:4006   (admin@vrfitness.com)
+echo     Tenant App (customer):     http://localhost:4007   (member1@vrfitness.com)
+echo     API Server:                http://localhost:4000
+echo     Swagger Docs:              http://localhost:4000/api/docs
+echo     Mobile (Expo):             http://localhost:8081   ^| Scan QR with Expo Go
+echo.
+echo   DOCKER SERVICES:
+echo     PostgreSQL:     localhost:5433
+echo     Redis:          localhost:6379
+echo     MinIO (S3):     http://localhost:9000
+echo     MinIO Console:  http://localhost:9001
+echo     MailHog:        http://localhost:8025
+echo.
+echo ========================================
+echo.
+echo   LOGS LOCATION: .\logs\
+echo     api\              - API server
+echo     platform-web\     - Platform marketing
+echo     platform-admin\   - Platform staff
+echo     tenant-website\   - Tenant public site
+echo     tenant-admin\     - Tenant owner/staff
+echo     tenant-app\       - Tenant customer app
+echo     mobile\           - Mobile (Expo)
+echo     orchestrator\     - This startup script
+echo.
+echo   Each log file: logs\<service>\<service>-%TIMESTAMP%.log
+echo.
+echo ========================================
+echo.
+echo   Demo Credentials (v5):
+echo     Platform Admin: admin@test.com              / Admin@123
+echo     FITNESS_CENTER tenant (vrfitness):
+echo       Owner:     admin@vrfitness.com            / Admin123!
+echo       Manager:   manager@vrfitness.com          / Manager123!
+echo       Trainer:   trainer1@vrfitness.com         / Trainer123!
+echo       Member:    member1@vrfitness.com          / Member123!
+echo     RESTAURANT tenant (spicegarden):
+echo       Owner:     admin@spicegarden.com          / Admin123!
+echo       Manager:   manager@spicegarden.com        / Manager123!
+echo       Staff:     waiter1@spicegarden.com        / Staff123!
+echo.
+echo   Tenant switching (dev):
+echo     set DEV_TENANT=spicegarden ^&^& npm run dev --workspace=@dexo/tenant-website
+echo.
+echo ========================================
+echo.
+
+set "MOBILE_LATEST=logs\mobile\mobile-%TIMESTAMP%.log.out"
+if exist "%MOBILE_LATEST%" (
+    timeout /t 3 /nobreak >nul
+    type "%MOBILE_LATEST%"
+) else (
+    echo [WARN] Mobile log not found. Run: scripts\view-log.ps1 mobile
+)
+echo.
+echo ========================================
+echo.
+echo Press any key to open browsers. Close server windows to stop.
+echo.
+pause >nul
+
+start http://localhost:3001
+start http://localhost:3002
+start http://localhost:4005
+start http://localhost:4006
+start http://localhost:4007
+start http://localhost:4000/api/docs
+
+echo.
+echo Browsers opened. Servers running in separate windows.
+echo.
+echo To view logs in real-time, open a new terminal and run:
+echo   powershell -Command "Get-Content logs\api\api-*.log -Wait"
+echo.
+pause

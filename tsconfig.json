@@ -1,0 +1,87 @@
+{
+  "compilerOptions": {
+    "target": "ES2020",
+    "lib": ["DOM", "DOM.Iterable", "ES2020"],
+    "allowJs": true,
+    "skipLibCheck": true,
+    "esModuleInterop": true,
+    "allowSyntheticDefaultImports": true,
+    "strict": true,
+    "forceConsistentCasingInFileNames": true,
+    "moduleResolution": "node",
+    "resolveJsonModule": true,
+    "isolatedModules": true,
+    "noEmit": true,
+    "jsx": "react-jsx",
+    "incremental": true,
+    "composite": true,
+    "declaration": true,
+    "declarationMap": true,
+    "emitDecoratorMetadata": true,
+    "experimentalDecorators": true,
+    "baseUrl": ".",
+    "paths": {
+      "@dexo/shared": ["./packages/shared/src"],
+      "@dexo/ui": ["./packages/ui/src"],
+      "@dexo/auth": ["./packages/auth/src"],
+      "@dexo/tenant": ["./packages/tenant/src"],
+      "@dexo/user": ["./packages/user/src"],
+      "@dexo/role": ["./packages/role/src"],
+      "@dexo/permission": ["./packages/permission/src"],
+      "@dexo/subscription": ["./packages/subscription/src"],
+      "@dexo/billing": ["./packages/billing/src"],
+      "@dexo/notification": ["./packages/notification/src"],
+      "@dexo/files": ["./packages/files/src"],
+      "@dexo/settings": ["./packages/settings/src"],
+      "@dexo/plugin-system": ["./packages/plugin-system/src"],
+      "@dexo/dashboard": ["./packages/dashboard/src"],
+      "@dexo/api-client": ["./packages/api-client/src"],
+      "@dexo/cms": ["./packages/cms/src"],
+      "@dexo/analytics": ["./packages/analytics/src"],
+      "@dexo/modules": ["./packages/modules/src"],
+      "@dexo/tenancy": ["./packages/tenancy/src"]
+    },
+    "plugins": [
+      {
+        "name": "next"
+      }
+    ]
+  },
+  "references": [
+    { "path": "./packages/shared" },
+    { "path": "./packages/ui" },
+    { "path": "./packages/auth" },
+    { "path": "./packages/tenant" },
+    { "path": "./packages/user" },
+    { "path": "./packages/role" },
+    { "path": "./packages/permission" },
+    { "path": "./packages/subscription" },
+    { "path": "./packages/billing" },
+    { "path": "./packages/notification" },
+    { "path": "./packages/files" },
+    { "path": "./packages/settings" },
+    { "path": "./packages/plugin-system" },
+    { "path": "./packages/dashboard" },
+    { "path": "./apps/web" },
+    { "path": "./apps/admin" },
+    { "path": "./apps/mobile" }
+  ],
+  "include": [
+    "apps/**/*",
+    "packages/**/*"
+  ],
+  "exclude": [
+    "node_modules",
+    "dist",
+    "build",
+    ".next",
+    "coverage",
+    "**/*.test.ts",
+    "**/*.test.tsx"
+  ],
+  "ts-node": {
+    "compilerOptions": {
+      "module": "commonjs"
+    }
+  }
+}

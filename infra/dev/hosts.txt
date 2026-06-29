@@ -1,0 +1,21 @@
+# Local dev wildcard hosts
+# Add these to C:\Windows\System32\drivers\etc\hosts (run as Administrator)
+#
+# 127.0.0.1  vrfitness.localhost
+# 127.0.0.1  admin.vrfitness.localhost
+# 127.0.0.1  portal.vrfitness.localhost
+# 127.0.0.1  spicegarden.localhost
+# 127.0.0.1  admin.spicegarden.localhost
+# 127.0.0.1  portal.spicegarden.localhost
+#
+# Or use the simpler alternative: set DEV_TENANT env var.
+# The dev frontend reads X-Dev-Tenant header to identify the tenant.
+
+127.0.0.1  vrfitness.localhost
+127.0.0.1  admin.vrfitness.localhost
+127.0.0.1  portal.vrfitness.localhost
+127.0.0.1  spicegarden.localhost
+127.0.0.1  admin.spicegarden.localhost
+127.0.0.1  portal.spicegarden.localhost
+127.0.0.1  dexo.localhost
+127.0.0.1  api.dexo.localhost
