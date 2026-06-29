@@ -1,0 +1,33 @@
+{
+  "name": "@dexo/tenant-app",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Dexo Tenant Customer-Facing App (:4007) - bottom nav + card feed, no sidebar",
+  "author": "Dexo Platform Team",
+  "license": "PROPRIETARY",
+  "scripts": {
+    "dev": "next dev -p 4007",
+    "build": "next build",
+    "start": "next start -p 4007",
+    "lint": "next lint",
+    "type-check": "tsc --noEmit"
+  },
+  "dependencies": {
+    "next": "^13.0.0",
+    "react": "^18.2.0",
+    "react-dom": "^18.2.0",
+    "@dexo/shared": "*",
+    "@dexo/ui": "*"
+  },
+  "devDependencies": {
+    "@types/node": "^18.0.0",
+    "@types/react": "^18.2.0",
+    "@types/react-dom": "^18.2.0",
+    "autoprefixer": "^10.4.0",
+    "eslint": "^8.0.0",
+    "eslint-config-next": "^13.0.0",
+    "postcss": "^8.4.0",
+    "tailwindcss": "^3.3.0",
+    "typescript": "^5.0.0"
+  }
+}

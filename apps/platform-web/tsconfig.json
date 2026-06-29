@@ -1,0 +1,34 @@
+{
+  "compilerOptions": {
+    "target": "ES2020",
+    "lib": ["dom", "dom.iterable", "esnext"],
+    "allowJs": true,
+    "skipLibCheck": true,
+    "strict": true,
+    "noEmit": true,
+    "esModuleInterop": true,
+    "module": "esnext",
+    "moduleResolution": "bundler",
+    "resolveJsonModule": true,
+    "isolatedModules": true,
+    "jsx": "preserve",
+    "incremental": true,
+    "plugins": [
+      {
+        "name": "next"
+      }
+    ],
+    "paths": {
+      "@/*": ["./*"],
+      "@dexo/shared": ["../../packages/shared/src"],
+      "@dexo/ui": ["../../packages/ui/src"],
+      "@dexo/api-client": ["../../packages/api-client/src"],
+      "@dexo/cms": ["../../packages/cms/src"],
+      "@dexo/analytics": ["../../packages/analytics/src"],
+      "@dexo/modules": ["../../packages/modules/src"],
+      "@dexo/tenancy": ["../../packages/tenancy/src"]
+    }
+  },
+  "include": ["next-env.d.ts", "**/*.ts", "**/*.tsx", ".next/types/**/*.ts"],
+  "exclude": ["node_modules"]
+}

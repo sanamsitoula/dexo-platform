@@ -1,0 +1,23 @@
+{
+  "expo": {
+    "name": "Dexo",
+    "slug": "dexo",
+    "version": "1.0.0",
+    "orientation": "portrait",
+    "scheme": "dexo",
+    "userInterfaceStyle": "light",
+    "newArchEnabled": true,
+    "ios": {
+      "supportsTablet": true,
+      "bundleIdentifier": "com.dexo.mobile"
+    },
+    "android": {
+      "adaptiveIcon": {
+        "backgroundColor": "#2563EB"
+      },
+      "package": "com.dexo.mobile"
+    },
+    "plugins": ["expo-router"],
+    "platforms": ["ios", "android", "web"]
+  }
+}

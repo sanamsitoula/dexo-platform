@@ -1,0 +1,30 @@
+{
+  "name": "@dexo/platform-admin",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Dexo Platform Staff Panel (:3002)",
+  "author": "Dexo Platform Team",
+  "license": "PROPRIETARY",
+  "scripts": {
+    "dev": "next dev -p 3002",
+    "build": "next build",
+    "start": "next start -p 3002",
+    "lint": "next lint",
+    "type-check": "tsc --noEmit"
+  },
+  "dependencies": {
+    "next": "^13.0.0",
+    "react": "^18.2.0",
+    "react-dom": "^18.2.0",
+    "@dexo/shared": "*",
+    "@dexo/ui": "*"
+  },
+  "devDependencies": {
+    "@types/node": "^18.0.0",
+    "@types/react": "^18.0.0",
+    "@types/react-dom": "^18.0.0",
+    "typescript": "^5.0.0",
+    "eslint": "^8.0.0",
+    "eslint-config-next": "^13.0.0"
+  }
+}

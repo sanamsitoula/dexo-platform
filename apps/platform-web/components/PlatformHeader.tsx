@@ -1,0 +1,137 @@
+'use client'
+
+import Link from 'next/link'
+import { useRouter } from 'next/navigation'
+import { useState, useEffect } from 'react'
+
+export default function PlatformHeader() {
+  const router = useRouter()
+  const [user, setUser] = useState<any>(null)
+  const [mounted, setMounted] = useState(false)
+  const [menuOpen, setMenuOpen] = useState(false)
+
+  useEffect(() => {
+    const userData = localStorage.getItem('user')
+    if (userData) {
+      try { setUser(JSON.parse(userData)) } catch { /* ignore */ }
+    }
+    setMounted(true)
+  }, [])
+
+  function handleLogout() {
+    localStorage.removeItem('accessToken')
+    localStorage.removeItem('refreshToken')
+    localStorage.removeItem('user')
+    setUser(null)
+    router.push('/')
+  }
+
+  return (
+    <header className="border-b border-gray-200 bg-white sticky top-0 z-30">
+      <nav className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between">
+        {/* Logo */}
+        <Link href="/" className="flex items-center gap-2">
+          <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-indigo-600 to-purple-600 flex items-center justify-center text-white font-bold text-sm">
+            D
+          </div>
+          <span className="text-lg font-bold text-gray-900">Dexo Platform</span>
+        </Link>
+
+        {/* Platform Nav (always visible) */}
+        <div className="hidden md:flex items-center gap-6">
+          <Link href="/#features" className="text-sm text-gray-700 hover:text-indigo-600 font-medium">
+            Features
+          </Link>
+          <Link href="/#industries" className="text-sm text-gray-700 hover:text-indigo-600 font-medium">
+            Industries
+          </Link>
+          <Link href="/#pricing" className="text-sm text-gray-700 hover:text-indigo-600 font-medium">
+            Pricing
+          </Link>
+          <Link href="/contact" className="text-sm text-gray-700 hover:text-indigo-600 font-medium">
+            Contact
+          </Link>
+        </div>
+
+        {/* Right side */}
+        <div className="flex items-center gap-3" suppressHydrationWarning>
+          {mounted && user ? (
+            <div className="relative">
+              <button
+                onClick={() => setMenuOpen(!menuOpen)}
+                className="flex items-center gap-2 px-3 py-2 rounded-md hover:bg-gray-100"
+              >
+                <div className="w-7 h-7 rounded-full bg-indigo-600 flex items-center justify-center text-white text-xs font-semibold">
+                  {user.firstName?.[0] || user.email?.[0]?.toUpperCase() || 'U'}
+                </div>
+                <span className="hidden sm:inline text-sm text-gray-700">
+                  {user.firstName || user.email}
+                </span>
+                <svg className="w-4 h-4 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+                </svg>
+              </button>
+
+              {menuOpen && (
+                <div className="absolute right-0 mt-2 w-56 bg-white rounded-md shadow-lg border border-gray-200 py-1 z-50">
+                  <div className="px-4 py-3 border-b border-gray-100">
+                    <p className="text-sm font-medium text-gray-900">
+                      {user.firstName} {user.lastName}
+                    </p>
+                    <p className="text-xs text-gray-500 truncate">{user.email}</p>
+                    {user.isPlatformAdmin && (
+                      <span className="inline-block mt-1 px-2 py-0.5 text-xs bg-purple-100 text-purple-700 rounded-full">
+                        Platform Admin
+                      </span>
+                    )}
+                  </div>
+                  {user.isPlatformAdmin && (
+                    <a
+                      href="http://localhost:3001/dashboard"
+                      className="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-50"
+                    >
+                      Admin Console
+                    </a>
+                  )}
+                  <Link
+                    href="/profile"
+                    className="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-50"
+                  >
+                    Your Profile
+                  </Link>
+                  <Link
+                    href="/settings"
+                    className="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-50"
+                  >
+                    Settings
+                  </Link>
+                  <button
+                    onClick={handleLogout}
+                    className="w-full text-left block px-4 py-2 text-sm text-red-600 hover:bg-red-50 border-t border-gray-100"
+                  >
+                    Sign out
+                  </button>
+                </div>
+              )}
+            </div>
+          ) : (
+            <>
+              <Link
+                href="/login"
+                className="text-sm text-gray-700 hover:text-indigo-600 font-medium px-3 py-2"
+              >
+                Sign in
+              </Link>
+              <Link
+                href="/register"
+                className="text-sm text-white bg-indigo-600 hover:bg-indigo-700 font-medium px-4 py-2 rounded-md"
+              >
+                Start Free
+              </Link>
+            </>
+          )}
+        </div>
+      </nav>
+    </header>
+  )
+}
