@@ -200,6 +200,9 @@ maximum
 # Turbo / monorepo cache
 .turbo/
 
+# Expo local cache (per-developer)
+**/.expo/
+
 # Python virtualenvs (used by tooling, not the platform)
 .venv/
 .venv-1/
