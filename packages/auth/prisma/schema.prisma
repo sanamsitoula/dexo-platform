@@ -1,0 +1,12 @@
+// This file references the main Prisma schema from the monorepo root
+// The actual schema is at: ../../prisma/schema.prisma
+
+generator client {
+  provider = "prisma-client-js"
+  output   = "../node_modules/.prisma/client"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}

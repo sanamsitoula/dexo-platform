@@ -1,0 +1,22 @@
+{
+  "name": "@dexo/cms",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Content blocks, page builder types, media helpers",
+  "author": "Dexo Platform Team",
+  "license": "PROPRIETARY",
+  "main": "src/index.ts",
+  "types": "src/index.ts",
+  "scripts": {
+    "build": "tsc",
+    "lint": "eslint . --ext .ts",
+    "type-check": "tsc --noEmit"
+  },
+  "dependencies": {
+    "@dexo/shared": "*"
+  },
+  "devDependencies": {
+    "@types/node": "^18.0.0",
+    "typescript": "^5.0.0"
+  }
+}

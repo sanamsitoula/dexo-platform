@@ -1,0 +1,5 @@
+{
+  "name": "@dexo/tenancy-runtime",
+  "main": "./index.ts",
+  "types": "./index.ts"
+}
