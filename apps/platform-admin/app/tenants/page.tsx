@@ -18,7 +18,7 @@ export default function TenantsPage() {
 
   useEffect(() => {
     fetch(`${API_URL}/api/tenants`, {
-      headers: { Authorization: `Bearer ${localStorage.getItem('token') || ''}` },
+      headers: { Authorization: `Bearer ${localStorage.getItem('accessToken') || ''}` },
     })
       .then((r) => r.json())
       .then((d) => {

@@ -16,8 +16,8 @@ export default function TenantLifecyclePage() {
 
   async function load() {
     const [tRes, lRes] = await Promise.all([
-      fetch(`${API_URL}/api/tenants/${id}`, { headers: { Authorization: `Bearer ${localStorage.getItem('token') || ''}` } }).then((r) => r.json()),
-      fetch(`${API_URL}/api/tenants/${id}/lifecycle`, { headers: { Authorization: `Bearer ${localStorage.getItem('token') || ''}` } }).then((r) => r.json()),
+      fetch(`${API_URL}/api/tenants/${id}`, { headers: { Authorization: `Bearer ${localStorage.getItem('accessToken') || ''}` } }).then((r) => r.json()),
+      fetch(`${API_URL}/api/tenants/${id}/lifecycle`, { headers: { Authorization: `Bearer ${localStorage.getItem('accessToken') || ''}` } }).then((r) => r.json()),
     ]);
     setTenant(tRes);
     setLc(lRes);
@@ -32,7 +32,7 @@ export default function TenantLifecyclePage() {
     try {
       const res = await fetch(`${API_URL}/api/tenants/${id}/lifecycle/${path}`, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${localStorage.getItem('token') || ''}` },
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${localStorage.getItem('accessToken') || ''}` },
         body: JSON.stringify(body),
       });
       if (!res.ok) {

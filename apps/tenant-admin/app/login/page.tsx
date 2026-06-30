@@ -30,6 +30,9 @@ export default function LoginPage() {
       const data = await res.json();
       const role = data?.user?.role || data?.user?.userRoles?.[0]?.role?.code || 'OWNER';
       const tenantSlug = data?.user?.tenant?.subdomain || 'vrfitness';
+      localStorage.setItem('token', data.accessToken);
+      localStorage.setItem('refreshToken', data.refreshToken);
+      localStorage.setItem('user', JSON.stringify(data.user || {}));
       document.cookie = `dexo-tenant-slug=${tenantSlug}; path=/; max-age=86400`;
       localStorage.setItem('dexo-tenant-slug', tenantSlug);
       const dest = ['OWNER', 'ADMIN'].includes(role) ? '/dashboard' : '/staff/dashboard';

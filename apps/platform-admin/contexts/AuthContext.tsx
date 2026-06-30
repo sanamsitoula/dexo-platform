@@ -34,6 +34,19 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }, [])
 
   async function checkAuth() {
+    // Cross-origin handoff: platform-web redirects here with ?token=<accessToken>
+    // Pick it up on first load if localStorage is empty, then clean the URL.
+    if (typeof window !== 'undefined') {
+      const params = new URLSearchParams(window.location.search)
+      const handoffToken = params.get('token')
+      if (handoffToken && !localStorage.getItem('accessToken')) {
+        localStorage.setItem('accessToken', handoffToken)
+        const url = new URL(window.location.href)
+        url.searchParams.delete('token')
+        window.history.replaceState({}, '', url.toString())
+      }
+    }
+
     const token = localStorage.getItem('accessToken')
     if (!token) {
       setLoading(false)
