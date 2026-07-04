@@ -10,6 +10,8 @@ const NAV = [
   { href: '/contacts',   label: 'Contacts' },
   { href: '/branches',   label: 'Branches' },
   { href: '/finance',    label: 'Finance' },
+  { href: '/reports',    label: 'Reports' },
+  { href: '/whatsapp',   label: 'WhatsApp' },
   { href: '/settings',   label: 'Settings' },
   { href: '/modules',    label: 'Modules' },
   { href: '/website',    label: 'Website' },

@@ -39,4 +39,75 @@ export class ReportsController {
   getAccountsReceivable(@Req() req: any) {
     return this.reportsService.getAccountsReceivable(req.user.tenantId);
   }
+
+  // ============================================================
+  // IRD ELECTRONIC BILLING REPORTS (Schedule 6D, audit, CBMS)
+  // ============================================================
+
+  @Get('sales-book')
+  getSalesBook(@Req() req: any, @Query('startDate') startDate?: string, @Query('endDate') endDate?: string) {
+    return this.reportsService.getSalesBook(req.user.tenantId, startDate, endDate);
+  }
+
+  @Get('purchase-book')
+  getPurchaseBook(@Req() req: any, @Query('startDate') startDate?: string, @Query('endDate') endDate?: string) {
+    return this.reportsService.getPurchaseBook(req.user.tenantId, startDate, endDate);
+  }
+
+  @Get('vat-return')
+  getVatReturn(@Req() req: any, @Query('startDate') startDate?: string, @Query('endDate') endDate?: string) {
+    return this.reportsService.getVatReturn(req.user.tenantId, startDate, endDate);
+  }
+
+  @Get('tds-summary')
+  getTdsSummary(@Req() req: any, @Query('startDate') startDate?: string, @Query('endDate') endDate?: string) {
+    return this.reportsService.getTdsSummary(req.user.tenantId, startDate, endDate);
+  }
+
+  @Get('deferred-revenue')
+  getDeferredRevenue(@Req() req: any, @Query('asOfDate') asOfDate?: string) {
+    return this.reportsService.getDeferredRevenueSchedule(req.user.tenantId, asOfDate);
+  }
+
+  @Get('ar-aging')
+  getArAging(@Req() req: any, @Query('asOfDate') asOfDate?: string) {
+    return this.reportsService.getArAging(req.user.tenantId, asOfDate);
+  }
+
+  @Get('ap-aging')
+  getApAging(@Req() req: any, @Query('asOfDate') asOfDate?: string) {
+    return this.reportsService.getApAging(req.user.tenantId, asOfDate);
+  }
+
+  @Get('cancelled-bills')
+  getCancelledBills(@Req() req: any, @Query('startDate') startDate?: string, @Query('endDate') endDate?: string) {
+    return this.reportsService.getCancelledBills(req.user.tenantId, startDate, endDate);
+  }
+
+  @Get('reprint-log')
+  getReprintLog(@Req() req: any, @Query('startDate') startDate?: string, @Query('endDate') endDate?: string) {
+    return this.reportsService.getReprintLog(req.user.tenantId, startDate, endDate);
+  }
+
+  @Get('audit-trail')
+  getAuditTrail(
+    @Req() req: any,
+    @Query('startDate') startDate?: string,
+    @Query('endDate') endDate?: string,
+    @Query('tableName') tableName?: string,
+    @Query('action') action?: string,
+    @Query('actionBy') actionBy?: string,
+  ) {
+    return this.reportsService.getAuditTrail(req.user.tenantId, startDate, endDate, { tableName, action, actionBy });
+  }
+
+  @Get('cbms-sync-status')
+  getCbmsSyncStatus(@Req() req: any) {
+    return this.reportsService.getCbmsSyncStatus(req.user.tenantId);
+  }
+
+  @Get('summary')
+  getSummary(@Req() req: any) {
+    return this.reportsService.getAllReportsSummary(req.user.tenantId);
+  }
 }
