@@ -261,6 +261,14 @@ export const tenantFinanceReportsApi = {
   },
   getCbmsSyncStatus: (subdomain: string) =>
     fetchApi<any>('/finance/reports/cbms-sync-status', subdomain),
+
+  // Retry all due (PENDING/FAILED) CBMS sync-queue rows (workstream 4.7)
+  retryCbmsSync: (subdomain: string) =>
+    fetchApi<{ processed: number; succeeded: number; failed: number }>(
+      '/finance/cbms/retry',
+      subdomain,
+      { method: 'POST' },
+    ),
 }
 
 export const tenantWhatsAppApi = {

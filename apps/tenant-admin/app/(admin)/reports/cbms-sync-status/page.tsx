@@ -11,13 +11,28 @@ export default function CbmsSyncStatusPage() {
   const [data, setData] = useState<any>(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
+  const [retrying, setRetrying] = useState(false)
 
-  useEffect(() => {
+  const load = () => {
     setLoading(true); setError(null)
     tenantFinanceReportsApi.getCbmsSyncStatus(subdomain).then((r) => {
       if (r.error) setError(r.error); else setData(r.data)
     }).finally(() => setLoading(false))
-  }, [subdomain])
+  }
+
+  useEffect(() => { load() }, [subdomain])
+
+  const handleRetry = async () => {
+    setRetrying(true)
+    const r = await tenantFinanceReportsApi.retryCbmsSync(subdomain)
+    setRetrying(false)
+    if (r.error) {
+      alert(`Retry failed: ${r.error}`)
+      return
+    }
+    alert(`Retry complete — processed ${r.data?.processed ?? 0}, succeeded ${r.data?.succeeded ?? 0}, failed ${r.data?.failed ?? 0}.`)
+    load()
+  }
 
   return (
     <div>
@@ -44,16 +59,16 @@ export default function CbmsSyncStatusPage() {
           </div>
           {data.needsAttention && (
             <div className="mb-4 p-3 rounded bg-red-50 border border-red-200 text-sm text-red-800">
-              ⚠ Action required: bills unsynced for &gt; 24 hours. Risk of IRD notice. Backend retry endpoint not implemented in MVP — see implementation_plan_4_6_ird_reports.md §6.4.
+              ⚠ Action required: bills unsynced for &gt; 24 hours. Risk of IRD notice. Use “Retry Failed Syncs” to re-transmit queued bills.
             </div>
           )}
-          {/* TODO: hook up POST /api/finance/cbms/retry when it exists */}
           <button
             type="button"
-            onClick={() => alert('Backend retry endpoint not implemented (MVP scope).')}
-            className="mb-4 px-3 py-2 text-sm font-medium rounded bg-blue-600 text-white hover:bg-blue-700"
+            onClick={handleRetry}
+            disabled={retrying}
+            className="mb-4 px-3 py-2 text-sm font-medium rounded bg-blue-600 text-white hover:bg-blue-700 disabled:opacity-60"
           >
-            ↻ Retry Failed Syncs
+            {retrying ? 'Retrying…' : '↻ Retry Failed Syncs'}
           </button>
           {data.failedQueue.length === 0 ? (
             <EmptyState message="No failed CBMS syncs. All bills up to date." />

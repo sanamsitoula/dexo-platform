@@ -917,6 +917,185 @@ Each branch has:
 
 ---
 
+## Phase 4: Fitness SaaS Launch Readiness ⏔ NOT STARTED
+
+> **Honest verdict:** Fitness functionality is complete but the product is **NOT launch-ready**.
+> Missing customer-facing launch essentials, communication integrations, and full financial/IRD reporting surface for tenants.
+
+### 4.1 Customer-Facing Launch Essentials ⏔ 0%
+
+**Status summary:** The fitness functionality is complete, but customer-facing launch essentials are missing:
+
+- [ ] **Legal / Compliance docs**
+  - [ ] Terms of Service (per-tenant + platform)
+  - [ ] Privacy Policy (Nepal Privacy Act 2079 + GDPR-ready)
+  - [ ] Data Processing Agreement (DPA) template
+  - [ ] Cookie consent banner + policy
+  - [ ] Refund & Cancellation policy (for member subscriptions)
+  - [ ] Copyright / IP notices in app footers
+- [ ] **Support system** (currently 0% across KB / tickets / chat)
+  - [ ] Knowledge Base module — articles, categories, search, AI suggestions
+  - [ ] Support Ticket system — email ingestion, SLA management, agent queues
+  - [ ] Live Chat — WebSocket-based, agent assignment, offline → email fallback
+  - [ ] In-app help widget (Cog → Help) context-aware per page
+- [ ] **Beta validation** (Phase 3 never started)
+  - [ ] Recruit 5–10 fitness-center beta tenants (Kathmandu / Pokhara)
+  - [ ] Onboarding & training sessions, training videos
+  - [ ] Feedback loop (in-app feedback widget + survey)
+  - [ ] Usage / satisfaction metrics (target NPS ≥ 4/5)
+  - [ ] Case studies + testimonials after 30-day pilot
+
+### 4.2 WhatsApp Integration — ✅ COMPLETE (MVP)
+
+WhatsApp previously existed only as a static social-link placeholder in `TenantWebsiteMockup.tsx:26` and the tenant signup wizard (`apps/platform-admin/app/tenants/new/page.tsx:168`). **Now fully integrated** with Meta Cloud API v18+.
+
+- [x] **WhatsApp Cloud API** (Meta Graph API v18+) integration via `WhatsAppService`
+- [x] Per-tenant WhatsApp number config (new `TenantWhatsAppConfig` Prisma model — migration applied `20260630100542`)
+- [x] Shared service in `apps/api/src/modules/whatsapp/whatsapp.service.ts` (send text, send template, opt-in/out)
+- [x] Outbound notifications via `POST /api/whatsapp/notify` (template-key based — wire to Notification module cron jobs: TODO)
+- [x] Opt-out / opt-in management (mandatory per Meta policy) via `POST /api/whatsapp/opt-out` / `opt-in`
+- [x] Tenant-admin UI: WhatsApp Settings page at `/whatsapp` (phone number, credentials, templates map, test message)
+- [x] Tenant-website: floating "Chat on WhatsApp" button (`components/FloatingWhatsApp.tsx` in layout.tsx) + Contact page button
+- [x] Public (no-auth) endpoint `GET /api/whatsapp/public/:subdomain` for tenant-website button
+- [x] Admin endpoints: `GET/PUT /api/whatsapp/config`, `POST /api/whatsapp/test`, `POST /api/whatsapp/notify`
+- [x] **Stub mode** — when no Meta credentials configured, messages are logged to API console (lets devs test UI without Meta setup)
+- [ ] Inbound webhook handler `/api/whatsapp/webhook/:tenantId` — TODO (post-MVP)
+- [ ] Auto-reply rule engine — TODO (post-MVP)
+- [ ] Wire notification triggers to cron jobs (membership expiry, payment received, class reminder) — TODO (depends on Notification module refactor)
+- [ ] Secret encryption at rest for `accessToken` — TODO (security hardening)
+
+### 4.3 Contact Us — ✅ COMPLETE (MVP)
+
+- [x] **Tenant-website public Contact Us page** (`apps/tenant-website/app/contact/page.tsx`)
+  - [x] Branch-aware contact info (HQ + each branch address, phone, map link)
+  - [x] Contact form (name, email, phone, subject, message) → saved as `ContactMessage` (tenant-scoped via `subdomain` resolution in the existing `ContactController`)
+  - [x] OpenStreetMap embed link from `Branch.latitude` / `Branch.longitude`
+  - [x] WhatsApp click-to-chat button (tied to 4.2 `whatsapp/public/:subdomain` config)
+  - [x] Footer link on tenant-website home page
+- [x] **Platform-web Contact Us page** (`apps/platform-web/app/contact/page.tsx`) — existed previously but POSTed to non-existent `/api/contact`. **Fixed**: now POSTs to `http://localhost:4000/api/contact` with `source: 'platform_web_contact_form'`
+- [x] API endpoints (already existed — verified working):
+  - [x] `POST /api/contact` — public contact form (resolves tenant from `subdomain` or `tenantId`)
+  - [x] `GET /api/contact` — list messages (admin, tenant-scoped)
+  - [x] `GET /api/contact/stats`, `GET /api/contact/:id`, `PUT /api/contact/:id`, `POST /api/contact/:id/reply`
+- [x] Added `contactApi` to `apps/platform-web/lib/api.ts` for typed access
+- [ ] Mobile: contact screen — TODO (mobile app needs separate screen)
+
+### 4.4 Platform Billing Environment ⏔ 30%
+
+> Per **FINANCE_MODULE.md §7** — Dexo bills tenants as a separate accounting entity. The Subscription module exists (per `todo.md` §1.2) but the **IRD-compliant Dexo billing engine**, dunning workflow, and tenant-facing billing portal are incomplete.
+
+**Backend (API):**
+- [ ] `DexoBillingService` — issues IRD-compliant electronic invoices from Dexo's own books to each paying tenant
+- [ ] Monthly auto-billing job (BullMQ cron `0 2 1 * *`) per §7.2
+- [ ] Deferred Subscription Revenue recognition job (1/12 monthly per §7.3)
+- [ ] Failed payment dunning workflow (D+3 reminder → D+7 flag → D+15 downgrade → D+30 suspend)
+- [ ] Subscription invoice → master_bill + journal entry + CBMS sync (Dexo as taxpayer)
+- [ ] VAT Payable calculation on Dexo subscription revenue (NPR 13%)
+- [ ] `GET /api/platform/billing/invoices` — list Dexo→tenant invoices
+- [ ] `GET /api/platform/billing/revenue` — platform revenue dashboard data
+- [ ] Tenant auto-debit via saved payment method (eSewa / ConnectIPS / Stripe)
+
+**Platform Admin UI (`apps/platform-admin`):**
+- [ ] Platform Billing menu (separate from existing Subscriptions page)
+  - [ ] Revenue dashboard — MRR, ARR, churn, AR aging from tenants
+  - [ ] Invoices list (Dexo-issued, IRD-compliant, printable)
+  - [ ] Dunning queue — overdue tenants, days-past-due, action buttons (remind / downgrade / suspend)
+  - [ ] Plan management (Free / Starter / Growth / Enterprise) with NPR pricing per §7.1
+
+**Tenant Admin UI (`apps/tenant-admin`):**
+- [ ] "Billing & Subscription" page that surfaces Dexo→tenant invoices (not just invoices the tenant issues to its members)
+- [ ] Pay outstanding platform invoice → gateway redirect (eSewa / ConnectIPS / Stripe)
+- [ ] Download IRD-compliant platform invoices (PDF with bill_no, PAN, VAT)
+- [ ] Update payment method (saved card / wallet)
+
+### 4.5 NFRS Financial Reports — ✅ COMPLETE (MVP)
+
+> Per `apps/api/src/modules/finance/reports.controller.ts`, these **were already implemented** in the API:
+> - `GET /api/finance/reports/balance-sheet`
+> - `GET /api/finance/reports/income-statement`
+> - `GET /api/finance/reports/trial-balance`
+> - `GET /api/finance/reports/cash-flow`
+> - `GET /api/finance/reports/accounts-receivable`
+>
+> **STATUS: Tenant-admin UI built in the 4.6 pass.** Pages live at `/reports/finance/*`.
+
+**Tenant-admin UI delivered (`apps/tenant-admin/app/(admin)/reports/finance/`)** — ✅:
+- [x] Reports landing page at `/reports` (groups NFRS + IRD sections)
+- [x] **Balance Sheet** (NFRS) — assets/liabilities/equity sections, balance indicator, as-of-date picker
+- [x] **Income Statement** (NFRS) — Net Revenue → Gross Profit → Operating Profit → Net Profit
+- [x] **Trial Balance** — debit/credit columns + totals-balance check
+- [x] **Cash Flow Statement** — operating/investing/financing (TODO: investing/financing allocations = 0 in MVP)
+- [x] **Accounts Receivable** — aging snapshot + invoice rows
+- [x] CSV export on each page (Excel/PDF/XML TODO)
+- [ ] Saved/comparison view — current vs previous period side-by-side (TODO — MVP)
+- [ ] Draggable widget on Dynamic Dashboard: "This Month's P&L Snapshot" (TODO — needs widget engine work)
+
+### 4.6 IRD Electronic Billing Reports — ✅ COMPLETE (MVP)
+
+> Per FINANCE_MODULE.md §16.4 and §17, these reports are mandatory for Nepal IRD compliance.
+> **STATUS: All 11 IRD report endpoints + UI pages implemented in this pass.** CSV export for MVP; native Excel/PDF marked TODO.
+
+**Backend `ReportsController` additions** (`apps/api/src/modules/finance/reports.controller.ts`) — ✅:
+- [x] `GET /api/finance/reports/sales-book` — IRD Schedule 6D
+- [x] `GET /api/finance/reports/purchase-book` — Purchase register
+- [x] `GET /api/finance/reports/vat-return` — Output VAT vs Input VAT → Net VAT Payable
+- [x] `GET /api/finance/reports/tds-summary` — TDS deducted per payee
+- [x] `GET /api/finance/reports/deferred-revenue` — Deferred revenue schedule
+- [x] `GET /api/finance/reports/ar-aging` — Aging buckets (0-30 / 31-60 / 61-90 / 90+)
+- [x] `GET /api/finance/reports/ap-aging` — AP aging buckets
+- [x] `GET /api/finance/reports/cancelled-bills` — Cancelled invoices with reason (IRD audit)
+- [x] `GET /api/finance/reports/reprint-log` — Reprint log per invoice
+- [x] `GET /api/finance/reports/audit-trail` — User-action log (IRD §17.2)
+- [x] `GET /api/finance/reports/cbms-sync-status` — Pending/failed CBMS syncs
+- [x] `GET /api/finance/reports/summary` — Aggregate counts for landing page
+- [ ] Per-report **Excel / XML / PDF export** (TODO — CSV-only in MVP)
+
+**Tenant-admin UI — `/reports/ird-compliance/*` section** — ✅:
+- [x] Sales Book (Schedule 6D) — table + CSV export
+- [x] Purchase Book — table + CSV export
+- [x] VAT Return computation view
+- [x] TDS Deducted Summary
+- [x] Deferred Revenue Schedule
+- [x] AR Aging report — buckets + drill-down (rows > 90 days highlighted)
+- [x] AP Aging report
+- [x] Cancelled Bills Register
+- [x] Reprint Log (with ORIGINAL/COPY badges)
+- [x] CBMS Sync Status dashboard (retry button stub — backend retry endpoint TODO)
+- [x] Audit Trail report — filter by table/action/user
+
+**Bonus (delivered as part of 4.6 pass):** the 4 NFRS financial statement pages (4.5) were also built — Balance Sheet, Income Statement, Trial Balance, Cash Flow, plus Accounts Receivable page. Backend endpoints already existed; only UI was missing.
+
+### 4.7 IRD-Specific Real-Time Operations for Fitness — ⚠️ MOSTLY COMPLETE (MVP)
+
+Fitness center is VAT-registered (`vrfitness` seed tenant) — the live IRD flow is now wired.
+CBMS runs in **stub mode** (simulated success + console log) until platform env credentials
+(`CBMS_API_URL`, `CBMS_USERNAME`, `CBMS_PASSWORD`, `IRD_SELLER_PAN`) are set — mirrors the WhatsApp stub approach.
+
+- [x] Issue member invoice → write `master_bills` row → **CBMS sync attempt** → mark `sync_with_ird=TRUE` on success, else queue for retry (`CbmsSyncService.syncBill`, called from `InvoicesService.createMasterBill`) (per §11)
+- [x] Reprint control — first print = ORIGINAL, subsequent = "COPY OF ORIGINAL / प्रतिलिपि" watermark + `ReprintLog` entry (`InvoicesService.recordPrint`)
+- [x] Invoice cancellation with reason → **reversal journal entry** (`GlPostingService.reverseInvoice`) + master-bill deactivate + **CBMS CANCEL sync** + `FinanceAuditLog` entry (`InvoicesService.cancel`)
+- [x] Bill number sequencing **atomic per fiscal year** via `BillSequence` upsert-increment (race-safe; resets per FY) (`InvoicesService.nextSequence`)
+- [x] CBMS retry queue + processor (`CbmsSyncService.retryQueue`) wired to `POST /api/finance/cbms/retry` and the tenant-admin CBMS Sync Status "Retry Failed Syncs" button
+- [ ] Real CBMS API integration (currently stub; needs IRD sandbox creds + signed payloads) — TODO
+- [ ] Electronic Payment (eSewa / ConnectIPS / Khalti) → **10% VAT refund** (Schedule 8) transmission to payment operator per §10.2 — TODO (post-MVP)
+- [ ] Per-tenant CBMS credentials (currently platform-level env) — TODO
+- [ ] Move retry processor to a BullMQ cron (currently on-demand via button) — TODO
+
+### 4.8 Estimated Launch Effort
+
+| Workstream | Status | Estimated Effort |
+|-----------|--------|------------------|
+| 4.1 Launch essentials (legal, support, beta) | 0% | 4–6 weeks |
+| 4.2 WhatsApp integration | ✅ DONE (MVP) | delivered |
+| 4.3 Contact Us | ✅ DONE (MVP) | delivered |
+| 4.4 Platform billing environment | 30% | 2–3 weeks |
+| 4.5 NFRS reports UI (backend ready) | ✅ DONE (MVP) | delivered with 4.6 |
+| 4.6 IRD reports (API + UI) | ✅ DONE (MVP) | delivered |
+| 4.7 IRD live ops for fitness | ✅ DONE (MVP, stub CBMS) | delivered |
+| **Total to public launch** | — | **~5–8 weeks remaining** |
+
+---
+
 ## Next Priority Items
 
 ### ✅ Recently Completed
