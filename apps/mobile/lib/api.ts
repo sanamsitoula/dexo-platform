@@ -55,10 +55,10 @@ async function fetchApi<T>(
 }
 
 export const authApi = {
-  login: (email: string, password: string) =>
+  login: (email: string, password: string, subdomain?: string) =>
     fetchApi<{ accessToken: string; refreshToken: string; user: any }>('/auth/login', {
       method: 'POST',
-      body: JSON.stringify({ email, password }),
+      body: JSON.stringify(subdomain ? { email, password, subdomain } : { email, password }),
     }),
   register: (data: { email: string; password: string; firstName: string; lastName: string }) =>
     fetchApi<{ user: any }>('/auth/register', {
@@ -149,6 +149,13 @@ export const tenantsApi = {
     if (params?.limit) searchParams.append('limit', params.limit.toString());
     if (params?.status) searchParams.append('status', params.status);
     return fetchApi<{ data: any[] }>(`/tenants?${searchParams.toString()}`);
+  },
+  /** Public: server-side search of ACTIVE tenants (for the login tenant selector). Returns up to `limit` (default 10). */
+  publicSearch: (q?: string, limit = 10) => {
+    const params = new URLSearchParams();
+    if (q && q.trim()) params.append('q', q.trim());
+    params.append('limit', String(limit));
+    return fetchApi<any[]>(`/tenants/public?${params.toString()}`);
   },
   /** Returns the tenant(s) the current authenticated user belongs to */
   myTenants: () => fetchApi<{ data: any[] }>('/tenants/me'),
@@ -258,6 +265,7 @@ export const fitnessApi = {
     },
     get: (id: string) => fetchApi<any>(`/fitness/members/${id}`),
     me: () => fetchApi<any>('/fitness/members/me'),
+    updateMe: (data: any) => fetchApi<any>('/fitness/members/me', { method: 'PUT', body: JSON.stringify(data) }),
     create: (data: any) => fetchApi<any>('/fitness/members', { method: 'POST', body: JSON.stringify(data) }),
     verify: (id: string) => fetchApi<any>(`/fitness/members/${id}/verify`, { method: 'POST' }),
     stats: (branchId?: string) => fetchApi<any>(`/fitness/members/stats${branchId ? `?branchId=${branchId}` : ''}`),

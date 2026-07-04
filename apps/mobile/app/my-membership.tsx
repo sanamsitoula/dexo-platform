@@ -62,6 +62,22 @@ export default function MyMembershipScreen() {
     loadData();
   };
 
+  const handleSubscribe = async (planId: string) => {
+    if (!member?.id) return Alert.alert('Error', 'Member profile not found.');
+    Alert.alert('Subscribe', 'Reserve this plan? You can complete payment to activate it.', [
+      { text: 'Cancel', style: 'cancel' },
+      {
+        text: 'Subscribe',
+        onPress: async () => {
+          const res = await fitnessApi.memberships.create({ memberId: member.id, planId });
+          if (res.error) return Alert.alert('Error', res.error);
+          Alert.alert('Reserved', 'Plan reserved. Complete payment to activate your membership.');
+          loadData();
+        },
+      },
+    ]);
+  };
+
   if (loading) {
     return <View style={styles.center}><ActivityIndicator size="large" color={Colors.primary} /></View>;
   }
@@ -155,7 +171,11 @@ export default function MyMembershipScreen() {
             <View style={styles.vatRow}>
               <Text style={styles.vatText}>+{p.vatPercent}% VAT = NPR {p.totalWithVat}</Text>
             </View>
-            <TouchableOpacity style={styles.btn}>
+            <TouchableOpacity
+              style={[styles.btn, activePlan?.planId === p.id && { backgroundColor: Colors.textMuted }]}
+              disabled={activePlan?.planId === p.id}
+              onPress={() => handleSubscribe(p.id)}
+            >
               <Text style={styles.btnText}>{activePlan?.planId === p.id ? 'Current Plan' : 'Subscribe'}</Text>
             </TouchableOpacity>
           </View>

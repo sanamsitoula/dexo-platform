@@ -22,6 +22,12 @@ export class MembersController {
     return this.service.findByUserId(req.user.tenantId, req.user.id);
   }
 
+  /** A member updating their OWN profile (mobile onboarding). */
+  @Put('me')
+  updateMine(@Req() req: any, @Body() dto: any) {
+    return this.service.updateByUserId(req.user.tenantId, req.user.id, dto);
+  }
+
   @Get(':id')
   findOne(@Req() req: any, @Param('id') id: string) {
     return this.service.findOne(req.user.tenantId, id);

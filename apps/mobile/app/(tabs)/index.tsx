@@ -10,11 +10,12 @@ import {
   Image,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
+import * as SecureStore from 'expo-secure-store';
 import { useRouter } from 'expo-router';
 import { useAuth } from '../../lib/auth-context';
 import { useTenant } from '../../lib/tenant-context';
 import { Colors, Spacing, BorderRadius, FontSize } from '../../lib/theme';
-import { customersApi, packagesApi, paymentsApi, workoutsApi } from '../../lib/api';
+import { fitnessApi } from '../../lib/api';
 
 interface DashboardData {
   upcomingWorkouts: number;
@@ -48,30 +49,61 @@ export default function HomeScreen() {
 
   async function loadDashboard() {
     setLoading(true);
-    // Load data in parallel
-    const [workoutsRes, packagesRes, invoicesRes, paymentsRes] = await Promise.all([
-      workoutsApi.list().catch(() => ({ data: [] })),
-      packagesApi.myPackages().catch(() => ({ data: [] })),
-      paymentsApi.listInvoices().catch(() => ({ data: [] })),
-      paymentsApi.listPayments().catch(() => ({ data: [] })),
+
+    // The member profile carries the active membership (+plan) and trainer.
+    const memberRes = await fitnessApi.members.me().catch(() => ({ data: null as any }));
+    const member = memberRes.data;
+
+    // Route brand-new members to onboarding once (guarded by a local flag so
+    // "skip" doesn't loop them back here).
+    if (member && user?.id) {
+      const onboarded = await SecureStore.getItemAsync(`onboarded_${user.id}`).catch(() => null);
+      const incomplete = !member.goals && member.status === 'PENDING_VERIFICATION';
+      if (incomplete && !onboarded) {
+        router.replace('/onboarding');
+        return;
+      }
+    }
+
+    const memberId = member?.id;
+    const [logsRes, pendingRes] = await Promise.all([
+      memberId ? fitnessApi.workoutLogs.list({ memberId }).catch(() => ({ data: [] as any })) : Promise.resolve({ data: [] as any }),
+      memberId ? fitnessApi.memberships.list({ memberId, status: 'PENDING' }).catch(() => ({ data: null as any })) : Promise.resolve({ data: null as any }),
     ]);
 
-    const workouts = workoutsRes.data || [];
-    const packages = packagesRes.data || [];
-    const invoices = invoicesRes.data || [];
-    const payments = paymentsRes.data || [];
+    const logs = Array.isArray(logsRes.data) ? logsRes.data : logsRes.data?.items ?? [];
+    const pendingList = Array.isArray(pendingRes.data) ? pendingRes.data : pendingRes.data?.items ?? [];
 
-    const activePackage = packages.find((p: any) => p.status === 'active') || packages[0] || null;
-    const pendingInvoices = invoices.filter((i: any) => i.status === 'pending' || i.status === 'overdue');
-    const nextPayment = pendingInvoices[0] || null;
+    const activeMembership = member?.memberships?.[0] || null;
+    const activePackage = activeMembership
+      ? {
+          name: activeMembership.plan?.name,
+          status: activeMembership.status?.toLowerCase(),
+          startDate: activeMembership.startDate,
+          nextBillingDate: activeMembership.endDate,
+          price: activeMembership.plan?.priceNpr,
+          billingCycle: activeMembership.plan?.type,
+        }
+      : null;
+
+    // Next payment due = a PENDING membership awaiting payment.
+    const pending = pendingList[0] || null;
+    const nextPayment = pending
+      ? {
+          amount: pending.amountPaid ?? pending.plan?.totalWithVat,
+          invoiceNumber: pending.qrCode?.slice(-8),
+          dueDate: pending.startDate,
+          membershipId: pending.id,
+        }
+      : null;
 
     setData({
-      upcomingWorkouts: workouts.filter((w: any) => new Date(w.date) > new Date()).length,
-      totalWorkouts: workouts.length,
+      upcomingWorkouts: activeMembership ? 1 : 0,
+      totalWorkouts: logs.length,
       activePackage,
       nextPayment,
-      recentInvoices: invoices.slice(0, 3),
-      trainer: null,
+      recentInvoices: [],
+      trainer: member?.trainer || null,
     });
     setLoading(false);
   }
@@ -184,7 +216,7 @@ export default function HomeScreen() {
                 <View style={styles.packageDetail}>
                   <Ionicons name="cash-outline" size={16} color={Colors.textSecondary} />
                   <Text style={styles.packageDetailText}>
-                    ${data.activePackage.price}/{data.activePackage.billingCycle?.toLowerCase() || 'month'}
+                    NPR {data.activePackage.price}/{data.activePackage.billingCycle?.toLowerCase() || 'month'}
                   </Text>
                 </View>
               )}
@@ -205,7 +237,7 @@ export default function HomeScreen() {
             </View>
             <View style={{ flex: 1, marginLeft: Spacing.md }}>
               <Text style={styles.paymentTitle}>
-                ${data.nextPayment.amount || data.nextPayment.total} due
+                NPR {data.nextPayment.amount} due
               </Text>
               <Text style={styles.paymentSub}>
                 Invoice {data.nextPayment.invoiceNumber || data.nextPayment.id?.substring(0, 8)}
