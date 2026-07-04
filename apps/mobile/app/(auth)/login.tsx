@@ -12,6 +12,7 @@ import {
   ScrollView,
 } from 'react-native';
 import { Link, useRouter } from 'expo-router';
+import { Ionicons } from '@expo/vector-icons';
 import { useAuth } from '../../lib/auth-context';
 import { Colors, Spacing, BorderRadius, FontSize } from '../../lib/theme';
 import SocialLoginButtons from '../../components/SocialLoginButtons';
@@ -22,30 +23,46 @@ export default function LoginScreen() {
   const { login } = useAuth();
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
-  const [tenantSubdomain, setTenantSubdomain] = useState('fitnessapp');
+  const [tenantSubdomain, setTenantSubdomain] = useState('');
   const [loading, setLoading] = useState(false);
-  const [tenants, setTenants] = useState<any[]>([]);
+
+  // Tenant picker: fetch ALL active businesses once, then filter client-side so
+  // the dropdown shows every available business immediately (no typing needed).
+  const [tenantQuery, setTenantQuery] = useState('');
+  const [allTenants, setAllTenants] = useState<any[]>([]);
   const [showTenantList, setShowTenantList] = useState(false);
+  const [tenantsLoading, setTenantsLoading] = useState(true);
 
   useEffect(() => {
-    loadTenants();
+    (async () => {
+      setTenantsLoading(true);
+      const res = await tenantsApi.publicSearch('', 50);
+      const payload: any = res.data;
+      const list: any[] = Array.isArray(payload) ? payload : payload?.data ?? [];
+      setAllTenants(list);
+      setTenantsLoading(false);
+    })();
   }, []);
 
-  async function loadTenants() {
-    const res = await tenantsApi.list({ limit: 50 });
-    if (res.error) {
-      console.warn('[login] tenantsApi.list error:', res.error);
-      return;
-    }
-    const payload: any = res.data;
-    const list: any[] = Array.isArray(payload) ? payload : (payload?.data ?? []);
-    console.log('[login] loaded', list.length, 'tenants');
-    setTenants(list);
+  const filteredTenants = allTenants.filter((t) =>
+    !tenantQuery.trim() ||
+    t.name?.toLowerCase().includes(tenantQuery.toLowerCase()) ||
+    t.subdomain?.toLowerCase().includes(tenantQuery.toLowerCase())
+  );
+
+  function selectTenant(t: any) {
+    setTenantSubdomain(t.subdomain);
+    setTenantQuery('');
+    setShowTenantList(false);
   }
 
   async function handleLogin() {
     if (!email || !password) {
       Alert.alert('Error', 'Please fill in all fields');
+      return;
+    }
+    if (!tenantSubdomain) {
+      Alert.alert('Error', 'Please select your business');
       return;
     }
     setLoading(true);
@@ -58,7 +75,7 @@ export default function LoginScreen() {
     }
   }
 
-  const selectedTenant = tenants.find((t) => t.subdomain === tenantSubdomain);
+  const selectedTenant = allTenants.find((t) => t.subdomain === tenantSubdomain);
 
   return (
     <KeyboardAvoidingView
@@ -76,68 +93,75 @@ export default function LoginScreen() {
           </View>
 
           <View style={styles.form}>
-            {/* Tenant Selector */}
+            {/* Tenant Selector — server-side search, top 10 results */}
             <View>
-              <Text style={styles.label}>Business *</Text>
+              <Text style={styles.label}>Select your business *</Text>
+
+              {/* Tap to open — shows ALL available businesses immediately */}
               <TouchableOpacity
-                style={styles.tenantSelector}
-                onPress={() => setShowTenantList(!showTenantList)}
+                style={[styles.searchBox, showTenantList && { borderBottomLeftRadius: 0, borderBottomRightRadius: 0 }]}
+                activeOpacity={0.7}
+                onPress={() => setShowTenantList((s) => !s)}
               >
-                <View style={styles.tenantSelectorLeft}>
-                  {selectedTenant ? (
-                    <>
-                      <View
-                        style={[
-                          styles.tenantIcon,
-                          { backgroundColor: selectedTenant.primaryColor || Colors.primary },
-                        ]}
-                      >
-                        <Text style={styles.tenantIconText}>
-                          {selectedTenant.name.charAt(0).toUpperCase()}
-                        </Text>
-                      </View>
-                      <View>
-                        <Text style={styles.tenantName}>{selectedTenant.name}</Text>
-                        <Text style={styles.tenantSub}>
-                          {selectedTenant.subdomain}.dexo.app
-                        </Text>
-                      </View>
-                    </>
-                  ) : (
-                    <Text style={styles.placeholderText}>Select a business</Text>
-                  )}
-                </View>
-                <Text style={styles.chevron}>▼</Text>
+                {selectedTenant ? (
+                  <View style={styles.pickerRow}>
+                    <View style={[styles.tenantIcon, { backgroundColor: selectedTenant.primaryColor || Colors.primary }]}>
+                      <Text style={styles.tenantIconText}>{selectedTenant.name.charAt(0).toUpperCase()}</Text>
+                    </View>
+                    <View style={{ flex: 1 }}>
+                      <Text style={styles.tenantName}>{selectedTenant.name}</Text>
+                      <Text style={styles.tenantSub}>{selectedTenant.subdomain}.dexo.app</Text>
+                    </View>
+                  </View>
+                ) : (
+                  <Text style={styles.pickerPlaceholder}>
+                    {tenantsLoading ? 'Loading businesses…' : 'Tap to choose your gym / business'}
+                  </Text>
+                )}
+                <Text style={styles.chevron}>{showTenantList ? '▲' : '▼'}</Text>
               </TouchableOpacity>
 
               {showTenantList && (
                 <View style={styles.tenantList}>
-                  <ScrollView style={{ maxHeight: 200 }} nestedScrollEnabled>
-                    {tenants.map((t) => (
-                      <TouchableOpacity
-                        key={t.id}
-                        style={styles.tenantItem}
-                        onPress={() => {
-                          setTenantSubdomain(t.subdomain);
-                          setShowTenantList(false);
-                        }}
-                      >
-                        <View
-                          style={[
-                            styles.tenantIcon,
-                            { backgroundColor: t.primaryColor || Colors.primary },
-                          ]}
+                  <View style={styles.dropdownSearch}>
+                    <Ionicons name="search-outline" size={16} color={Colors.textLight} />
+                    <TextInput
+                      style={styles.dropdownSearchInput}
+                      value={tenantQuery}
+                      onChangeText={setTenantQuery}
+                      placeholder="Search businesses…"
+                      placeholderTextColor={Colors.textLight}
+                    />
+                  </View>
+                  <ScrollView style={{ maxHeight: 240 }} nestedScrollEnabled keyboardShouldPersistTaps="handled">
+                    {tenantsLoading ? (
+                      <View style={{ padding: Spacing.md, alignItems: 'center' }}>
+                        <ActivityIndicator color={Colors.primary} />
+                      </View>
+                    ) : filteredTenants.length === 0 ? (
+                      <Text style={styles.emptyText}>
+                        No business found. If your gym isn't listed, ask them to sign up at dexo.com.
+                      </Text>
+                    ) : (
+                      filteredTenants.map((t) => (
+                        <TouchableOpacity
+                          key={t.id}
+                          style={[styles.tenantItem, tenantSubdomain === t.subdomain && { backgroundColor: '#eef2ff' }]}
+                          onPress={() => selectTenant(t)}
                         >
-                          <Text style={styles.tenantIconText}>
-                            {t.name.charAt(0).toUpperCase()}
-                          </Text>
-                        </View>
-                        <View style={{ flex: 1 }}>
-                          <Text style={styles.tenantName}>{t.name}</Text>
-                          <Text style={styles.tenantSub}>{t.subdomain}.dexo.app</Text>
-                        </View>
-                      </TouchableOpacity>
-                    ))}
+                          <View style={[styles.tenantIcon, { backgroundColor: t.primaryColor || Colors.primary }]}>
+                            <Text style={styles.tenantIconText}>{t.name.charAt(0).toUpperCase()}</Text>
+                          </View>
+                          <View style={{ flex: 1 }}>
+                            <Text style={styles.tenantName}>{t.name}</Text>
+                            <Text style={styles.tenantSub}>{t.subdomain}.dexo.app</Text>
+                          </View>
+                          {tenantSubdomain === t.subdomain && (
+                            <Ionicons name="checkmark-circle" size={20} color={Colors.primary} />
+                          )}
+                        </TouchableOpacity>
+                      ))
+                    )}
                   </ScrollView>
                 </View>
               )}
@@ -228,7 +252,7 @@ const styles = StyleSheet.create({
     fontSize: FontSize.md,
     color: Colors.text,
   },
-  tenantSelector: {
+  searchBox: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
@@ -237,9 +261,26 @@ const styles = StyleSheet.create({
     borderColor: Colors.border,
     borderRadius: BorderRadius.md,
     paddingHorizontal: Spacing.md,
-    paddingVertical: Spacing.sm,
+    paddingVertical: 2,
   },
-  tenantSelectorLeft: { flexDirection: 'row', alignItems: 'center', gap: Spacing.sm, flex: 1 },
+  searchInput: { flex: 1, fontSize: FontSize.md, color: Colors.text, paddingVertical: Spacing.sm + 2 },
+  pickerRow: { flexDirection: 'row', alignItems: 'center', gap: Spacing.sm, flex: 1, paddingVertical: Spacing.xs },
+  pickerPlaceholder: { flex: 1, fontSize: FontSize.md, color: Colors.textLight, paddingVertical: Spacing.sm + 2 },
+  dropdownSearch: { flexDirection: 'row', alignItems: 'center', gap: Spacing.xs, paddingHorizontal: Spacing.md, paddingVertical: Spacing.sm, borderBottomWidth: 1, borderBottomColor: Colors.border },
+  dropdownSearchInput: { flex: 1, fontSize: FontSize.sm, color: Colors.text, paddingVertical: 2 },
+  selectedChip: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: Spacing.sm,
+    backgroundColor: '#eef2ff',
+    borderWidth: 1,
+    borderColor: '#c7d2fe',
+    borderRadius: BorderRadius.md,
+    paddingHorizontal: Spacing.md,
+    paddingVertical: Spacing.sm,
+    marginBottom: Spacing.sm,
+  },
+  changeBtn: { fontSize: FontSize.sm, color: Colors.primary, fontWeight: '700' },
   tenantIcon: {
     width: 36,
     height: 36,
@@ -254,9 +295,11 @@ const styles = StyleSheet.create({
   tenantList: {
     backgroundColor: Colors.white,
     borderWidth: 1,
+    borderTopWidth: 0,
     borderColor: Colors.border,
-    borderRadius: BorderRadius.md,
-    marginTop: 4,
+    borderBottomLeftRadius: BorderRadius.md,
+    borderBottomRightRadius: BorderRadius.md,
+    marginTop: 0,
   },
   tenantItem: {
     flexDirection: 'row',
@@ -267,7 +310,7 @@ const styles = StyleSheet.create({
     borderBottomWidth: 1,
     borderBottomColor: Colors.border,
   },
-  placeholderText: { color: Colors.textLight, fontSize: FontSize.md },
+  emptyText: { color: Colors.textMuted, fontSize: FontSize.sm, padding: Spacing.md, fontStyle: 'italic' },
   button: {
     backgroundColor: Colors.primary,
     borderRadius: BorderRadius.md,
