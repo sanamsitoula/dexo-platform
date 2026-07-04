@@ -1,92 +1,129 @@
-// Fixed version to resolve the TypeError: Cannot read properties of undefined (reading 'ppr')
 import Link from 'next/link';
+import { headers } from 'next/headers';
+import { getFitnessInfo, getFitnessPlans, type FitnessInfo, type FitnessPlan } from '@/lib/api';
 
-// Mock function to get template - in production this would come from context or props
-async function getTemplate() {
-  // This would normally come from React context or props
-  // For now, returning mock data to prevent errors
-  return {
-    id: 'template-1',
-    domainType: 'FITNESS_CENTER',
-    name: 'Fitness Center Template',
-    tagline: 'Transform lives, one workout at a time',
-    description: 'Complete gym and fitness management platform',
-    colorPrimary: '#E85D24',
-    colorAccent: '#F2A623',
-    colorBg: '#0F0F0F',
-    fontHeading: 'Inter',
-    fontBody: 'Inter',
-    websiteSections: {
-      hero: { enabled: true },
-      services: { enabled: true },
-      cta: { enabled: true }
-    }
-  };
+function resolveSubdomain(): string {
+  const h = headers();
+  return h.get('x-tenant-slug') || process.env.DEV_TENANT || 'vrfitness';
+}
+
+const FEATURES = [
+  { icon: '🏋️', title: 'Personalized Workouts', desc: 'Trainer-approved plans tailored to your goals, with progress logging.' },
+  { icon: '🥗', title: 'Diet & Calorie Tracker', desc: 'Log meals (incl. Nepali foods) and track calories, protein and macros daily.' },
+  { icon: '📅', title: 'Classes & Booking', desc: 'Browse the class schedule and book your spot from your phone.' },
+  { icon: '📈', title: 'Progress & Assessments', desc: 'Body measurements, streaks and milestone badges keep you motivated.' },
+  { icon: '💳', title: 'Easy Payments', desc: 'Pay membership dues online via eSewa, Khalti, ConnectIPS or card.' },
+  { icon: '📱', title: 'Everything in the App', desc: 'Check in with a QR code, message your trainer, and manage your membership.' },
+];
+
+const FALLBACK: FitnessInfo = {
+  id: '', name: 'Fitness Center', subdomain: null,
+  tagline: 'Transform your body. Transform your life.',
+  description: 'Modern gym & fitness management — workouts, diet tracking, classes and more.',
+  logoUrl: null, colorPrimary: '#E85D24', colorAccent: '#F2A623', branchCount: 0, contact: null,
+};
+
+function planPeriod(type: string, days: number): string {
+  const map: Record<string, string> = { DAILY: 'day', MONTHLY: 'month', QUARTERLY: 'quarter', HALF_YEARLY: '6 months', YEARLY: 'year' };
+  return map[type] || `${days} days`;
 }
 
 export default async function Home() {
-  let t = null;
-  let sections = [];
-
-  try {
-    t = await getTemplate();
-    if (t && t.websiteSections) {
-      sections = Object.entries(t.websiteSections)
-        .filter(([_, v]: any) => v?.enabled)
-        .map(([k]: any) => k);
-    }
-  } catch (error) {
-    console.error('Failed to load template:', error);
-    // Provide fallback values
-    t = {
-      name: 'Default Template',
-      tagline: 'Welcome',
-      description: 'Your platform',
-      colorPrimary: '#3b82f6',
-      colorAccent: '#10b981',
-      colorBg: '#ffffff',
-    };
-    sections = ['hero'];
-  }
+  const subdomain = resolveSubdomain();
+  const [info, plans] = await Promise.all([getFitnessInfo(subdomain), getFitnessPlans(subdomain)]);
+  const t = info || FALLBACK;
 
   return (
-    <div>
-      {sections.includes('hero') && (
-        <section style={{ background: t?.colorPrimary, color: '#fff' }} className="py-24 px-4 text-center">
-          <h1 className="text-5xl font-extrabold">{t?.tagline || 'Welcome'}</h1>
-          <p className="mt-3 text-lg opacity-90">{t?.description || 'Your platform'}</p>
-          <Link href="/register" className="mt-6 inline-block px-6 py-3 bg-white text-gray-900 rounded-md font-semibold">
-            Get Started
-          </Link>
-        </section>
-      )}
+    <div style={{ background: '#0f0f10', color: '#fff', minHeight: '100vh' }}>
+      {/* Nav */}
+      <nav className="flex items-center justify-between px-6 py-4 max-w-6xl mx-auto">
+        <div className="text-xl font-extrabold" style={{ color: t.colorPrimary }}>{t.name}</div>
+        <div className="space-x-4 text-sm">
+          <a href="#plans" className="opacity-80 hover:opacity-100">Plans</a>
+          <Link href="/contact" className="opacity-80 hover:opacity-100">Contact</Link>
+          <Link href="/register" className="px-4 py-2 rounded-md font-semibold text-black" style={{ background: t.colorPrimary }}>Join Now</Link>
+        </div>
+      </nav>
 
-      {(['services', 'menu', 'programs', 'rooms'].some(k => sections.includes(k))) && (
-        <section className="py-16 px-4 max-w-6xl mx-auto">
-          <h2 className="text-3xl font-bold text-center">Our Services</h2>
-          <div className="mt-8 grid grid-cols-1 sm:grid-cols-3 gap-6">
-            {['Service 1', 'Service 2', 'Service 3'].map((s) => (
-              <div key={s} className="bg-white p-6 rounded-lg shadow">
-                <div className="h-32 bg-gray-200 rounded mb-3" />
-                <h3 className="font-semibold">{s}</h3>
-                <p className="text-sm text-gray-500 mt-1">Description here</p>
+      {/* Hero */}
+      <section className="text-center px-4 py-24 max-w-3xl mx-auto">
+        <h1 className="text-5xl sm:text-6xl font-extrabold leading-tight">{t.tagline}</h1>
+        <p className="mt-5 text-lg opacity-80">{t.description}</p>
+        <div className="mt-8 flex gap-3 justify-center">
+          <Link href="/register" className="px-7 py-3 rounded-md font-semibold text-black" style={{ background: t.colorPrimary }}>Get Started</Link>
+          <a href="#plans" className="px-7 py-3 rounded-md font-semibold border border-white/20 hover:bg-white/5">View Plans</a>
+        </div>
+        {t.branchCount > 0 && <p className="mt-6 text-sm opacity-60">{t.branchCount} location{t.branchCount > 1 ? 's' : ''} · Open now</p>}
+      </section>
+
+      {/* Features */}
+      <section className="px-4 py-16 max-w-6xl mx-auto">
+        <h2 className="text-3xl font-bold text-center">Everything you need to reach your goals</h2>
+        <div className="mt-10 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
+          {FEATURES.map((f) => (
+            <div key={f.title} className="p-6 rounded-xl bg-white/5 border border-white/10">
+              <div className="text-3xl">{f.icon}</div>
+              <h3 className="mt-3 font-semibold text-lg">{f.title}</h3>
+              <p className="mt-1 text-sm opacity-70">{f.desc}</p>
+            </div>
+          ))}
+        </div>
+      </section>
+
+      {/* Plans */}
+      <section id="plans" className="px-4 py-16 max-w-6xl mx-auto">
+        <h2 className="text-3xl font-bold text-center">Membership Plans</h2>
+        <p className="text-center opacity-70 mt-2">Prices in NPR, inclusive of VAT.</p>
+        {plans.length === 0 ? (
+          <p className="text-center opacity-60 mt-10">Plans will be available shortly. Contact us to get started today.</p>
+        ) : (
+          <div className="mt-10 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
+            {plans.map((p: FitnessPlan, i: number) => (
+              <div key={p.id} className="p-6 rounded-xl bg-white/5 border border-white/10 flex flex-col"
+                style={i === 1 ? { borderColor: t.colorPrimary, boxShadow: `0 0 0 1px ${t.colorPrimary}` } : {}}>
+                <h3 className="font-bold text-xl">{p.name}</h3>
+                {p.description && <p className="text-sm opacity-70 mt-1">{p.description}</p>}
+                <div className="mt-4">
+                  <span className="text-4xl font-extrabold">Rs {p.totalWithVat.toLocaleString()}</span>
+                  <span className="opacity-60 text-sm"> / {planPeriod(p.type, p.durationDays)}</span>
+                </div>
+                <ul className="mt-4 space-y-1 text-sm opacity-80 flex-1">
+                  <li>✓ {p.accessHours || 'Gym access'}</li>
+                  <li>{p.includesTrainer ? '✓' : '✗'} Personal trainer</li>
+                  <li>{p.includesClasses ? '✓' : '✗'} Group classes</li>
+                  <li>{p.includesDietPlan ? '✓' : '✗'} Diet plan</li>
+                  <li>{p.includesLocker ? '✓' : '✗'} Locker</li>
+                  <li>✓ {p.branchAccess === 'all' ? 'All branches' : 'Single branch'}</li>
+                </ul>
+                <Link href={`/register?plan=${p.id}`} className="mt-6 text-center px-4 py-2 rounded-md font-semibold text-black" style={{ background: t.colorPrimary }}>
+                  Choose {p.name}
+                </Link>
               </div>
             ))}
           </div>
-        </section>
-      )}
+        )}
+      </section>
 
-      {sections.includes('cta') && (
-        <section style={{ background: t?.colorAccent }} className="py-16 px-4 text-center text-white">
-          <h2 className="text-3xl font-bold">Ready to start?</h2>
-          <Link href="/register" className="mt-4 inline-block px-6 py-3 bg-white text-gray-900 rounded-md font-semibold">
-            Sign Up Today
-          </Link>
-        </section>
-      )}
+      {/* CTA */}
+      <section className="px-4 py-20 text-center" style={{ background: t.colorAccent, color: '#111' }}>
+        <h2 className="text-3xl font-bold">Ready to start your journey?</h2>
+        <p className="mt-2 opacity-80">Sign up in minutes and train from day one.</p>
+        <Link href="/register" className="mt-6 inline-block px-8 py-3 bg-black text-white rounded-md font-semibold">Join {t.name}</Link>
+      </section>
 
-      <footer className="py-8 bg-gray-900 text-gray-400 text-sm text-center">
-        © {new Date().getFullYear()} Dexo · {t?.name || 'Your Business'}
+      {/* Footer */}
+      <footer className="py-10 text-center text-sm opacity-60">
+        {t.contact && (
+          <p className="mb-2">
+            {t.contact.branch}{t.contact.address ? ` · ${t.contact.address}` : ''}{t.contact.phone ? ` · ${t.contact.phone}` : ''}
+          </p>
+        )}
+        <div className="space-x-3 mb-2">
+          <Link href="/" className="hover:text-white">Home</Link>
+          <Link href="/register" className="hover:text-white">Join</Link>
+          <Link href="/contact" className="hover:text-white">Contact</Link>
+        </div>
+        <div>© {new Date().getFullYear()} {t.name} · Powered by Dexo</div>
       </footer>
     </div>
   );

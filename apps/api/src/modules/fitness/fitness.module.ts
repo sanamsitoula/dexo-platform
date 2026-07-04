@@ -38,6 +38,8 @@ import { EquipmentMaintenanceService } from './inventory/equipment-maintenance.s
 import { EquipmentMaintenanceController } from './inventory/equipment-maintenance.controller';
 import { CheckinService } from './checkin/checkin.service';
 import { CheckinController } from './checkin/checkin.controller';
+import { FitnessPublicService } from './public/fitness-public.service';
+import { FitnessPublicController } from './public/fitness-public.controller';
 
 @Module({
   imports: [PrismaModule],
@@ -61,6 +63,7 @@ import { CheckinController } from './checkin/checkin.controller';
     EquipmentService,
     EquipmentMaintenanceService,
     CheckinService,
+    FitnessPublicService,
   ],
   controllers: [
     MembersController,
@@ -82,6 +85,7 @@ import { CheckinController } from './checkin/checkin.controller';
     EquipmentController,
     EquipmentMaintenanceController,
     CheckinController,
+    FitnessPublicController,
   ],
   exports: [
     MembersService,
