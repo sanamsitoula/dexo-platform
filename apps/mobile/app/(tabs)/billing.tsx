@@ -13,36 +13,47 @@ import {
 import { Ionicons } from '@expo/vector-icons';
 import { useTenant } from '../../lib/tenant-context';
 import { Colors, Spacing, BorderRadius, FontSize } from '../../lib/theme';
-import { packagesApi, paymentsApi } from '../../lib/api';
+import { fitnessApi } from '../../lib/api';
+
+// Nepal payment rails. Cash = pay at the counter (staff activates).
+const PAYMENT_METHODS = [
+  { key: 'ESEWA', label: 'eSewa', icon: 'wallet-outline' as const },
+  { key: 'KHALTI', label: 'Khalti', icon: 'wallet-outline' as const },
+  { key: 'CONNECTIPS', label: 'ConnectIPS', icon: 'card-outline' as const },
+  { key: 'CASH', label: 'Cash at counter', icon: 'cash-outline' as const },
+];
+
+type TabKey = 'plan' | 'invoices' | 'methods';
 
 export default function BillingScreen() {
   const { tenant } = useTenant();
-  const [activeTab, setActiveTab] = useState<'plan' | 'invoices' | 'methods'>('plan');
-  const [packages, setPackages] = useState<any[]>([]);
-  const [invoices, setInvoices] = useState<any[]>([]);
-  const [payments, setPayments] = useState<any[]>([]);
-  const [refreshing, setRefreshing] = useState(false);
-  const [loading, setLoading] = useState(true);
-  const [selectedPackage, setSelectedPackage] = useState<any>(null);
-  const [paying, setPaying] = useState(false);
-
   const primaryColor = tenant?.primaryColor || Colors.primary;
 
-  useEffect(() => {
-    loadData();
-  }, []);
+  const [activeTab, setActiveTab] = useState<TabKey>('plan');
+  const [member, setMember] = useState<any>(null);
+  const [plans, setPlans] = useState<any[]>([]);
+  const [history, setHistory] = useState<any[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [refreshing, setRefreshing] = useState(false);
+
+  // Payment flow: either a plan to subscribe to, or an existing PENDING membership to pay.
+  const [payTarget, setPayTarget] = useState<{ kind: 'plan' | 'membership'; plan?: any; membership?: any } | null>(null);
+  const [method, setMethod] = useState('ESEWA');
+  const [paying, setPaying] = useState(false);
+
+  useEffect(() => { loadData(); }, []);
 
   async function loadData() {
     setLoading(true);
-    const [pkgRes, invRes, payRes] = await Promise.all([
-      packagesApi.list().catch(() => ({ data: [] })),
-      paymentsApi.listInvoices().catch(() => ({ data: [] })),
-      paymentsApi.listPayments().catch(() => ({ data: [] })),
+    const memberRes = await fitnessApi.members.me();
+    const m = memberRes.data;
+    setMember(m);
+    const [plansRes, histRes] = await Promise.all([
+      fitnessApi.plans.list({ active: 'true' }),
+      m?.id ? fitnessApi.memberships.list({ memberId: m.id }) : Promise.resolve({ data: null as any }),
     ]);
-
-    setPackages(pkgRes.data || getSamplePackages());
-    setInvoices(invRes.data || getSampleInvoices());
-    setPayments(payRes.data || getSamplePayments());
+    setPlans(Array.isArray(plansRes.data) ? plansRes.data : plansRes.data?.items ?? []);
+    setHistory(Array.isArray(histRes.data) ? histRes.data : histRes.data?.items ?? []);
     setLoading(false);
   }
 
@@ -52,84 +63,66 @@ export default function BillingScreen() {
     setRefreshing(false);
   }
 
-  async function subscribeToPackage(pkg: any) {
+  const activeMembership = member?.memberships?.[0] || history.find((h) => h.status === 'ACTIVE') || null;
+  const totalPaid = history
+    .filter((h) => h.status === 'ACTIVE' || h.status === 'EXPIRED')
+    .reduce((s, h) => s + Number(h.amountPaid || 0), 0);
+
+  function startSubscribe(plan: any) {
+    setPayTarget({ kind: 'plan', plan });
+    setMethod('ESEWA');
+  }
+  function startPay(membership: any) {
+    setPayTarget({ kind: 'membership', membership });
+    setMethod('ESEWA');
+  }
+
+  async function confirmPayment() {
+    if (!payTarget) return;
     setPaying(true);
-    const res = await packagesApi.subscribe(pkg.id, 'card').catch(() => ({ data: null } as any));
-    if (!res.error) {
-      Alert.alert('✓ Subscribed!', `You are now subscribed to ${pkg.name}. Welcome aboard!`);
-      setSelectedPackage(null);
-      loadData();
-    } else {
-      Alert.alert('Subscription Initiated', `Your request for ${pkg.name} has been received. Please complete payment.`);
-      setSelectedPackage(null);
+    // In production the chosen rail redirects to the gateway and the callback
+    // activates the membership. MVP: reference the method + timestamp and
+    // activate directly (Cash = staff would confirm at the counter).
+    const paymentRef = `${method}-${Date.now()}`;
+    try {
+      let membershipId = payTarget.membership?.id;
+      if (payTarget.kind === 'plan') {
+        if (!member?.id) throw new Error('Member profile not found');
+        const created = await fitnessApi.memberships.create({ memberId: member.id, planId: payTarget.plan.id });
+        if (created.error) throw new Error(created.error);
+        membershipId = created.data?.id;
+      }
+      if (!membershipId) throw new Error('No membership to activate');
+
+      if (method === 'CASH') {
+        Alert.alert('Reserved', 'Please pay at the counter — staff will activate your membership.');
+      } else {
+        const act = await fitnessApi.memberships.activatePayment(membershipId, paymentRef, method);
+        if (act.error) throw new Error(act.error);
+        Alert.alert('✓ Payment successful', 'Your membership is now active. Welcome!');
+      }
+      setPayTarget(null);
+      await loadData();
+    } catch (e: any) {
+      Alert.alert('Payment failed', e?.message || 'Please try again.');
+    } finally {
+      setPaying(false);
     }
-    setPaying(false);
   }
 
-  function getSamplePackages() {
-    return [
-      {
-        id: 'pkg-1',
-        name: 'Starter',
-        price: 29,
-        billingCycle: 'monthly',
-        features: ['Gym access (8am-4pm)', 'Locker rental', 'Free WiFi', '1 group class/week'],
-        isPopular: false,
-        isCurrent: false,
-      },
-      {
-        id: 'pkg-2',
-        name: 'Pro',
-        price: 59,
-        billingCycle: 'monthly',
-        features: ['24/7 gym access', 'All group classes', '1 PT session/month', 'Nutrition guide', 'Sauna & pool'],
-        isPopular: true,
-        isCurrent: true,
-      },
-      {
-        id: 'pkg-3',
-        name: 'Elite',
-        price: 99,
-        billingCycle: 'monthly',
-        features: ['Everything in Pro', 'Unlimited PT sessions', 'Personal meal plan', 'Priority booking', 'Guest passes (2/mo)'],
-        isPopular: false,
-        isCurrent: false,
-      },
-    ];
-  }
-
-  function getSampleInvoices() {
-    return [
-      { id: 'inv-1', invoiceNumber: 'INV-2026-0042', amount: 59, status: 'paid', dueDate: '2026-06-15', createdAt: '2026-06-01' },
-      { id: 'inv-2', invoiceNumber: 'INV-2026-0031', amount: 59, status: 'paid', dueDate: '2026-05-15', createdAt: '2026-05-01' },
-      { id: 'inv-3', invoiceNumber: 'INV-2026-0020', amount: 59, status: 'paid', dueDate: '2026-04-15', createdAt: '2026-04-01' },
-      { id: 'inv-4', invoiceNumber: 'INV-2026-0053', amount: 59, status: 'pending', dueDate: '2026-07-15', createdAt: '2026-06-25' },
-    ];
-  }
-
-  function getSamplePayments() {
-    return [
-      { id: 'pay-1', amount: 59, method: 'Visa ****4242', date: '2026-06-01', status: 'completed' },
-      { id: 'pay-2', amount: 59, method: 'Visa ****4242', date: '2026-05-01', status: 'completed' },
-      { id: 'pay-3', amount: 59, method: 'Visa ****4242', date: '2026-04-01', status: 'completed' },
-    ];
-  }
-
-  const currentPackage = packages.find((p) => p.isCurrent);
-  const totalSpent = payments.reduce((sum, p) => sum + p.amount, 0);
+  const period = (t?: string) => ({ MONTHLY: 'month', QUARTERLY: 'quarter', HALF_YEARLY: '6 mo', YEARLY: 'year' } as Record<string, string>)[t ?? ''] || 'period';
 
   return (
     <View style={styles.container}>
-      {/* Tabs */}
       <View style={styles.tabs}>
-        {(['plan', 'invoices', 'methods'] as const).map((tab) => (
+        {(['plan', 'invoices', 'methods'] as TabKey[]).map((tab) => (
           <TouchableOpacity
             key={tab}
             style={[styles.tab, activeTab === tab && { borderBottomColor: primaryColor }]}
             onPress={() => setActiveTab(tab)}
           >
             <Text style={[styles.tabText, activeTab === tab && { color: primaryColor, fontWeight: '600' }]}>
-              {tab === 'plan' ? 'My Plan' : tab === 'invoices' ? 'Invoices' : 'Payments'}
+              {tab === 'plan' ? 'My Plan' : tab === 'invoices' ? 'Billing' : 'Payment'}
             </Text>
           </TouchableOpacity>
         ))}
@@ -143,223 +136,162 @@ export default function BillingScreen() {
           <ActivityIndicator size="large" color={primaryColor} style={{ marginTop: Spacing.xl }} />
         ) : activeTab === 'plan' ? (
           <View>
-            {currentPackage && (
+            {activeMembership ? (
               <View style={[styles.currentCard, { backgroundColor: primaryColor }]}>
                 <View style={styles.currentHeader}>
                   <View>
                     <Text style={styles.currentLabel}>Current Plan</Text>
-                    <Text style={styles.currentName}>{currentPackage.name}</Text>
+                    <Text style={styles.currentName}>{activeMembership.plan?.name || 'Membership'}</Text>
                   </View>
                   <View style={styles.currentBadge}>
-                    <Ionicons name="checkmark-circle" size={20} color={Colors.white} />
-                    <Text style={styles.currentBadgeText}>Active</Text>
+                    <Ionicons name="checkmark-circle" size={18} color={Colors.white} />
+                    <Text style={styles.currentBadgeText}>{activeMembership.status}</Text>
                   </View>
                 </View>
                 <View style={styles.currentDetails}>
-                  <View style={styles.currentDetailRow}>
-                    <Text style={styles.currentDetailLabel}>Price</Text>
-                    <Text style={styles.currentDetailValue}>${currentPackage.price}/month</Text>
-                  </View>
-                  <View style={styles.currentDetailRow}>
-                    <Text style={styles.currentDetailLabel}>Next billing</Text>
-                    <Text style={styles.currentDetailValue}>Jul 15, 2026</Text>
-                  </View>
-                  <View style={styles.currentDetailRow}>
-                    <Text style={styles.currentDetailLabel}>Total paid</Text>
-                    <Text style={styles.currentDetailValue}>${totalSpent}</Text>
-                  </View>
+                  <Row label="Price" value={`NPR ${activeMembership.plan?.totalWithVat ?? activeMembership.amountPaid}`} />
+                  <Row label="Valid until" value={activeMembership.endDate ? new Date(activeMembership.endDate).toLocaleDateString() : '—'} />
+                  <Row label="Total paid" value={`NPR ${totalPaid}`} />
                 </View>
+              </View>
+            ) : (
+              <View style={styles.noticeCard}>
+                <Ionicons name="information-circle-outline" size={22} color={primaryColor} />
+                <Text style={styles.noticeText}>You don't have an active membership. Choose a plan below to get started.</Text>
               </View>
             )}
 
             <Text style={styles.sectionTitle}>Available Plans</Text>
-            {packages.map((pkg) => (
-              <View key={pkg.id} style={[styles.packageCard, pkg.isPopular && { borderColor: primaryColor, borderWidth: 2 }]}>
-                {pkg.isPopular && (
-                  <View style={[styles.popularBadge, { backgroundColor: primaryColor }]}>
-                    <Text style={styles.popularText}>MOST POPULAR</Text>
-                  </View>
-                )}
-                <View style={styles.packageHeader}>
-                  <Text style={styles.packageName}>{pkg.name}</Text>
-                  <Text style={styles.packagePrice}>
-                    ${pkg.price}<Text style={styles.packageCycle}>/{pkg.billingCycle.replace('ly', '')}</Text>
-                  </Text>
-                </View>
-                <View style={styles.featuresList}>
-                  {pkg.features.map((f: string, i: number) => (
-                    <View key={i} style={styles.featureRow}>
-                      <Ionicons name="checkmark-circle" size={16} color={primaryColor} />
-                      <Text style={styles.featureText}>{f}</Text>
+            {plans.map((p, i) => {
+              const isCurrent = activeMembership?.planId === p.id;
+              return (
+                <View key={p.id} style={[styles.packageCard, i === 1 && { borderColor: primaryColor, borderWidth: 2 }]}>
+                  {i === 1 && (
+                    <View style={[styles.popularBadge, { backgroundColor: primaryColor }]}>
+                      <Text style={styles.popularText}>POPULAR</Text>
                     </View>
-                  ))}
+                  )}
+                  <View style={styles.packageHeader}>
+                    <Text style={styles.packageName}>{p.name}</Text>
+                    <Text style={styles.packagePrice}>
+                      NPR {p.totalWithVat}<Text style={styles.packageCycle}>/{period(p.type)}</Text>
+                    </Text>
+                  </View>
+                  {!!p.description && <Text style={styles.packageDesc}>{p.description}</Text>}
+                  <View style={styles.featuresList}>
+                    <Feature ok label={`${p.durationDays} days access`} color={primaryColor} />
+                    <Feature ok={p.includesTrainer} label="Personal trainer" color={primaryColor} />
+                    <Feature ok={p.includesClasses} label="Group classes" color={primaryColor} />
+                    <Feature ok={p.includesDietPlan} label="Diet plan" color={primaryColor} />
+                  </View>
+                  <TouchableOpacity
+                    style={[styles.subscribeButton, isCurrent ? styles.currentButton : { backgroundColor: primaryColor }]}
+                    onPress={() => !isCurrent && startSubscribe(p)}
+                    disabled={isCurrent}
+                  >
+                    <Text style={[styles.subscribeText, isCurrent && { color: Colors.textSecondary }]}>
+                      {isCurrent ? '✓ Current Plan' : `Subscribe · NPR ${p.totalWithVat}`}
+                    </Text>
+                  </TouchableOpacity>
                 </View>
-                <TouchableOpacity
-                  style={[
-                    styles.subscribeButton,
-                    pkg.isCurrent
-                      ? styles.currentButton
-                      : { backgroundColor: primaryColor },
-                  ]}
-                  onPress={() => !pkg.isCurrent && setSelectedPackage(pkg)}
-                  disabled={pkg.isCurrent}
-                >
-                  <Text style={[styles.subscribeText, pkg.isCurrent && { color: Colors.textSecondary }]}>
-                    {pkg.isCurrent ? '✓ Current Plan' : 'Switch to ' + pkg.name}
-                  </Text>
-                </TouchableOpacity>
-              </View>
-            ))}
+              );
+            })}
           </View>
         ) : activeTab === 'invoices' ? (
           <View>
-            {invoices.length === 0 ? (
+            {history.length === 0 ? (
               <View style={styles.empty}>
                 <Ionicons name="receipt-outline" size={48} color={Colors.textLight} />
-                <Text style={styles.emptyText}>No invoices yet</Text>
+                <Text style={styles.emptyText}>No billing history yet</Text>
               </View>
             ) : (
-              invoices.map((inv) => (
-                <TouchableOpacity key={inv.id} style={styles.invoiceCard}>
+              history.map((h) => (
+                <View key={h.id} style={styles.invoiceCard}>
                   <View style={styles.invoiceHeader}>
                     <View>
-                      <Text style={styles.invoiceNumber}>{inv.invoiceNumber}</Text>
-                      <Text style={styles.invoiceDate}>
-                        {new Date(inv.createdAt).toLocaleDateString()}
-                      </Text>
+                      <Text style={styles.invoiceNumber}>{h.plan?.name || 'Membership'}</Text>
+                      <Text style={styles.invoiceDate}>{new Date(h.startDate).toLocaleDateString()}</Text>
                     </View>
-                    <View style={[
-                      styles.invoiceStatus,
-                      { backgroundColor: inv.status === 'paid' ? '#dcfce7' : inv.status === 'pending' ? '#fef3c7' : '#fee2e2' }
-                    ]}>
-                      <Text style={[
-                        styles.invoiceStatusText,
-                        { color: inv.status === 'paid' ? '#16a34a' : inv.status === 'pending' ? '#d97706' : '#dc2626' }
-                      ]}>
-                        {inv.status}
-                      </Text>
+                    <View style={[styles.invoiceStatus, { backgroundColor: statusBg(h.status) }]}>
+                      <Text style={[styles.invoiceStatusText, { color: statusFg(h.status) }]}>{h.status}</Text>
                     </View>
                   </View>
                   <View style={styles.invoiceBody}>
                     <View>
                       <Text style={styles.invoiceAmountLabel}>Amount</Text>
-                      <Text style={styles.invoiceAmount}>${inv.amount}</Text>
+                      <Text style={styles.invoiceAmount}>NPR {h.amountPaid ?? h.plan?.totalWithVat}</Text>
                     </View>
                     <View>
-                      <Text style={styles.invoiceAmountLabel}>Due Date</Text>
-                      <Text style={styles.invoiceAmount}>{new Date(inv.dueDate).toLocaleDateString()}</Text>
+                      <Text style={styles.invoiceAmountLabel}>Valid until</Text>
+                      <Text style={styles.invoiceAmount}>{h.endDate ? new Date(h.endDate).toLocaleDateString() : '—'}</Text>
                     </View>
                   </View>
-                  {inv.status === 'pending' && (
-                    <TouchableOpacity
-                      style={[styles.payInvoiceButton, { backgroundColor: primaryColor }]}
-                      onPress={async () => {
-                        setPaying(true)
-                        const res = await paymentsApi.payInvoice(inv.id, 'card').catch(() => ({ data: null } as any))
-                        if (!res.error) {
-                          Alert.alert('✓ Paid', 'Your payment has been processed.')
-                          loadData()
-                        } else {
-                          Alert.alert('Payment Initiated', 'Redirecting to payment gateway...')
-                        }
-                        setPaying(false)
-                      }}
-                    >
-                      <Text style={styles.payInvoiceText}>Pay ${inv.amount}</Text>
+                  {h.status === 'PENDING' && (
+                    <TouchableOpacity style={[styles.payInvoiceButton, { backgroundColor: primaryColor }]} onPress={() => startPay(h)}>
+                      <Text style={styles.payInvoiceText}>Pay NPR {h.amountPaid ?? h.plan?.totalWithVat}</Text>
                     </TouchableOpacity>
                   )}
-                </TouchableOpacity>
+                </View>
               ))
             )}
           </View>
         ) : (
           <View>
-            <Text style={styles.sectionTitle}>Payment Methods</Text>
-
-            <View style={[styles.methodCard, { borderColor: primaryColor }]}>
-              <View style={[styles.methodIcon, { backgroundColor: primaryColor }]}>
-                <Ionicons name="card" size={24} color={Colors.white} />
-              </View>
-              <View style={{ flex: 1, marginLeft: Spacing.md }}>
-                <Text style={styles.methodName}>Visa ****4242</Text>
-                <Text style={styles.methodExpiry}>Expires 12/2027</Text>
-                <Text style={styles.methodDefault}>Default payment method</Text>
-              </View>
-              <Ionicons name="checkmark-circle" size={20} color={primaryColor} />
-            </View>
-
-            <TouchableOpacity style={styles.addMethodButton}>
-              <Ionicons name="add-circle-outline" size={20} color={primaryColor} />
-              <Text style={[styles.addMethodText, { color: primaryColor }]}>Add payment method</Text>
-            </TouchableOpacity>
-
-            <Text style={styles.sectionTitle}>Payment History</Text>
-            {payments.length === 0 ? (
-              <Text style={styles.emptyText}>No payments yet</Text>
-            ) : (
-              payments.map((p) => (
-                <View key={p.id} style={styles.paymentRow}>
-                  <View style={[styles.paymentIconSm, { backgroundColor: '#dcfce7' }]}>
-                    <Ionicons name="checkmark" size={16} color="#16a34a" />
-                  </View>
-                  <View style={{ flex: 1, marginLeft: Spacing.sm }}>
-                    <Text style={styles.paymentTitle}>{p.method}</Text>
-                    <Text style={styles.paymentDate}>{new Date(p.date).toLocaleDateString()}</Text>
-                  </View>
-                  <Text style={styles.paymentAmount}>${p.amount}</Text>
+            <Text style={styles.sectionTitle}>Accepted Payment Methods</Text>
+            {PAYMENT_METHODS.map((pm) => (
+              <View key={pm.key} style={styles.methodCard}>
+                <View style={[styles.methodIcon, { backgroundColor: primaryColor }]}>
+                  <Ionicons name={pm.icon} size={22} color={Colors.white} />
                 </View>
-              ))
-            )}
+                <Text style={styles.methodName}>{pm.label}</Text>
+              </View>
+            ))}
+            <Text style={styles.methodNote}>Pay online via eSewa, Khalti or ConnectIPS, or settle in cash at the counter. Digital payments qualify for the IRD 10% VAT refund.</Text>
           </View>
         )}
       </ScrollView>
 
-      {/* Subscribe Confirmation Modal */}
-      <Modal visible={!!selectedPackage} animationType="slide" transparent>
-        {selectedPackage && (
+      {/* Payment modal */}
+      <Modal visible={!!payTarget} animationType="slide" transparent>
+        {payTarget && (
           <View style={styles.modalOverlay}>
             <View style={styles.modalContent}>
               <View style={styles.modalHeader}>
-                <Text style={styles.modalTitle}>Switch to {selectedPackage.name}</Text>
-                <TouchableOpacity onPress={() => setSelectedPackage(null)}>
+                <Text style={styles.modalTitle}>
+                  {payTarget.kind === 'plan' ? `Subscribe · ${payTarget.plan?.name}` : `Pay · ${payTarget.membership?.plan?.name}`}
+                </Text>
+                <TouchableOpacity onPress={() => setPayTarget(null)}>
                   <Ionicons name="close" size={24} color={Colors.text} />
                 </TouchableOpacity>
               </View>
               <View style={styles.modalBody}>
                 <View style={styles.summaryRow}>
-                  <Text style={styles.summaryLabel}>Plan</Text>
-                  <Text style={styles.summaryValue}>{selectedPackage.name}</Text>
-                </View>
-                <View style={styles.summaryRow}>
-                  <Text style={styles.summaryLabel}>Billing</Text>
-                  <Text style={styles.summaryValue}>Monthly</Text>
-                </View>
-                <View style={styles.summaryRow}>
                   <Text style={styles.summaryLabel}>Amount</Text>
-                  <Text style={styles.summaryValue}>${selectedPackage.price}.00</Text>
-                </View>
-                <View style={[styles.summaryRow, { borderBottomWidth: 0 }]}>
-                  <Text style={styles.summaryLabel}>Payment</Text>
-                  <Text style={styles.summaryValue}>Visa ****4242</Text>
-                </View>
-
-                <View style={styles.modalNote}>
-                  <Ionicons name="information-circle" size={16} color={Colors.textSecondary} />
-                  <Text style={styles.modalNoteText}>
-                    You can cancel anytime. Billed monthly.
+                  <Text style={styles.summaryValue}>
+                    NPR {payTarget.kind === 'plan' ? payTarget.plan?.totalWithVat : (payTarget.membership?.amountPaid ?? payTarget.membership?.plan?.totalWithVat)}
                   </Text>
                 </View>
+                <Text style={[styles.summaryLabel, { marginTop: Spacing.md, marginBottom: Spacing.sm }]}>Choose payment method</Text>
+                {PAYMENT_METHODS.map((pm) => (
+                  <TouchableOpacity
+                    key={pm.key}
+                    style={[styles.methodOption, method === pm.key && { borderColor: primaryColor, backgroundColor: primaryColor + '10' }]}
+                    onPress={() => setMethod(pm.key)}
+                  >
+                    <Ionicons name={pm.icon} size={20} color={method === pm.key ? primaryColor : Colors.textSecondary} />
+                    <Text style={[styles.methodOptionText, method === pm.key && { color: primaryColor, fontWeight: '700' }]}>{pm.label}</Text>
+                    {method === pm.key && <Ionicons name="checkmark-circle" size={20} color={primaryColor} />}
+                  </TouchableOpacity>
+                ))}
               </View>
               <View style={styles.modalFooter}>
                 <TouchableOpacity
                   style={[styles.confirmButton, { backgroundColor: primaryColor }, paying && { opacity: 0.6 }]}
-                  onPress={() => subscribeToPackage(selectedPackage)}
+                  onPress={confirmPayment}
                   disabled={paying}
                 >
-                  {paying ? (
-                    <ActivityIndicator color={Colors.white} />
-                  ) : (
-                    <Text style={styles.confirmText}>Confirm Subscription</Text>
+                  {paying ? <ActivityIndicator color={Colors.white} /> : (
+                    <Text style={styles.confirmText}>{method === 'CASH' ? 'Reserve (pay at counter)' : 'Pay now'}</Text>
                   )}
                 </TouchableOpacity>
               </View>
@@ -370,6 +302,25 @@ export default function BillingScreen() {
     </View>
   );
 }
+
+function Row({ label, value }: { label: string; value: string }) {
+  return (
+    <View style={styles.currentDetailRow}>
+      <Text style={styles.currentDetailLabel}>{label}</Text>
+      <Text style={styles.currentDetailValue}>{value}</Text>
+    </View>
+  );
+}
+function Feature({ ok, label, color }: { ok?: boolean; label: string; color: string }) {
+  return (
+    <View style={styles.featureRow}>
+      <Ionicons name={ok ? 'checkmark-circle' : 'close-circle-outline'} size={16} color={ok ? color : Colors.textLight} />
+      <Text style={[styles.featureText, !ok && { color: Colors.textLight }]}>{label}</Text>
+    </View>
+  );
+}
+function statusBg(s: string) { return s === 'ACTIVE' ? '#dcfce7' : s === 'PENDING' ? '#fef3c7' : s === 'FROZEN' ? '#dbeafe' : '#fee2e2'; }
+function statusFg(s: string) { return s === 'ACTIVE' ? '#16a34a' : s === 'PENDING' ? '#d97706' : s === 'FROZEN' ? '#2563eb' : '#dc2626'; }
 
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: Colors.background },
@@ -387,22 +338,17 @@ const styles = StyleSheet.create({
   currentDetailRow: { flexDirection: 'row', justifyContent: 'space-between' },
   currentDetailLabel: { color: Colors.white, opacity: 0.85, fontSize: FontSize.sm },
   currentDetailValue: { color: Colors.white, fontSize: FontSize.sm, fontWeight: '600' },
+  noticeCard: { flexDirection: 'row', gap: Spacing.sm, alignItems: 'center', backgroundColor: '#fff', padding: Spacing.md, borderRadius: BorderRadius.md, marginBottom: Spacing.lg },
+  noticeText: { flex: 1, color: Colors.textSecondary, fontSize: FontSize.sm },
   sectionTitle: { fontSize: FontSize.md, fontWeight: '600', color: Colors.text, marginBottom: Spacing.md, marginTop: Spacing.sm },
-  packageCard: {
-    backgroundColor: Colors.white,
-    borderRadius: BorderRadius.lg,
-    padding: Spacing.lg,
-    marginBottom: Spacing.md,
-    borderWidth: 1,
-    borderColor: Colors.border,
-    position: 'relative',
-  },
+  packageCard: { backgroundColor: Colors.white, borderRadius: BorderRadius.lg, padding: Spacing.lg, marginBottom: Spacing.md, borderWidth: 1, borderColor: Colors.border, position: 'relative' },
   popularBadge: { position: 'absolute', top: -10, right: Spacing.md, paddingHorizontal: Spacing.sm, paddingVertical: 4, borderRadius: BorderRadius.sm },
   popularText: { color: Colors.white, fontSize: 10, fontWeight: '700', letterSpacing: 0.5 },
-  packageHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'baseline', marginBottom: Spacing.md },
+  packageHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'baseline', marginBottom: 4 },
   packageName: { fontSize: FontSize.lg, fontWeight: 'bold', color: Colors.text },
-  packagePrice: { fontSize: FontSize.xl, fontWeight: 'bold', color: Colors.text },
+  packagePrice: { fontSize: FontSize.lg, fontWeight: 'bold', color: Colors.text },
   packageCycle: { fontSize: FontSize.sm, color: Colors.textSecondary, fontWeight: 'normal' },
+  packageDesc: { fontSize: FontSize.sm, color: Colors.textMuted, marginBottom: Spacing.md },
   featuresList: { gap: 8, marginBottom: Spacing.md },
   featureRow: { flexDirection: 'row', alignItems: 'center', gap: Spacing.xs },
   featureText: { fontSize: FontSize.sm, color: Colors.text, flex: 1 },
@@ -420,30 +366,22 @@ const styles = StyleSheet.create({
   invoiceAmount: { fontSize: FontSize.md, fontWeight: '600', color: Colors.text, marginTop: 2 },
   payInvoiceButton: { marginTop: Spacing.sm, paddingVertical: Spacing.sm, borderRadius: BorderRadius.md, alignItems: 'center' },
   payInvoiceText: { color: Colors.white, fontSize: FontSize.sm, fontWeight: '600' },
-  methodCard: { flexDirection: 'row', alignItems: 'center', backgroundColor: Colors.white, borderRadius: BorderRadius.lg, padding: Spacing.md, marginBottom: Spacing.sm, borderWidth: 2 },
-  methodIcon: { width: 48, height: 48, borderRadius: BorderRadius.md, justifyContent: 'center', alignItems: 'center' },
+  methodCard: { flexDirection: 'row', alignItems: 'center', gap: Spacing.md, backgroundColor: Colors.white, borderRadius: BorderRadius.lg, padding: Spacing.md, marginBottom: Spacing.sm },
+  methodIcon: { width: 44, height: 44, borderRadius: BorderRadius.md, justifyContent: 'center', alignItems: 'center' },
   methodName: { fontSize: FontSize.md, fontWeight: '600', color: Colors.text },
-  methodExpiry: { fontSize: FontSize.xs, color: Colors.textSecondary, marginTop: 2 },
-  methodDefault: { fontSize: FontSize.xs, color: '#10b981', marginTop: 2, fontWeight: '600' },
-  addMethodButton: { flexDirection: 'row', alignItems: 'center', gap: Spacing.xs, padding: Spacing.md, justifyContent: 'center', marginBottom: Spacing.lg },
-  addMethodText: { fontSize: FontSize.sm, fontWeight: '600' },
-  paymentRow: { flexDirection: 'row', alignItems: 'center', backgroundColor: Colors.white, padding: Spacing.md, borderRadius: BorderRadius.md, marginBottom: Spacing.xs },
-  paymentIconSm: { width: 32, height: 32, borderRadius: 16, justifyContent: 'center', alignItems: 'center' },
-  paymentTitle: { fontSize: FontSize.sm, fontWeight: '500', color: Colors.text },
-  paymentDate: { fontSize: FontSize.xs, color: Colors.textSecondary, marginTop: 2 },
-  paymentAmount: { fontSize: FontSize.md, fontWeight: '600', color: Colors.text },
+  methodNote: { fontSize: FontSize.xs, color: Colors.textMuted, marginTop: Spacing.md, lineHeight: 18 },
   empty: { alignItems: 'center', paddingVertical: Spacing.xl * 2 },
   emptyText: { fontSize: FontSize.md, color: Colors.textSecondary, marginTop: Spacing.sm },
   modalOverlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.5)', justifyContent: 'flex-end' },
   modalContent: { backgroundColor: Colors.white, borderTopLeftRadius: BorderRadius.xl, borderTopRightRadius: BorderRadius.xl },
   modalHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', padding: Spacing.lg, borderBottomWidth: 1, borderBottomColor: Colors.border },
-  modalTitle: { fontSize: FontSize.lg, fontWeight: 'bold', color: Colors.text },
+  modalTitle: { fontSize: FontSize.lg, fontWeight: 'bold', color: Colors.text, flex: 1 },
   modalBody: { padding: Spacing.lg },
-  summaryRow: { flexDirection: 'row', justifyContent: 'space-between', paddingVertical: Spacing.sm, borderBottomWidth: 1, borderBottomColor: Colors.border },
+  summaryRow: { flexDirection: 'row', justifyContent: 'space-between', paddingVertical: Spacing.sm },
   summaryLabel: { fontSize: FontSize.sm, color: Colors.textSecondary },
-  summaryValue: { fontSize: FontSize.sm, fontWeight: '600', color: Colors.text },
-  modalNote: { flexDirection: 'row', alignItems: 'center', gap: Spacing.xs, marginTop: Spacing.md, padding: Spacing.sm, backgroundColor: Colors.background, borderRadius: BorderRadius.sm },
-  modalNoteText: { fontSize: FontSize.xs, color: Colors.textSecondary, flex: 1 },
+  summaryValue: { fontSize: FontSize.lg, fontWeight: '700', color: Colors.text },
+  methodOption: { flexDirection: 'row', alignItems: 'center', gap: Spacing.sm, borderWidth: 1.5, borderColor: Colors.border, borderRadius: BorderRadius.md, padding: Spacing.md, marginBottom: Spacing.sm },
+  methodOptionText: { flex: 1, fontSize: FontSize.md, color: Colors.text },
   modalFooter: { padding: Spacing.lg, borderTopWidth: 1, borderTopColor: Colors.border },
   confirmButton: { paddingVertical: Spacing.md, borderRadius: BorderRadius.md, alignItems: 'center' },
   confirmText: { color: Colors.white, fontSize: FontSize.md, fontWeight: '600' },

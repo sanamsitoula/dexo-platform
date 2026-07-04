@@ -14,7 +14,7 @@ import {
 import { Ionicons } from '@expo/vector-icons';
 import { useTenant } from '../../lib/tenant-context';
 import { Colors, Spacing, BorderRadius, FontSize } from '../../lib/theme';
-import { trainersApi } from '../../lib/api';
+import { fitnessApi } from '../../lib/api';
 
 interface Trainer {
   id: string;
@@ -31,58 +31,6 @@ interface Trainer {
   hourlyRate?: number;
 }
 
-const SAMPLE_TRAINERS: Trainer[] = [
-  {
-    id: '1',
-    firstName: 'Sarah',
-    lastName: 'Johnson',
-    email: 'sarah.j@fitzone.com',
-    phone: '+977-9841234567',
-    bio: 'Certified personal trainer with 8+ years of experience in strength training, HIIT, and weight loss transformations. I love helping clients achieve their fitness goals through personalized programs.',
-    specialties: ['HIIT', 'Strength Training', 'Weight Loss', 'Body Transformation'],
-    rating: 4.9,
-    experience: 8,
-    certifications: ['NASM-CPT', 'CrossFit Level 2', 'Precision Nutrition L1'],
-    hourlyRate: 50,
-  },
-  {
-    id: '2',
-    firstName: 'Mike',
-    lastName: 'Chen',
-    email: 'mike.c@fitzone.com',
-    bio: 'Former national-level athlete specializing in sports performance and mobility. Passionate about helping athletes reach their peak potential.',
-    specialties: ['Sports Performance', 'Mobility', 'Powerlifting', 'Rehabilitation'],
-    rating: 4.8,
-    experience: 6,
-    certifications: ['CSCS', 'FRC Mobility Specialist', 'USAW Level 1'],
-    hourlyRate: 60,
-  },
-  {
-    id: '3',
-    firstName: 'Priya',
-    lastName: 'Sharma',
-    email: 'priya.s@fitzone.com',
-    bio: 'Yoga instructor and wellness coach. I blend traditional yoga with modern fitness science for a holistic approach to health.',
-    specialties: ['Yoga', 'Pilates', 'Meditation', 'Flexibility'],
-    rating: 5.0,
-    experience: 10,
-    certifications: ['RYT-500', 'NASM-CPT', 'Mindfulness Coach'],
-    hourlyRate: 45,
-  },
-  {
-    id: '4',
-    firstName: 'David',
-    lastName: 'Martinez',
-    email: 'david.m@fitzone.com',
-    bio: 'Boxing and martial arts coach. Build strength, speed, and discipline through combat sports training.',
-    specialties: ['Boxing', 'MMA', 'Conditioning', 'Self Defense'],
-    rating: 4.7,
-    experience: 12,
-    certifications: ['USA Boxing Coach', 'ACE-CPT', 'Krav Maga L2'],
-    hourlyRate: 55,
-  },
-];
-
 export default function TrainersScreen() {
   const { tenant } = useTenant();
   const [trainers, setTrainers] = useState<Trainer[]>([]);
@@ -98,12 +46,26 @@ export default function TrainersScreen() {
 
   async function loadTrainers() {
     setLoading(true);
-    const res = await trainersApi.list().catch(() => ({ data: [] } as any));
-    if (res.data && res.data.length > 0) {
-      setTrainers(res.data);
-    } else {
-      setTrainers(SAMPLE_TRAINERS);
-    }
+    const res = await fitnessApi.trainers.list().catch(() => ({ data: [] } as any));
+    const raw = Array.isArray(res.data) ? res.data : res.data?.items ?? [];
+    // Normalize the fitness Trainer shape (single `name`, `specialization`) to
+    // the card's expected shape.
+    const mapped: Trainer[] = raw.map((t: any) => {
+      const parts = (t.name || '').trim().split(/\s+/);
+      return {
+        id: t.id,
+        firstName: parts[0] || t.name || 'Trainer',
+        lastName: parts.slice(1).join(' '),
+        email: t.email,
+        phone: t.phone,
+        avatar: t.user?.avatarUrl,
+        bio: t.bio,
+        specialties: t.specialization ? String(t.specialization).split(',').map((s: string) => s.trim()) : [],
+        certifications: t.certifications ? String(t.certifications).split(',').map((s: string) => s.trim()) : [],
+        hourlyRate: t.hourlyRate ? Number(t.hourlyRate) : undefined,
+      };
+    });
+    setTrainers(mapped);
     setLoading(false);
   }
 
