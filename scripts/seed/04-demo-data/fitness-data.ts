@@ -186,6 +186,80 @@ export async function seed04FitnessData() {
       } as any,
     });
   }
+  // ---- Achievement badges (gamification screen) ----
+  const badgeDefs = [
+    { name: 'First Check-in', description: 'Checked in to the gym for the first time', icon: '🎯', category: 'MILESTONE', points: 10 },
+    { name: '7-Day Streak', description: 'Worked out 7 days in a row', icon: '🔥', category: 'STREAK', points: 50 },
+    { name: '30-Day Streak', description: 'Worked out 30 days in a row', icon: '⚡', category: 'STREAK', points: 200 },
+    { name: 'Century Club', description: 'Logged 100 workouts', icon: '💯', category: 'MILESTONE', points: 300 },
+    { name: 'Early Bird', description: 'Checked in before 6 AM', icon: '🌅', category: 'ACHIEVEMENT', points: 25 },
+    { name: 'Referral Champion', description: 'Referred 5 friends', icon: '🤝', category: 'SOCIAL', points: 150, rewardNpr: 500 },
+  ];
+  const badgeCount = await prisma.badge.count({ where: { tenantId: tenant.id } });
+  if (badgeCount === 0) {
+    for (const b of badgeDefs) {
+      await prisma.badge.create({
+        data: { tenantId: tenant.id, name: b.name, description: b.description, icon: b.icon, category: b.category as any, criteria: {}, points: b.points, rewardNpr: (b as any).rewardNpr },
+      });
+    }
+    console.log(`    seeded ${badgeDefs.length} badges`);
+  }
+
+  // ---- A demo workout plan + body assessments for the first member ----
+  const demoMember = await prisma.member.findFirst({ where: { tenantId: tenant.id }, orderBy: { createdAt: 'asc' } });
+  const demoTrainer = await prisma.trainer.findFirst({ where: { tenantId: tenant.id } });
+  if (demoMember) {
+    const hasPlan = await prisma.workoutPlan.findFirst({ where: { tenantId: tenant.id, memberId: demoMember.id } });
+    if (!hasPlan) {
+      const plan = await prisma.workoutPlan.create({
+        data: {
+          tenantId: tenant.id, memberId: demoMember.id, trainerId: demoTrainer?.id,
+          name: 'Beginner Full-Body Program', description: '3-day full body split to build a base.',
+          goalType: 'GENERAL_FITNESS', fitnessLevel: 'BEGINNER', durationWeeks: 4, daysPerWeek: 3,
+          status: 'ACTIVE', startDate: new Date(),
+        },
+      });
+      const days = [
+        { dayNumber: 1, dayName: 'Day A — Push', muscleGroup: 'Chest, Shoulders, Triceps', exercises: [
+          { name: 'Push-ups', sets: 3, reps: 12, equipment: 'Bodyweight' },
+          { name: 'Dumbbell Shoulder Press', sets: 3, reps: 10, equipment: 'Dumbbell' },
+        ] },
+        { dayNumber: 2, dayName: 'Day B — Pull', muscleGroup: 'Back, Biceps', exercises: [
+          { name: 'Lat Pulldown', sets: 3, reps: 12, equipment: 'Machine' },
+          { name: 'Dumbbell Rows', sets: 3, reps: 10, equipment: 'Dumbbell' },
+        ] },
+        { dayNumber: 3, dayName: 'Day C — Legs', muscleGroup: 'Quads, Hamstrings, Glutes', exercises: [
+          { name: 'Bodyweight Squats', sets: 3, reps: 15, equipment: 'Bodyweight' },
+          { name: 'Lunges', sets: 3, reps: 12, equipment: 'Bodyweight' },
+        ] },
+      ];
+      for (const d of days) {
+        const wd = await prisma.workoutDay.create({
+          data: { tenantId: tenant.id, planId: plan.id, dayNumber: d.dayNumber, dayName: d.dayName, muscleGroup: d.muscleGroup },
+        });
+        for (let i = 0; i < d.exercises.length; i++) {
+          const ex = d.exercises[i];
+          await prisma.workoutExercise.create({
+            data: { tenantId: tenant.id, dayId: wd.id, name: ex.name, sets: ex.sets, reps: ex.reps, equipment: ex.equipment, sortOrder: i },
+          });
+        }
+      }
+      console.log('    seeded 1 workout plan (3 days)');
+    }
+
+    const hasAssessment = await prisma.bodyAssessment.findFirst({ where: { tenantId: tenant.id, memberId: demoMember.id } });
+    if (!hasAssessment) {
+      // Two assessments so the progress chart shows change over time.
+      await prisma.bodyAssessment.create({
+        data: { tenantId: tenant.id, memberId: demoMember.id, assessmentType: 'INITIAL', assessedAt: new Date(Date.now() - 60 * 86400000), weight: 78, height: 172, bmi: 26.4, bodyFatPercent: 24, muscleMass: 32, fitnessLevel: 'BEGINNER', goalType: 'WEIGHT_LOSS' } as any,
+      });
+      await prisma.bodyAssessment.create({
+        data: { tenantId: tenant.id, memberId: demoMember.id, assessmentType: 'PERIODIC', assessedAt: new Date(), weight: 74, height: 172, bmi: 25.0, bodyFatPercent: 20, muscleMass: 34, fitnessLevel: 'BEGINNER', goalType: 'WEIGHT_LOSS' } as any,
+      });
+      console.log('    seeded 2 body assessments');
+    }
+  }
+
   console.log('    done');
 }
 
