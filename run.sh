@@ -62,29 +62,36 @@ if [ ! -d "node_modules" ]; then
     echo ""
 fi
 
-# .env fallback
+# .env fallback — .env.example matches docker-compose.yml (Postgres :5433, db "dexo")
 if [ ! -f ".env" ]; then
-    echo -e "${YELLOW}[WARNING]${NC} .env not found, creating default..."
-    cat > .env <<'EOF'
-DATABASE_URL=postgresql://postgres:postgres@localhost:5432/dexo_db
-JWT_SECRET=dev-jwt-secret-key-change-in-production
-REDIS_URL=redis://localhost:6379
-MINIO_ENDPOINT=localhost
-MINIO_PORT=9000
-MINIO_ACCESS_KEY=minioadmin
-MINIO_SECRET_KEY=minioadmin
-SMTP_HOST=localhost
-SMTP_PORT=1025
-NODE_ENV=development
-DEV_TENANT=vrfitness
-EOF
-    echo -e "${BLUE}[INFO]${NC} Created .env"
+    echo -e "${YELLOW}[WARNING]${NC} .env not found — copying .env.example"
+    cp .env.example .env
     echo ""
 fi
 
-# Seed demo users (idempotent)
-echo -e "${BLUE}[INFO]${NC} Seeding demo users..."
-npm run db:seed:demo > /dev/null 2>&1 || echo -e "${YELLOW}[WARN]${NC} Demo seed failed (continuing)"
+# Infrastructure (Postgres 5433, Redis, MinIO, MailHog) via Docker
+if command -v docker &> /dev/null; then
+    echo -e "${BLUE}[INFO]${NC} Starting infrastructure containers..."
+    docker compose up -d postgres redis minio mailhog 2>/dev/null || docker-compose up -d postgres redis minio mailhog
+    echo -e "${BLUE}[INFO]${NC} Waiting for PostgreSQL..."
+    for i in $(seq 1 30); do
+        if docker exec dexo-postgres pg_isready -U postgres > /dev/null 2>&1; then
+            echo -e "${GREEN}[OK]${NC} PostgreSQL is ready."
+            break
+        fi
+        sleep 2
+    done
+else
+    echo -e "${YELLOW}[WARNING]${NC} Docker not found — make sure Postgres (:5433), Redis, MinIO and MailHog are running."
+fi
+echo ""
+
+# Database: client, migrations, v5 seed (idempotent)
+echo -e "${BLUE}[INFO]${NC} Prisma generate + migrate deploy..."
+npx prisma generate > /dev/null
+npx prisma migrate deploy
+echo -e "${BLUE}[INFO]${NC} Seeding v5 demo data (idempotent)..."
+npm run db:seed:v5 || echo -e "${YELLOW}[WARN]${NC} Seed failed (continuing)"
 
 # Kill anything on our ports
 echo -e "${BLUE}[INFO]${NC} Cleaning up ports..."
