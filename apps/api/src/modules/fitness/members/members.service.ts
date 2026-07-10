@@ -61,13 +61,37 @@ export class MembersService {
   }
 
   async create(tenantId: string, dto: any) {
-    if (!dto.userId) throw new BadRequestException('userId is required');
-    const existing = await this.prisma.member.findFirst({ where: { tenantId, userId: dto.userId } });
+    // Walk-in registration from the admin desk: no userId — find or create the
+    // user account from name/email. The member sets a password later via the
+    // "forgot password" flow.
+    let userId = dto.userId as string | undefined;
+    if (!userId) {
+      if (!dto.email) throw new BadRequestException('email (or userId) is required');
+      let user = await this.prisma.user.findUnique({ where: { email: dto.email } });
+      if (user && user.tenantId && user.tenantId !== tenantId) {
+        throw new BadRequestException('This email already belongs to another business');
+      }
+      if (!user) {
+        user = await this.prisma.user.create({
+          data: {
+            email: dto.email,
+            firstName: dto.firstName ?? 'Member',
+            lastName: dto.lastName ?? '',
+            phone: dto.phone,
+            tenantId,
+            // Unusable placeholder — login requires a password reset first.
+            passwordHash: '$2a$10$placeholderplaceholderplaceholderplaceholderplaceholder',
+          },
+        });
+      }
+      userId = user.id;
+    }
+    const existing = await this.prisma.member.findFirst({ where: { tenantId, userId } });
     if (existing) throw new BadRequestException('User is already a member');
     return this.prisma.member.create({
       data: {
         tenantId,
-        userId: dto.userId,
+        userId,
         branchId: dto.branchId,
         membershipType: dto.membershipType ?? 'TRIAL',
         startDate: dto.startDate ? new Date(dto.startDate) : new Date(),

@@ -32,8 +32,12 @@ async function bootstrap() {
     logger: ['log', 'error', 'warn', 'debug', 'verbose'],
   });
 
+  // CORS: reflect the request origin instead of "*" — browsers reject
+  // credentialed requests (fetch credentials:'include') when the
+  // Access-Control-Allow-Origin header is the wildcard.
+  const corsOrigin = process.env.CORS_ORIGIN;
   app.enableCors({
-    origin: process.env.CORS_ORIGIN || '*',
+    origin: corsOrigin && corsOrigin !== '*' ? corsOrigin.split(',') : true,
     credentials: true,
   });
 

@@ -1,6 +1,7 @@
 import { ReactNode } from 'react';
 import Link from 'next/link';
 import { headers } from 'next/headers';
+import UserMenu from '@/components/UserMenu';
 
 // Grouped nav. Every link resolves to a real page (no 404s).
 const NAV_SECTIONS: { heading: string; items: { href: string; label: string }[] }[] = [
@@ -78,9 +79,9 @@ export default function AdminLayout({ children }: { children: ReactNode }) {
         </div>
       </aside>
       <main className="flex-1 overflow-y-auto">
-        <header className="bg-white shadow-sm border-b border-gray-200 px-6 py-4 flex justify-between items-center">
+        <header className="bg-white shadow-sm border-b border-gray-200 px-6 py-3 flex justify-between items-center">
           <h1 className="text-xl font-semibold text-gray-900">Admin Console</h1>
-          <div className="text-sm text-gray-500">OWNER / ADMIN</div>
+          <UserMenu />
         </header>
         <div className="p-6">{children}</div>
       </main>

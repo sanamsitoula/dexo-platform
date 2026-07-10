@@ -35,6 +35,16 @@ async function fetchApi<T>(
   try {
     const response = await fetch(url, { ...options, headers })
     if (!response.ok) {
+      // Session expired / not logged in: drop stale tokens and go to login
+      // instead of surfacing "Unauthorized" on every action.
+      if (response.status === 401 && typeof window !== 'undefined' && !endpoint.startsWith('/auth/')) {
+        localStorage.removeItem(`tenant-token-${subdomain}`)
+        localStorage.removeItem('token')
+        if (!window.location.pathname.includes('/login')) {
+          window.location.href = '/login'
+        }
+        return { error: 'Session expired — please sign in again' }
+      }
       const errorData = await response.json().catch(() => ({}))
       return { error: errorData.message || `HTTP ${response.status}` }
     }

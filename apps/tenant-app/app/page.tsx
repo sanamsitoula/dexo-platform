@@ -63,10 +63,15 @@ export default function Home() {
   return (
     <div className="pb-6">
       {/* Greeting */}
-      <div className="px-6 pt-10 pb-4">
-        <div className="text-gray-500 font-semibold">{greeting()},</div>
-        <div className="text-3xl font-extrabold text-gray-900 -tracking-tight">{user?.firstName || 'Athlete'} 👋</div>
-        <div className="text-sm text-gray-500 mt-1">{stats?.streak ? `You’re on a ${stats.streak}-day streak. Keep it alive.` : 'Let’s make today count.'}</div>
+      <div className="px-6 pt-10 pb-4 flex items-start justify-between">
+        <div>
+          <div className="text-gray-500 font-semibold">{greeting()},</div>
+          <div className="text-3xl font-extrabold text-gray-900 -tracking-tight">{user?.firstName || 'Athlete'} 👋</div>
+          <div className="text-sm text-gray-500 mt-1">{stats?.streak ? `You’re on a ${stats.streak}-day streak. Keep it alive.` : 'Let’s make today count.'}</div>
+        </div>
+        <Link href="/account" aria-label="My profile" className="mt-1 w-11 h-11 rounded-full flex items-center justify-center text-white font-bold shadow-sm" style={{ background: primary }}>
+          {(user?.firstName || user?.email || 'U').charAt(0).toUpperCase()}
+        </Link>
       </div>
 
       <div className="px-4 space-y-4">

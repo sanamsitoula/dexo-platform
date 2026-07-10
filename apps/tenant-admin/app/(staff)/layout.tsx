@@ -1,4 +1,5 @@
 import { ReactNode } from 'react';
+import UserMenu from '@/components/UserMenu';
 
 const NAV = [
   { href: '/staff/dashboard', label: 'Dashboard' },
@@ -23,8 +24,9 @@ export default function StaffLayout({ children }: { children: ReactNode }) {
         </nav>
       </aside>
       <main className="flex-1 overflow-y-auto">
-        <header className="bg-white shadow-sm border-b border-gray-200 px-6 py-4">
+        <header className="bg-white shadow-sm border-b border-gray-200 px-6 py-3 flex justify-between items-center">
           <h1 className="text-xl font-semibold text-gray-900">Staff Console</h1>
+          <UserMenu />
         </header>
         <div className="p-6">{children}</div>
       </main>

@@ -3,6 +3,7 @@
 import { AuthProvider, useAuth } from '@/contexts/AuthContext'
 import { ThemeProvider } from '@/components/ThemeProvider'
 import AdminSidebar from '@/components/AdminSidebar'
+import UserMenu from '@/components/UserMenu'
 import { usePathname, useRouter } from 'next/navigation'
 import { useEffect } from 'react'
 
@@ -53,6 +54,9 @@ function LayoutContent({ children }: { children: React.ReactNode }) {
     <div className="flex h-screen bg-gray-100">
       <AdminSidebar />
       <div className="flex-1 flex flex-col overflow-hidden">
+        <header className="bg-white border-b border-gray-200 px-6 py-2 flex justify-end">
+          <UserMenu />
+        </header>
         <main className="flex-1 overflow-x-hidden overflow-y-auto bg-gray-100 p-6">
           {children}
         </main>
