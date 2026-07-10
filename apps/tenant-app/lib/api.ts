@@ -66,8 +66,17 @@ export const authApi = {
     }),
   register: async (data: { email: string; password: string; firstName: string; lastName: string; phone?: string }) => {
     // Resolve tenantId from the subdomain, then register as a MEMBER.
-    const t = await api<any>(`/tenants/subdomain/${resolveSubdomain()}`);
-    if (!t.data?.id) return { error: 'Could not resolve business' } as ApiResult<any>;
+    const slug = resolveSubdomain();
+    const t = await api<any>(`/tenants/subdomain/${slug}`);
+    if (!t.data?.id) {
+      // Surface WHY: API unreachable vs unknown tenant slug (e.g. a stale
+      // dexo_tenant cookie pinned to a deleted tenant).
+      return {
+        error: t.error
+          ? `Could not reach the server (${t.error}) — please try again`
+          : `Business "${slug}" not found — open this app with ?tenant=<your-gym> or check the gym's link`,
+      } as ApiResult<any>;
+    }
     return api<{ accessToken: string; refreshToken: string; user: any }>('/auth/register', {
       method: 'POST',
       body: JSON.stringify({ ...data, tenantId: t.data.id, signupAs: 'MEMBER' }),
