@@ -20,7 +20,7 @@ interface Template {
 
 export default function DomainDetail() {
   const params = useParams();
-  const slug = (params.type as string) || '';
+  const slug = (params?.type as string) || '';
   const domainType = slug.toUpperCase().replace(/-/g, '_');
   const [template, setTemplate] = useState<Template | null>(null);
 

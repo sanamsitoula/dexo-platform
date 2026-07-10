@@ -7,7 +7,7 @@ import { blogApi, blogCategoryApi, blogCommentApi } from '@/lib/api'
 export default function EditBlogPage() {
   const router = useRouter()
   const params = useParams()
-  const id = params.id as string
+  const id = params?.id as string
   
   const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)

@@ -1,6 +1,25 @@
-import { Controller, Post, Body, Get, UseGuards, Request, HttpCode, HttpStatus, Put } from '@nestjs/common';
+import {
+  Controller,
+  Post,
+  Body,
+  Get,
+  UseGuards,
+  Request,
+  HttpCode,
+  HttpStatus,
+  Put,
+} from '@nestjs/common';
 import { AuthService } from './auth.service';
-import { RegisterDto, LoginDto, ValidateTokenDto, ForgotPasswordDto, ResetPasswordDto, VerifyEmailDto, ResendVerificationDto, ChangePasswordDto } from './dto';
+import {
+  RegisterDto,
+  LoginDto,
+  ValidateTokenDto,
+  ForgotPasswordDto,
+  ResetPasswordDto,
+  VerifyEmailDto,
+  ResendVerificationDto,
+  ChangePasswordDto,
+} from './dto';
 import { JwtAuthGuard } from './jwt-auth.guard';
 import { Public } from './public.decorator';
 
@@ -30,7 +49,7 @@ export class AuthController {
 
   @Get('profile')
   @UseGuards(JwtAuthGuard)
-  async getProfile(@Request() req) {
+  async getProfile(@Request() req: any) {
     return this.authService.getUserProfile(req.user.id);
   }
 
@@ -72,14 +91,14 @@ export class AuthController {
   @Put('change-password')
   @UseGuards(JwtAuthGuard)
   @HttpCode(HttpStatus.OK)
-  async changePassword(@Request() req, @Body() changePasswordDto: ChangePasswordDto) {
+  async changePassword(@Request() req: any, @Body() changePasswordDto: ChangePasswordDto) {
     return this.authService.changePassword(req.user.id, changePasswordDto);
   }
 
   @Post('logout')
   @UseGuards(JwtAuthGuard)
   @HttpCode(HttpStatus.OK)
-  async logout(@Request() req) {
+  async logout(@Request() _req: any) {
     // In a production system, you would add the token to a blacklist/Redis
     // For now, we'll just return success (client should discard the token)
     return {

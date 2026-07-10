@@ -95,7 +95,7 @@ export class InvoiceService {
         vatAmount,
         totalAmount,
         paidAmount: 0,
-        paymentStatus: InvoiceStatus.UNPAID,
+        paymentStatus: 'UNPAID' as any,
         currency: dto.currency || 'NPR',
         notes: dto.notes,
         isActive: true,
@@ -223,10 +223,10 @@ export class InvoiceService {
           tenantId,
           fiscalYear: invoice.fiscalYear.name,
           billNo: billNumber,
-          customerName: invoice.customer?.name || '',
+          customerName: (invoice as any).customer?.name || '',
           customerPan: invoice.customerPan,
           billDate: new Date(),
-          amount: invoice.subtotal + invoice.discountAmount,
+          amount: Number(invoice.subtotal) + Number(invoice.discountAmount),
           discount: invoice.discountAmount,
           taxableAmount: invoice.taxableAmount,
           taxAmount: invoice.vatAmount,
@@ -548,8 +548,8 @@ export class InvoiceService {
     `;
 
     let sequence: number;
-    if (result && result.length > 0) {
-      sequence = result[0].last_number;
+    if (result && (result as any).length > 0) {
+      sequence = (result as any)[0].last_number;
     } else {
       // Create sequence if not exists
       await this.prisma.$executeRaw`
@@ -596,7 +596,7 @@ export class InvoiceService {
       },
     });
 
-    const entryNo = await this.generateBillNumber(tenantId, fiscalYear.name, 'JE');
+    const entryNo = await this.generateBillNumber(tenantId, fiscalYear.name, 'JE' as any);
 
     // Create journal entry
     const journalEntry = await trx.journalEntry.create({
@@ -694,7 +694,7 @@ export class InvoiceService {
       where: { tenantId, fiscalYearId: fiscalYear.id, isClosed: false },
     });
 
-    const entryNo = await this.generateBillNumber(tenantId, fiscalYear.name, 'JE');
+    const entryNo = await this.generateBillNumber(tenantId, fiscalYear.name, 'JE' as any);
 
     const journalEntry = await trx.journalEntry.create({
       data: {
@@ -772,7 +772,7 @@ export class InvoiceService {
       },
     });
 
-    const entryNo = await this.generateBillNumber(tenantId, fiscalYear.name, 'JE');
+    const entryNo = await this.generateBillNumber(tenantId, fiscalYear.name, 'JE' as any);
 
     const journalEntry = await trx.journalEntry.create({
       data: {
@@ -848,7 +848,7 @@ export class InvoiceService {
       },
     });
 
-    const entryNo = await this.generateBillNumber(tenantId, fiscalYear.name, 'JE');
+    const entryNo = await this.generateBillNumber(tenantId, fiscalYear.name, 'JE' as any);
 
     const reversal = await trx.journalEntry.create({
       data: {

@@ -1,4 +1,4 @@
-import { PrismaClient } from '@dexo/shared'
+import { PrismaClient } from '@prisma/client'
 
 // PrismaClient singleton for Next.js app
 // https://www.prisma.io/docs/guides/database/troubleshooting-orm/help-articles/nextjs-prisma-client-dev-practices

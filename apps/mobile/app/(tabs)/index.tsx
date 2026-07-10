@@ -1,493 +1,328 @@
-import { useState, useEffect } from 'react';
-import {
-  View,
-  Text,
-  ScrollView,
-  TouchableOpacity,
-  StyleSheet,
-  RefreshControl,
-  ActivityIndicator,
-  Image,
-} from 'react-native';
+import { useState, useEffect, useCallback } from 'react';
+import { View, Text, ScrollView, TouchableOpacity, StyleSheet, RefreshControl, ActivityIndicator } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import * as SecureStore from 'expo-secure-store';
 import { useRouter } from 'expo-router';
 import { useAuth } from '../../lib/auth-context';
 import { useTenant } from '../../lib/tenant-context';
-import { Colors, Spacing, BorderRadius, FontSize } from '../../lib/theme';
+import { Colors, Spacing, BorderRadius, FontSize, Shadows } from '../../lib/theme';
 import { fitnessApi } from '../../lib/api';
+import ProgressRing from '../../components/ProgressRing';
 
-interface DashboardData {
-  upcomingWorkouts: number;
-  totalWorkouts: number;
-  activePackage: any;
-  nextPayment: any;
-  recentInvoices: any[];
-  trainer: any;
+const WEEKLY_GOAL = 4; // sessions/week target
+
+function greeting() {
+  const h = new Date().getHours();
+  if (h < 12) return 'Good morning';
+  if (h < 17) return 'Good afternoon';
+  return 'Good evening';
+}
+
+/** Count consecutive days (ending today or yesterday) that have a workout log. */
+function computeStreak(dates: string[]): number {
+  const days = new Set(dates.map((d) => new Date(d).toDateString()));
+  let streak = 0;
+  const cur = new Date();
+  // allow today OR yesterday to start the streak
+  if (!days.has(cur.toDateString())) cur.setDate(cur.getDate() - 1);
+  while (days.has(cur.toDateString())) {
+    streak++;
+    cur.setDate(cur.getDate() - 1);
+  }
+  return streak;
 }
 
 export default function HomeScreen() {
   const router = useRouter();
   const { user } = useAuth();
   const { tenant } = useTenant();
-  const [data, setData] = useState<DashboardData>({
-    upcomingWorkouts: 0,
-    totalWorkouts: 0,
-    activePackage: null,
-    nextPayment: null,
-    recentInvoices: [],
-    trainer: null,
-  });
-  const [refreshing, setRefreshing] = useState(false);
+  const primary = tenant?.primaryColor || Colors.primary;
+
   const [loading, setLoading] = useState(true);
+  const [refreshing, setRefreshing] = useState(false);
+  const [member, setMember] = useState<any>(null);
+  const [todayPlan, setTodayPlan] = useState<any>(null);
+  const [logs, setLogs] = useState<any[]>([]);
+  const [nextClass, setNextClass] = useState<any>(null);
+  const [checkedInToday, setCheckedInToday] = useState(false);
 
-  const primaryColor = tenant?.primaryColor || Colors.primary;
-
-  useEffect(() => {
-    loadDashboard();
-  }, []);
-
-  async function loadDashboard() {
-    setLoading(true);
-
-    // The member profile carries the active membership (+plan) and trainer.
+  const load = useCallback(async () => {
     const memberRes = await fitnessApi.members.me().catch(() => ({ data: null as any }));
-    const member = memberRes.data;
+    const m = memberRes.data;
+    setMember(m);
 
-    // Route brand-new members to onboarding once (guarded by a local flag so
-    // "skip" doesn't loop them back here).
-    if (member && user?.id) {
+    // First-run → onboarding (guarded so "skip" doesn't loop).
+    if (m && user?.id) {
       const onboarded = await SecureStore.getItemAsync(`onboarded_${user.id}`).catch(() => null);
-      const incomplete = !member.goals && member.status === 'PENDING_VERIFICATION';
+      const incomplete = !m.goals && (m.status === 'PENDING_VERIFICATION' || !m.memberships?.length);
       if (incomplete && !onboarded) {
         router.replace('/onboarding');
         return;
       }
     }
 
-    const memberId = member?.id;
-    const [logsRes, pendingRes] = await Promise.all([
+    const memberId = m?.id;
+    const [plansRes, logsRes, classRes] = await Promise.all([
+      memberId ? fitnessApi.workoutPlans.list({ memberId, active: 'true' }).catch(() => ({ data: [] as any })) : Promise.resolve({ data: [] as any }),
       memberId ? fitnessApi.workoutLogs.list({ memberId }).catch(() => ({ data: [] as any })) : Promise.resolve({ data: [] as any }),
-      memberId ? fitnessApi.memberships.list({ memberId, status: 'PENDING' }).catch(() => ({ data: null as any })) : Promise.resolve({ data: null as any }),
+      fitnessApi.classes.list({ upcoming: 'true' }).catch(() => ({ data: [] as any })),
     ]);
 
-    const logs = Array.isArray(logsRes.data) ? logsRes.data : logsRes.data?.items ?? [];
-    const pendingList = Array.isArray(pendingRes.data) ? pendingRes.data : pendingRes.data?.items ?? [];
+    const plans = Array.isArray(plansRes.data) ? plansRes.data : plansRes.data?.items ?? plansRes.data?.data ?? [];
+    setTodayPlan(plans[0] || null);
 
-    const activeMembership = member?.memberships?.[0] || null;
-    const activePackage = activeMembership
-      ? {
-          name: activeMembership.plan?.name,
-          status: activeMembership.status?.toLowerCase(),
-          startDate: activeMembership.startDate,
-          nextBillingDate: activeMembership.endDate,
-          price: activeMembership.plan?.priceNpr,
-          billingCycle: activeMembership.plan?.type,
-        }
-      : null;
+    const logList = Array.isArray(logsRes.data) ? logsRes.data : logsRes.data?.items ?? [];
+    setLogs(logList);
 
-    // Next payment due = a PENDING membership awaiting payment.
-    const pending = pendingList[0] || null;
-    const nextPayment = pending
-      ? {
-          amount: pending.amountPaid ?? pending.plan?.totalWithVat,
-          invoiceNumber: pending.qrCode?.slice(-8),
-          dueDate: pending.startDate,
-          membershipId: pending.id,
-        }
-      : null;
+    const classes = Array.isArray(classRes.data) ? classRes.data : classRes.data?.items ?? classRes.data?.data ?? [];
+    setNextClass(classes[0] || null);
 
-    setData({
-      upcomingWorkouts: activeMembership ? 1 : 0,
-      totalWorkouts: logs.length,
-      activePackage,
-      nextPayment,
-      recentInvoices: [],
-      trainer: member?.trainer || null,
-    });
+    if (memberId) {
+      const today = await fitnessApi.checkin.today().catch(() => ({ data: null as any }));
+      const list = Array.isArray(today.data) ? today.data : today.data?.items ?? [];
+      setCheckedInToday(list.some((c: any) => c.memberId === memberId));
+    }
+
     setLoading(false);
-  }
+  }, [user?.id]);
+
+  useEffect(() => { load(); }, [load]);
 
   async function onRefresh() {
     setRefreshing(true);
-    await loadDashboard();
+    await load();
     setRefreshing(false);
   }
 
   if (loading) {
     return (
       <View style={[styles.container, styles.center]}>
-        <ActivityIndicator size="large" color={primaryColor} />
+        <ActivityIndicator size="large" color={primary} />
       </View>
     );
   }
 
+  // Derived metrics
+  const now = new Date();
+  const weekStart = new Date(now);
+  weekStart.setDate(now.getDate() - now.getDay());
+  weekStart.setHours(0, 0, 0, 0);
+  const thisWeek = logs.filter((l) => new Date(l.performedAt || l.createdAt || l.date) >= weekStart).length;
+  const streak = computeStreak(logs.map((l) => l.performedAt || l.createdAt || l.date).filter(Boolean));
+  const calories = logs
+    .filter((l) => new Date(l.performedAt || l.createdAt || l.date) >= weekStart)
+    .reduce((s, l) => s + (l.caloriesBurned || l.calories || 0), 0);
+  const weekProgress = Math.min(1, thisWeek / WEEKLY_GOAL);
+
+  const membership = member?.memberships?.[0] || null;
+  const daysLeft = membership?.endDate
+    ? Math.max(0, Math.ceil((new Date(membership.endDate).getTime() - now.getTime()) / 86400000))
+    : null;
+
   return (
     <ScrollView
-      style={[styles.container, { backgroundColor: Colors.background }]}
-      refreshControl={
-        <RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={primaryColor} />
-      }
+      style={styles.container}
+      contentContainerStyle={{ paddingBottom: Spacing.xxl }}
+      refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={primary} />}
     >
-      {/* Hero / Greeting */}
-      <View style={[styles.hero, { backgroundColor: primaryColor }]}>
-        <View style={styles.heroTop}>
-          {tenant?.logo ? (
-            <Image source={{ uri: tenant.logo }} style={styles.tenantLogo} />
-          ) : (
-            <View style={styles.tenantLogoPlaceholder}>
-              <Text style={styles.tenantLogoText}>
-                {(tenant?.name || 'D').charAt(0).toUpperCase()}
-              </Text>
-            </View>
-          )}
-          <View style={{ flex: 1, marginLeft: Spacing.md }}>
-            <Text style={styles.greeting}>Hi, {user?.firstName || 'there'}! 👋</Text>
-            <Text style={styles.tenantName}>{tenant?.name || 'Welcome'}</Text>
-            {tenant?.tagline && <Text style={styles.tagline}>{tenant.tagline}</Text>}
+      {/* Greeting */}
+      <View style={styles.header}>
+        <View style={{ flex: 1 }}>
+          <Text style={styles.greetingKicker}>{greeting()},</Text>
+          <Text style={styles.greetingName}>{user?.firstName || 'Athlete'} 👋</Text>
+          <Text style={styles.greetingSub}>{streak > 0 ? `You’re on a ${streak}-day streak. Keep it alive.` : 'Let’s make today count.'}</Text>
+        </View>
+        <TouchableOpacity onPress={() => router.push('/(tabs)/profile')} style={[styles.avatar, { backgroundColor: primary }]}>
+          <Text style={styles.avatarText}>{(user?.firstName || 'A').charAt(0).toUpperCase()}</Text>
+        </TouchableOpacity>
+      </View>
+
+      {/* Today's workout — hero */}
+      <TouchableOpacity
+        activeOpacity={0.92}
+        onPress={() => router.push('/workout-log')}
+        style={[styles.hero, { backgroundColor: primary }]}
+      >
+        <Text style={styles.heroKicker}>TODAY’S WORKOUT</Text>
+        <Text style={styles.heroTitle}>{todayPlan?.name || todayPlan?.title || 'Full Body Strength'}</Text>
+        <View style={styles.heroMeta}>
+          <View style={styles.heroMetaItem}>
+            <Ionicons name="time-outline" size={16} color="#fff" />
+            <Text style={styles.heroMetaText}>{todayPlan?.durationMin || todayPlan?.estimatedMinutes || 45} min</Text>
+          </View>
+          <View style={styles.heroMetaItem}>
+            <Ionicons name="flame-outline" size={16} color="#fff" />
+            <Text style={styles.heroMetaText}>{todayPlan?.difficulty || 'Intermediate'}</Text>
+          </View>
+          <View style={styles.heroMetaItem}>
+            <Ionicons name="barbell-outline" size={16} color="#fff" />
+            <Text style={styles.heroMetaText}>{todayPlan?.exercises?.length || todayPlan?.exerciseCount || 6} exercises</Text>
+          </View>
+        </View>
+        <View style={styles.heroBtn}>
+          <Text style={[styles.heroBtnText, { color: primary }]}>Start workout</Text>
+          <Ionicons name="play" size={18} color={primary} />
+        </View>
+      </TouchableOpacity>
+
+      {/* Weekly progress */}
+      <View style={styles.card}>
+        <View style={styles.progressRow}>
+          <ProgressRing size={116} strokeWidth={12} progress={weekProgress} color={primary} value={`${thisWeek}/${WEEKLY_GOAL}`} label="this week" />
+          <View style={styles.progressStats}>
+            <Metric icon="flame" iconColor={Colors.streak} value={`${streak}`} label="day streak" />
+            <Metric icon="barbell" iconColor={primary} value={`${logs.length}`} label="total sessions" />
+            <Metric icon="bonfire" iconColor={Colors.move} value={`${Math.round(calories)}`} label="kcal this week" />
           </View>
         </View>
       </View>
 
-      {/* Quick Stats */}
-      <View style={styles.statsRow}>
-        <StatCard
-          icon="barbell-outline"
-          label="Total Workouts"
-          value={data.totalWorkouts.toString()}
-          color={primaryColor}
-        />
-        <StatCard
-          icon="calendar-outline"
-          label="Upcoming"
-          value={data.upcomingWorkouts.toString()}
-          color="#10b981"
-        />
-        <StatCard
-          icon="card-outline"
-          label="Active Plan"
-          value={data.activePackage ? '✓' : '—'}
-          color="#f59e0b"
-        />
+      {/* Membership mini-card */}
+      {membership && (
+        <TouchableOpacity activeOpacity={0.9} onPress={() => router.push('/my-membership')} style={styles.card}>
+          <View style={styles.rowBetween}>
+            <View style={{ flexDirection: 'row', alignItems: 'center', gap: Spacing.md }}>
+              <View style={[styles.iconChip, { backgroundColor: primary + '15' }]}>
+                <Ionicons name="card" size={20} color={primary} />
+              </View>
+              <View>
+                <Text style={styles.cardTitle}>{membership.plan?.name || 'Membership'}</Text>
+                <Text style={styles.cardSub}>
+                  {daysLeft != null ? `${daysLeft} days remaining` : String(membership.status || '').toLowerCase()}
+                </Text>
+              </View>
+            </View>
+            <Ionicons name="chevron-forward" size={20} color={Colors.textLight} />
+          </View>
+        </TouchableOpacity>
+      )}
+
+      {/* Upcoming class */}
+      {nextClass && (
+        <TouchableOpacity activeOpacity={0.9} onPress={() => router.push('/classes')} style={styles.card}>
+          <Text style={styles.cardLabel}>UPCOMING CLASS</Text>
+          <View style={styles.rowBetween}>
+            <View>
+              <Text style={styles.cardTitle}>{nextClass.name || nextClass.title}</Text>
+              <Text style={styles.cardSub}>
+                {nextClass.startTime ? new Date(nextClass.startTime).toLocaleString([], { weekday: 'short', hour: '2-digit', minute: '2-digit' }) : 'Soon'}
+                {nextClass.trainer?.name ? ` · ${nextClass.trainer.name}` : ''}
+              </Text>
+            </View>
+            <View style={[styles.iconChip, { backgroundColor: Colors.stand + '20' }]}>
+              <Ionicons name="calendar" size={20} color={Colors.stand} />
+            </View>
+          </View>
+        </TouchableOpacity>
+      )}
+
+      {/* Trainer message */}
+      {member?.trainer && (
+        <TouchableOpacity activeOpacity={0.9} onPress={() => router.push('/(tabs)/team')} style={styles.card}>
+          <View style={{ flexDirection: 'row', alignItems: 'center', gap: Spacing.md }}>
+            <View style={[styles.avatarSm, { backgroundColor: primary }]}>
+              <Text style={styles.avatarText}>{(member.trainer.name || 'T').charAt(0)}</Text>
+            </View>
+            <View style={{ flex: 1 }}>
+              <Text style={styles.cardTitle}>{member.trainer.name || 'Your trainer'}</Text>
+              <Text style={styles.cardSub} numberOfLines={1}>Tap to message your coach</Text>
+            </View>
+            <Ionicons name="chatbubble-ellipses-outline" size={20} color={primary} />
+          </View>
+        </TouchableOpacity>
+      )}
+
+      {/* Quick actions */}
+      <View style={styles.quickRow}>
+        <Quick icon="qr-code-outline" label={checkedInToday ? 'Checked in' : 'Check in'} color={checkedInToday ? Colors.success : primary} onPress={() => router.push('/checkin')} />
+        <Quick icon="calendar-outline" label="Book class" color={Colors.stand} onPress={() => router.push('/classes')} />
+        <Quick icon="nutrition-outline" label="Nutrition" color={Colors.move} onPress={() => router.push('/diet-log')} />
+        <Quick icon="stats-chart-outline" label="Progress" color={Colors.streak} onPress={() => router.push('/(tabs)/progress')} />
       </View>
-
-      {/* Active Package / Subscription */}
-      {data.activePackage && (
-        <View style={styles.section}>
-          <View style={styles.sectionHeader}>
-            <Text style={styles.sectionTitle}>My Subscription</Text>
-            <TouchableOpacity onPress={() => router.push('/(tabs)/billing')}>
-              <Text style={[styles.linkText, { color: primaryColor }]}>View all</Text>
-            </TouchableOpacity>
-          </View>
-          <View style={[styles.packageCard, { borderColor: primaryColor }]}>
-            <View style={styles.packageHeader}>
-              <View style={{ flex: 1 }}>
-                <Text style={styles.packageName}>
-                  {data.activePackage.name || data.activePackage.planName || 'Premium Plan'}
-                </Text>
-                <Text style={styles.packageSub}>
-                  {data.activePackage.billingCycle || 'Monthly'} · {data.activePackage.status || 'active'}
-                </Text>
-              </View>
-              <View style={[styles.statusBadge, { backgroundColor: primaryColor + '20' }]}>
-                <Text style={[styles.statusText, { color: primaryColor }]}>
-                  {data.activePackage.status || 'active'}
-                </Text>
-              </View>
-            </View>
-
-            <View style={styles.packageDetails}>
-              <View style={styles.packageDetail}>
-                <Ionicons name="calendar-outline" size={16} color={Colors.textSecondary} />
-                <Text style={styles.packageDetailText}>
-                  Started {new Date(data.activePackage.startDate || data.activePackage.createdAt).toLocaleDateString()}
-                </Text>
-              </View>
-              {data.activePackage.nextBillingDate && (
-                <View style={styles.packageDetail}>
-                  <Ionicons name="refresh-outline" size={16} color={Colors.textSecondary} />
-                  <Text style={styles.packageDetailText}>
-                    Renews {new Date(data.activePackage.nextBillingDate).toLocaleDateString()}
-                  </Text>
-                </View>
-              )}
-              {data.activePackage.price && (
-                <View style={styles.packageDetail}>
-                  <Ionicons name="cash-outline" size={16} color={Colors.textSecondary} />
-                  <Text style={styles.packageDetailText}>
-                    NPR {data.activePackage.price}/{data.activePackage.billingCycle?.toLowerCase() || 'month'}
-                  </Text>
-                </View>
-              )}
-            </View>
-          </View>
-        </View>
-      )}
-
-      {/* Next Payment */}
-      {data.nextPayment && (
-        <View style={styles.section}>
-          <View style={styles.sectionHeader}>
-            <Text style={styles.sectionTitle}>Next Payment Due</Text>
-          </View>
-          <TouchableOpacity style={styles.paymentCard}>
-            <View style={[styles.paymentIcon, { backgroundColor: '#fef3c7' }]}>
-              <Ionicons name="alert-circle" size={24} color="#f59e0b" />
-            </View>
-            <View style={{ flex: 1, marginLeft: Spacing.md }}>
-              <Text style={styles.paymentTitle}>
-                NPR {data.nextPayment.amount} due
-              </Text>
-              <Text style={styles.paymentSub}>
-                Invoice {data.nextPayment.invoiceNumber || data.nextPayment.id?.substring(0, 8)}
-              </Text>
-              <Text style={styles.paymentDue}>
-                Due {new Date(data.nextPayment.dueDate).toLocaleDateString()}
-              </Text>
-            </View>
-            <TouchableOpacity
-              style={[styles.payButton, { backgroundColor: primaryColor }]}
-              onPress={() => router.push('/(tabs)/billing')}
-            >
-              <Text style={styles.payButtonText}>Pay Now</Text>
-            </TouchableOpacity>
-          </TouchableOpacity>
-        </View>
-      )}
-
-      {/* Quick Actions */}
-      <View style={styles.section}>
-        <Text style={styles.sectionTitle}>Quick Actions</Text>
-        <View style={styles.quickActions}>
-          <QuickAction
-            icon="barbell-outline"
-            label="Log Workout"
-            onPress={() => router.push('/(tabs)/workouts')}
-            color={primaryColor}
-          />
-          <QuickAction
-            icon="people-outline"
-            label="Find Trainer"
-            onPress={() => router.push('/(tabs)/team')}
-            color="#10b981"
-          />
-          <QuickAction
-            icon="card-outline"
-            label="Payments"
-            onPress={() => router.push('/(tabs)/billing')}
-            color="#f59e0b"
-          />
-          <QuickAction
-            icon="person-outline"
-            label="Profile"
-            onPress={() => router.push('/(tabs)/profile')}
-            color="#8b5cf6"
-          />
-        </View>
-      </View>
-
-      {/* Recent Invoices */}
-      {data.recentInvoices.length > 0 && (
-        <View style={styles.section}>
-          <View style={styles.sectionHeader}>
-            <Text style={styles.sectionTitle}>Recent Invoices</Text>
-            <TouchableOpacity onPress={() => router.push('/(tabs)/billing')}>
-              <Text style={[styles.linkText, { color: primaryColor }]}>View all</Text>
-            </TouchableOpacity>
-          </View>
-          {data.recentInvoices.map((invoice: any) => (
-            <View key={invoice.id} style={styles.invoiceRow}>
-              <View style={[styles.invoiceIcon, { backgroundColor: primaryColor + '15' }]}>
-                <Ionicons name="receipt-outline" size={20} color={primaryColor} />
-              </View>
-              <View style={{ flex: 1, marginLeft: Spacing.md }}>
-                <Text style={styles.invoiceTitle}>
-                  ${invoice.total || invoice.amount}
-                </Text>
-                <Text style={styles.invoiceSub}>
-                  {invoice.invoiceNumber || invoice.id?.substring(0, 8)} ·{' '}
-                  {new Date(invoice.createdAt || invoice.issueDate).toLocaleDateString()}
-                </Text>
-              </View>
-              <View
-                style={[
-                  styles.invoiceStatus,
-                  {
-                    backgroundColor:
-                      invoice.status === 'paid' ? '#dcfce7' : '#fef3c7',
-                  },
-                ]}
-              >
-                <Text
-                  style={[
-                    styles.invoiceStatusText,
-                    { color: invoice.status === 'paid' ? '#16a34a' : '#d97706' },
-                  ]}
-                >
-                  {invoice.status}
-                </Text>
-              </View>
-            </View>
-          ))}
-        </View>
-      )}
-
-      <View style={{ height: Spacing.xl }} />
     </ScrollView>
   );
 }
 
-function StatCard({ icon, label, value, color }: any) {
+function Metric({ icon, iconColor, value, label }: any) {
   return (
-    <View style={styles.statCard}>
-      <View style={[styles.statIcon, { backgroundColor: color + '15' }]}>
-        <Ionicons name={icon} size={20} color={color} />
+    <View style={styles.metric}>
+      <Ionicons name={icon} size={18} color={iconColor} />
+      <View>
+        <Text style={styles.metricValue}>{value}</Text>
+        <Text style={styles.metricLabel}>{label}</Text>
       </View>
-      <Text style={styles.statValue}>{value}</Text>
-      <Text style={styles.statLabel}>{label}</Text>
     </View>
   );
 }
 
-function QuickAction({ icon, label, onPress, color }: any) {
+function Quick({ icon, label, color, onPress }: any) {
   return (
-    <TouchableOpacity style={styles.quickAction} onPress={onPress}>
-      <View style={[styles.quickActionIcon, { backgroundColor: color + '15' }]}>
-        <Ionicons name={icon} size={22} color={color} />
+    <TouchableOpacity style={styles.quick} activeOpacity={0.85} onPress={onPress}>
+      <View style={[styles.quickIcon, { backgroundColor: color + '15' }]}>
+        <Ionicons name={icon} size={24} color={color} />
       </View>
-      <Text style={styles.quickActionLabel}>{label}</Text>
+      <Text style={styles.quickLabel}>{label}</Text>
     </TouchableOpacity>
   );
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1 },
+  container: { flex: 1, backgroundColor: Colors.background },
   center: { justifyContent: 'center', alignItems: 'center' },
+
+  header: { flexDirection: 'row', alignItems: 'center', paddingHorizontal: Spacing.lg, paddingTop: 60, paddingBottom: Spacing.md },
+  greetingKicker: { fontSize: FontSize.md, color: Colors.textSecondary, fontWeight: '600' },
+  greetingName: { fontSize: FontSize.title, color: Colors.text, fontWeight: '800', letterSpacing: -0.5, marginTop: 2 },
+  greetingSub: { fontSize: FontSize.sm, color: Colors.textSecondary, marginTop: 4 },
+  avatar: { width: 46, height: 46, borderRadius: 23, alignItems: 'center', justifyContent: 'center' },
+  avatarSm: { width: 42, height: 42, borderRadius: 21, alignItems: 'center', justifyContent: 'center' },
+  avatarText: { color: '#fff', fontWeight: '800', fontSize: FontSize.lg },
+
   hero: {
-    paddingHorizontal: Spacing.lg,
-    paddingTop: Spacing.lg,
-    paddingBottom: Spacing.xl,
+    marginHorizontal: Spacing.lg,
+    borderRadius: BorderRadius.hero,
+    padding: Spacing.lg,
+    ...Shadows.md,
   },
-  heroTop: { flexDirection: 'row', alignItems: 'center' },
-  tenantLogo: { width: 56, height: 56, borderRadius: BorderRadius.md, backgroundColor: Colors.white },
-  tenantLogoPlaceholder: {
-    width: 56,
-    height: 56,
-    borderRadius: BorderRadius.md,
-    backgroundColor: Colors.white,
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  tenantLogoText: { fontSize: 24, fontWeight: 'bold', color: Colors.primary },
-  greeting: { color: Colors.white, fontSize: FontSize.md, opacity: 0.9 },
-  tenantName: { color: Colors.white, fontSize: FontSize.lg, fontWeight: 'bold', marginTop: 2 },
-  tagline: { color: Colors.white, fontSize: FontSize.xs, opacity: 0.85, marginTop: 2 },
-  statsRow: {
+  heroKicker: { color: 'rgba(255,255,255,0.85)', fontSize: FontSize.xs, fontWeight: '800', letterSpacing: 1.5 },
+  heroTitle: { color: '#fff', fontSize: FontSize.xxl, fontWeight: '800', marginTop: 6, letterSpacing: -0.5 },
+  heroMeta: { flexDirection: 'row', gap: Spacing.lg, marginTop: Spacing.md },
+  heroMetaItem: { flexDirection: 'row', alignItems: 'center', gap: 5 },
+  heroMetaText: { color: '#fff', fontSize: FontSize.sm, fontWeight: '600' },
+  heroBtn: {
+    backgroundColor: '#fff',
+    borderRadius: BorderRadius.full,
+    paddingVertical: Spacing.md,
     flexDirection: 'row',
-    paddingHorizontal: Spacing.md,
-    marginTop: -Spacing.md,
+    alignItems: 'center',
+    justifyContent: 'center',
     gap: Spacing.sm,
+    marginTop: Spacing.lg,
   },
-  statCard: {
-    flex: 1,
-    backgroundColor: Colors.white,
-    borderRadius: BorderRadius.lg,
-    padding: Spacing.md,
-    alignItems: 'center',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.05,
-    shadowRadius: 4,
-    elevation: 2,
+  heroBtnText: { fontWeight: '800', fontSize: FontSize.md },
+
+  card: {
+    backgroundColor: Colors.surface,
+    marginHorizontal: Spacing.lg,
+    marginTop: Spacing.md,
+    borderRadius: BorderRadius.xl2,
+    padding: Spacing.lg,
+    ...Shadows.sm,
   },
-  statIcon: {
-    width: 40,
-    height: 40,
-    borderRadius: BorderRadius.md,
-    justifyContent: 'center',
-    alignItems: 'center',
-    marginBottom: Spacing.xs,
-  },
-  statValue: { fontSize: FontSize.lg, fontWeight: 'bold', color: Colors.text },
-  statLabel: { fontSize: FontSize.xs, color: Colors.textSecondary, marginTop: 2 },
-  section: {
-    backgroundColor: Colors.white,
-    margin: Spacing.md,
-    padding: Spacing.md,
-    borderRadius: BorderRadius.lg,
-  },
-  sectionHeader: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    marginBottom: Spacing.md,
-  },
-  sectionTitle: { fontSize: FontSize.md, fontWeight: '600', color: Colors.text },
-  linkText: { fontSize: FontSize.sm, fontWeight: '600' },
-  packageCard: {
-    borderWidth: 2,
-    borderRadius: BorderRadius.md,
-    padding: Spacing.md,
-  },
-  packageHeader: { flexDirection: 'row', alignItems: 'center' },
-  packageName: { fontSize: FontSize.md, fontWeight: 'bold', color: Colors.text },
-  packageSub: { fontSize: FontSize.xs, color: Colors.textSecondary, marginTop: 2 },
-  statusBadge: { paddingHorizontal: Spacing.sm, paddingVertical: 4, borderRadius: BorderRadius.sm },
-  statusText: { fontSize: FontSize.xs, fontWeight: '600', textTransform: 'uppercase' },
-  packageDetails: { marginTop: Spacing.md, gap: 6 },
-  packageDetail: { flexDirection: 'row', alignItems: 'center', gap: Spacing.xs },
-  packageDetailText: { fontSize: FontSize.sm, color: Colors.textSecondary },
-  paymentCard: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    padding: Spacing.md,
-    backgroundColor: '#fffbeb',
-    borderRadius: BorderRadius.md,
-  },
-  paymentIcon: {
-    width: 48,
-    height: 48,
-    borderRadius: BorderRadius.md,
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  paymentTitle: { fontSize: FontSize.md, fontWeight: 'bold', color: Colors.text },
-  paymentSub: { fontSize: FontSize.xs, color: Colors.textSecondary, marginTop: 2 },
-  paymentDue: { fontSize: FontSize.xs, color: '#d97706', marginTop: 2, fontWeight: '600' },
-  payButton: { paddingHorizontal: Spacing.md, paddingVertical: Spacing.sm, borderRadius: BorderRadius.md },
-  payButtonText: { color: Colors.white, fontSize: FontSize.sm, fontWeight: '600' },
-  quickActions: { flexDirection: 'row', flexWrap: 'wrap', gap: Spacing.sm },
-  quickAction: {
-    width: '23%',
-    alignItems: 'center',
-    paddingVertical: Spacing.sm,
-  },
-  quickActionIcon: {
-    width: 48,
-    height: 48,
-    borderRadius: BorderRadius.md,
-    justifyContent: 'center',
-    alignItems: 'center',
-    marginBottom: Spacing.xs,
-  },
-  quickActionLabel: { fontSize: FontSize.xs, color: Colors.text, textAlign: 'center' },
-  invoiceRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    paddingVertical: Spacing.sm,
-    borderBottomWidth: 1,
-    borderBottomColor: Colors.border,
-  },
-  invoiceIcon: {
-    width: 40,
-    height: 40,
-    borderRadius: BorderRadius.md,
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  invoiceTitle: { fontSize: FontSize.md, fontWeight: '600', color: Colors.text },
-  invoiceSub: { fontSize: FontSize.xs, color: Colors.textSecondary, marginTop: 2 },
-  invoiceStatus: { paddingHorizontal: Spacing.sm, paddingVertical: 4, borderRadius: BorderRadius.sm },
-  invoiceStatusText: { fontSize: FontSize.xs, fontWeight: '600', textTransform: 'uppercase' },
+  cardLabel: { fontSize: FontSize.xs, color: Colors.textLight, fontWeight: '800', letterSpacing: 1, marginBottom: Spacing.sm },
+  cardTitle: { fontSize: FontSize.md, fontWeight: '700', color: Colors.text },
+  cardSub: { fontSize: FontSize.sm, color: Colors.textSecondary, marginTop: 2 },
+  rowBetween: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
+  iconChip: { width: 42, height: 42, borderRadius: BorderRadius.md, alignItems: 'center', justifyContent: 'center' },
+
+  progressRow: { flexDirection: 'row', alignItems: 'center', gap: Spacing.lg },
+  progressStats: { flex: 1, gap: Spacing.md },
+  metric: { flexDirection: 'row', alignItems: 'center', gap: Spacing.sm },
+  metricValue: { fontSize: FontSize.lg, fontWeight: '800', color: Colors.text },
+  metricLabel: { fontSize: FontSize.xs, color: Colors.textSecondary },
+
+  quickRow: { flexDirection: 'row', paddingHorizontal: Spacing.lg, marginTop: Spacing.lg, gap: Spacing.sm },
+  quick: { flex: 1, alignItems: 'center' },
+  quickIcon: { width: 58, height: 58, borderRadius: BorderRadius.xl, alignItems: 'center', justifyContent: 'center' },
+  quickLabel: { fontSize: FontSize.xs, color: Colors.text, marginTop: 6, fontWeight: '600' },
 });

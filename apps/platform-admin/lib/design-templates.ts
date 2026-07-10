@@ -10,6 +10,8 @@
  */
 
 export interface DesignTokens {
+  tokens?: DesignTokens
+  previewGradient?: string
   colors: {
     primary: string
     primaryDark: string
@@ -247,7 +249,7 @@ const SALON_TEMPLATES: DesignTemplate[] = [
         fontFamily: 'Inter, sans-serif',
         fontFamilyHeading: 'Cormorant Garamond, serif',
         headingWeight: '700',
-        bodyWeight: '300',
+        bodyWeight: '400',
         h1Size: '5rem', h2Size: '3.5rem', h3Size: '2.5rem',
         bodySize: '1.0625rem', smallSize: '0.875rem',
         lineHeight: '1.8', letterSpacing: '0.02em',
@@ -512,7 +514,7 @@ const FITNESS_TEMPLATES: DesignTemplate[] = [
         fontFamily: 'Inter, sans-serif',
         fontFamilyHeading: 'Cormorant Garamond, serif',
         headingWeight: '600',
-        bodyWeight: '300',
+        bodyWeight: '400',
         h1Size: '5rem', h2Size: '3.5rem', h3Size: '2.5rem',
         bodySize: '1rem', smallSize: '0.8125rem',
         lineHeight: '1.8', letterSpacing: '0.05em',

@@ -47,10 +47,13 @@ export class PaymentGatewayService {
    * Get all active providers for a tenant
    */
   async getTenantProviders(tenantId: string) {
-    return this.prisma.paymentProvider.findMany({
+    const providers = await this.prisma.paymentProvider.findMany({
       where: { tenantId },
       orderBy: [{ isDefault: 'desc' }, { name: 'asc' }],
     });
+    // Never expose gateway credentials — this endpoint is also consumed by the
+    // customer-facing app to list available payment methods.
+    return providers.map(({ credentials: _credentials, ...p }) => ({ ...p, hasCredentials: !!_credentials }));
   }
 
   /**
@@ -175,7 +178,7 @@ export class PaymentGatewayService {
       });
 
       return response;
-    } catch (error) {
+    } catch (error: any) {
       // Mark transaction as failed
       await this.prisma.paymentTransaction.update({
         where: { id: transaction.id },

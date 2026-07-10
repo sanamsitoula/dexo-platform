@@ -1,8 +1,8 @@
 import { Processor, Process, OnQueueActive, OnQueueCompleted, OnQueueFailed } from '@nestjs/bull';
 import { Logger } from '@nestjs/common';
-import { Job } from 'bull';
+import type { Job } from 'bull';
 import { QUEUE_NAMES } from '../queue.constants';
-import { EmailJobData } from '../queue.service';
+import type { EmailJobData } from '../queue.service';
 
 // This would be imported from the notification package
 // For now, we'll define a simple email sender interface
@@ -34,7 +34,7 @@ export class EmailProcessor {
         success: true,
         messageId: `msg_${job.id}`,
       };
-    } catch (error) {
+    } catch (error: any) {
       this.logger.error(`Failed to send email: ${error.message}`);
       throw error;
     }
@@ -58,7 +58,7 @@ export class EmailProcessor {
         success: true,
         messageId: `msg_${job.id}`,
       };
-    } catch (error) {
+    } catch (error: any) {
       this.logger.error(`Failed to send template email: ${error.message}`);
       throw error;
     }
@@ -78,7 +78,7 @@ export class EmailProcessor {
         success: true,
         count: job.data.emails.length,
       };
-    } catch (error) {
+    } catch (error: any) {
       this.logger.error(`Failed to send bulk emails: ${error.message}`);
       throw error;
     }

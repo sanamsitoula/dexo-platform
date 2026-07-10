@@ -17,7 +17,7 @@ export default function InviteUserPage() {
     async function fetchRoles() {
       const response = await rolesApi.list()
       if (response.data) {
-        setRoles(response.data.roles || [])
+        setRoles(Array.isArray(response.data) ? response.data : ((response.data as any).roles || []))
       }
     }
     fetchRoles()

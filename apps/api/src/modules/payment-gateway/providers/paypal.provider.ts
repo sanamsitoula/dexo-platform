@@ -90,7 +90,7 @@ export class PaypalProvider implements IPaymentProvider {
         providerTxnId: order.id,
         rawResponse: order,
       };
-    } catch (error) {
+    } catch (error: any) {
       throw new Error(`PayPal payment init failed: ${error.response?.data?.message || error.message}`);
     }
   }
@@ -139,7 +139,7 @@ export class PaypalProvider implements IPaymentProvider {
         rawResponse: order,
         message: `Order status: ${order.status}`,
       };
-    } catch (error) {
+    } catch (error: any) {
       return {
         success: false,
         providerTxnId: request.providerTxnId,
@@ -186,10 +186,9 @@ export class PaypalProvider implements IPaymentProvider {
         status: refund.status,
         rawResponse: refund,
       };
-    } catch (error) {
+    } catch (error: any) {
       return {
         success: false,
-        message: error.message || 'Refund failed',
         rawResponse: error.response?.data,
       };
     }

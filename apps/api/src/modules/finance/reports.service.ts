@@ -14,24 +14,44 @@ export class ReportsService {
     const liabilities = accounts.filter(a => a.accountType === 'LIABILITY');
     const equity = accounts.filter(a => a.accountType === 'EQUITY');
 
+    // Current-year earnings: during the year, P&L accounts (revenue/expense/COGS)
+    // are not yet closed to retained earnings, so their net must be shown within
+    // equity for the balance sheet to balance (Assets = Liabilities + Equity).
+    const revenue = accounts.filter(a => a.accountType === 'REVENUE');
+    const expenses = accounts.filter(a => a.accountType === 'EXPENSE');
+    const cogs = accounts.filter(a => a.accountType === 'COGS');
+    const netIncome = this.sumBalances(revenue).sub(this.sumBalances(cogs)).sub(this.sumBalances(expenses));
+
     const totalAssets = this.sumBalances(assets);
     const totalLiabilities = this.sumBalances(liabilities);
-    const totalEquity = this.sumBalances(equity);
+    const totalEquity = this.sumBalances(equity).add(netIncome);
+
+    const currentEarningsLine = {
+      accountId: 'current-year-earnings',
+      accountCode: '3900',
+      accountName: 'Current Year Earnings',
+      accountType: 'EQUITY',
+      normalBalance: 'CREDIT',
+      balance: netIncome,
+      debitTotal: new Decimal(0),
+      creditTotal: netIncome,
+    };
 
     return {
       asOfDate: date,
       assets: {
-        current: assets.filter(a => a.accountCode.startsWith('11')),
-        nonCurrent: assets.filter(a => a.accountCode.startsWith('12')),
+        current: assets.filter(a => a.accountCode.startsWith('11') || a.accountCode.startsWith('10')),
+        nonCurrent: assets.filter(a => a.accountCode.startsWith('12') || a.accountCode.startsWith('15')),
         total: totalAssets,
       },
       liabilities: {
-        current: liabilities.filter(a => a.accountCode.startsWith('21')),
+        current: liabilities.filter(a => a.accountCode.startsWith('21') || a.accountCode.startsWith('20') || a.accountCode.startsWith('23')),
         nonCurrent: liabilities.filter(a => a.accountCode.startsWith('22')),
         total: totalLiabilities,
       },
       equity: {
-        items: equity,
+        items: [...equity, currentEarningsLine],
+        currentYearEarnings: netIncome,
         total: totalEquity,
       },
       totalLiabilitiesAndEquity: totalLiabilities.add(totalEquity),

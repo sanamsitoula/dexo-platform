@@ -1,12 +1,28 @@
 const API_HOST = (process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000').replace(/\/api\/?$/, '');
 const API_BASE = `${API_HOST}/api`;
 
-/** The tenant this app instance serves. In dev it's vrfitness; in prod it's the
- * subdomain of the host. */
+/** The tenant this app instance serves. Resolved dynamically from the host so a
+ * single deployed instance serves any business (multi-tenant SaaS):
+ *   - authoritative: the `dexo_tenant` cookie set by middleware.ts from the Host
+ *   - fallback: parse window.location.hostname (handles `*.localhost` in dev and
+ *     `sub.domain.tld` in prod)
+ *   - last resort: NEXT_PUBLIC_DEV_TENANT env, then "vrfitness". */
+const RESERVED_SUBDOMAINS = new Set(['www', 'app', 'api', 'admin', 'localhost', 'dexo']);
+
 export function resolveSubdomain(): string {
+  if (typeof document !== 'undefined') {
+    const m = document.cookie.match(/(?:^|;\s*)dexo_tenant=([^;]+)/);
+    if (m) return decodeURIComponent(m[1]);
+  }
   if (typeof window !== 'undefined') {
-    const parts = window.location.hostname.split('.');
-    if (parts.length > 2 && parts[0] !== 'www' && parts[0] !== 'localhost') return parts[0];
+    const hostname = window.location.hostname.toLowerCase();
+    const parts = hostname.split('.');
+    if (hostname.endsWith('.localhost') && parts.length >= 2 && !RESERVED_SUBDOMAINS.has(parts[0])) {
+      return parts[0];
+    }
+    if (parts.length >= 3 && !RESERVED_SUBDOMAINS.has(parts[0])) {
+      return parts[0];
+    }
   }
   return process.env.NEXT_PUBLIC_DEV_TENANT || 'vrfitness';
 }
@@ -71,21 +87,66 @@ export const publicApi = {
   plans: () => api<any[]>(`/fitness/public/${resolveSubdomain()}/plans`),
 };
 
+export const paymentsApi = {
+  /** Gateways the gym has configured (eSewa, Khalti, Stripe, …). */
+  providers: () => api<any>('/payment-gateway/tenant/providers'),
+  init: (data: {
+    providerType: string; orderId: string; amount: number; description?: string;
+    customerEmail?: string; customerName?: string;
+    successUrl: string; failureUrl: string; cancelUrl?: string;
+  }) => api<any>('/payment-gateway/init', { method: 'POST', body: JSON.stringify(data) }),
+  verify: (data: { providerType: string; providerTxnId: string; orderId: string; amount?: number; rawParams?: any }) =>
+    api<any>('/payment-gateway/verify', { method: 'POST', body: JSON.stringify(data) }),
+};
+
 export const fitnessApi = {
   me: () => api<any>('/fitness/members/me'),
   updateMe: (data: any) => api<any>('/fitness/members/me', { method: 'PUT', body: JSON.stringify(data) }),
   plans: () => api<any>('/fitness/membership-plans?active=true'),
   memberships: {
     list: (memberId: string) => api<any>(`/fitness/memberships${qs({ memberId })}`),
+    get: (id: string) => api<any>(`/fitness/memberships/${id}`),
     create: (memberId: string, planId: string) => api<any>('/fitness/memberships', { method: 'POST', body: JSON.stringify({ memberId, planId }) }),
     activate: (id: string, paymentRef: string, paymentMethod: string) =>
       api<any>(`/fitness/memberships/${id}/activate-payment`, { method: 'POST', body: JSON.stringify({ paymentRef, paymentMethod }) }),
+    renew: (id: string) => api<any>(`/fitness/memberships/${id}/renew`, { method: 'POST' }),
+    freeze: (id: string, days: number, reason: string) => api<any>(`/fitness/memberships/${id}/freeze`, { method: 'POST', body: JSON.stringify({ days, reason }) }),
+    unfreeze: (id: string) => api<any>(`/fitness/memberships/${id}/unfreeze`, { method: 'POST' }),
   },
   workoutPlans: (memberId: string) => api<any>(`/fitness/workout-plans${qs({ memberId })}`),
   workoutLogs: {
     list: (memberId: string) => api<any>(`/fitness/workout-logs${qs({ memberId })}`),
+    stats: (memberId: string) => api<any>(`/fitness/workout-logs/stats/${memberId}`),
     create: (data: any) => api<any>('/fitness/workout-logs', { method: 'POST', body: JSON.stringify(data) }),
   },
+  assessments: {
+    progress: (memberId: string) => api<any>(`/fitness/assessments/progress/${memberId}`),
+  },
+  badges: {
+    all: () => api<any>('/fitness/badges'),
+    memberBadges: (memberId: string) => api<any>(`/fitness/customer-badges/member/${memberId}`),
+  },
+  trainers: () => api<any>('/fitness/trainers'),
+  coach: {
+    messages: (memberId: string) => api<any>(`/fitness/trainer-messages/member/${memberId}`),
+    thread: (memberId: string, trainerId: string) => api<any>(`/fitness/trainer-messages/thread${qs({ memberId, trainerId })}`),
+    send: (data: { memberId: string; trainerId?: string; senderType: string; message: string }) =>
+      api<any>('/fitness/trainer-messages', { method: 'POST', body: JSON.stringify(data) }),
+    markThreadRead: (memberId: string, trainerId: string) =>
+      api<any>('/fitness/trainer-messages/thread/read', { method: 'POST', body: JSON.stringify({ memberId, trainerId }) }),
+  },
+  referrals: {
+    mine: (memberId: string) => api<any>(`/fitness/referrals${qs({ referrerId: memberId })}`),
+    create: (data: { referrerId: string; refereeEmail?: string; refereePhone?: string }) =>
+      api<any>('/fitness/referrals', { method: 'POST', body: JSON.stringify(data) }),
+    stats: (memberId: string) => api<any>(`/fitness/referrals/stats/${memberId}`),
+  },
+  checkin: {
+    qr: (qrCode: string, branchId?: string) => api<any>('/fitness/checkin/qr', { method: 'POST', body: JSON.stringify({ qrCode, branchId }) }),
+    history: (memberId: string, days = 30) => api<any>(`/fitness/checkin/member/${memberId}?days=${days}`),
+  },
+  /** My attendance across all sources — QR, manual and biometric device punches. */
+  myAttendance: (days = 60) => api<any>(`/attendance-logs/me?days=${days}`),
   foodLogs: {
     summary: (memberId: string, date?: string) => api<any>(`/fitness/food-logs/summary/${memberId}${qs({ date })}`),
     create: (data: any) => api<any>('/fitness/food-logs', { method: 'POST', body: JSON.stringify(data) }),

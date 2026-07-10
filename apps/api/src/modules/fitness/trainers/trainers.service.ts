@@ -71,4 +71,22 @@ export class TrainersService {
   async findByUserId(tenantId: string, userId: string) {
     return this.prisma.trainer.findFirst({ where: { tenantId, userId } });
   }
+
+  /** Returns the members assigned to the currently logged-in trainer. */
+  async findMyTrainees(tenantId: string, userId: string) {
+    const trainer = await this.findByUserId(tenantId, userId);
+    if (!trainer) throw new NotFoundException('No trainer profile for this user — sign up with signupAs=TRAINER');
+    return this.prisma.member.findMany({
+      where: { tenantId, trainerId: trainer.id },
+      include: {
+        user: { select: { id: true, firstName: true, lastName: true, email: true, phone: true, avatarUrl: true } },
+        memberships: {
+          orderBy: { startDate: 'desc' },
+          take: 1,
+          select: { id: true, status: true, startDate: true, endDate: true, amountPaid: true, paymentMethod: true },
+        },
+      },
+      orderBy: { createdAt: 'desc' },
+    });
+  }
 }

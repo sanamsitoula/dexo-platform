@@ -19,7 +19,7 @@ export class AuditController {
   @Get()
   @ApiOperation({ summary: 'Get audit logs (tenant-scoped or platform-wide)' })
   async getTenantLogs(
-    @Request() req,
+    @Request() req: any,
     @Query('limit') limit?: string,
     @Query('offset') offset?: string,
     @Query('action') action?: string,
@@ -60,7 +60,7 @@ export class AuditController {
   @Get('user/:userId')
   @ApiOperation({ summary: 'Get audit logs for user' })
   async getUserLogs(
-    @Request() req,
+    @Request() req: any,
     @Query('limit') limit?: string,
     @Query('offset') offset?: string,
     @Query('action') action?: string,
@@ -88,7 +88,7 @@ export class AuditController {
   @Get('resource/:resourceType/:resourceId')
   @ApiOperation({ summary: 'Get audit logs for resource' })
   async getResourceLogs(
-    @Request() req,
+    @Request() req: any,
     @Query('limit') limit?: string,
     @Query('offset') offset?: string,
   ) {
@@ -115,7 +115,7 @@ export class AuditController {
 
   @Get('stats')
   @ApiOperation({ summary: 'Audit log statistics' })
-  async stats(@Request() req) {
+  async stats(@Request() req: any) {
     if (!req.user) {
       throw new ForbiddenException('Authentication required');
     }

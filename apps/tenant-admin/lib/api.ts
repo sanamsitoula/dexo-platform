@@ -9,7 +9,13 @@ interface ApiResponse<T> {
 
 function getToken(subdomain: string): string | null {
   if (typeof window === 'undefined') return null
-  return localStorage.getItem(`tenant-token-${subdomain}`)
+  // The login page stores the JWT under 'token' (and, going forward, a
+  // subdomain-scoped key). Read the scoped key first, then fall back to 'token'
+  // so authenticated calls don't 401 due to a key mismatch.
+  return (
+    localStorage.getItem(`tenant-token-${subdomain}`) ||
+    localStorage.getItem('token')
+  )
 }
 
 async function fetchApi<T>(
@@ -108,6 +114,14 @@ export const tenantAccountsApi = {
     const q = p.toString() ? `?${p.toString()}` : ''
     return fetchApi<any>(`/finance/accounts/trial-balance${q}`, subdomain)
   },
+  setupDefaults: (subdomain: string) =>
+    fetchApi<any>('/finance/accounts/setup-defaults', subdomain, { method: 'POST' }),
+  listFiscalYears: (subdomain: string) =>
+    fetchApi<any[]>('/finance/accounts/fiscal-years', subdomain),
+  createFiscalYear: (subdomain: string, data: { name: string; startDate: string; endDate: string; isActive?: boolean }) =>
+    fetchApi<any>('/finance/accounts/fiscal-years', subdomain, { method: 'POST', body: JSON.stringify(data) }),
+  activateFiscalYear: (subdomain: string, id: string) =>
+    fetchApi<any>(`/finance/accounts/fiscal-years/${id}/activate`, subdomain, { method: 'POST' }),
 }
 
 export const tenantJournalApi = {
@@ -320,6 +334,15 @@ export const tenantUsersApi = {
     fetchApi<any>('/users/tenant', subdomain),
 }
 
+export const tenantSettingsApi = {
+  getBranding: (subdomain: string) => fetchApi<any>('/settings/branding', subdomain),
+  saveBranding: (subdomain: string, data: any) =>
+    fetchApi<any>('/settings/branding', subdomain, { method: 'PUT', body: JSON.stringify(data) }),
+  get: (subdomain: string) => fetchApi<any>('/settings', subdomain),
+  set: (subdomain: string, key: string, value: any) =>
+    fetchApi<any>('/settings', subdomain, { method: 'POST', body: JSON.stringify({ key, value }) }),
+}
+
 // Domain-specific APIs
 export const fitnessApi = {
   listMembers: (subdomain: string) =>
@@ -328,6 +351,144 @@ export const fitnessApi = {
     fetchApi<any>('/fitness/members', subdomain, { method: 'POST', body: JSON.stringify(data) }),
   listTrainers: (subdomain: string) =>
     fetchApi<any[]>('/fitness/trainers', subdomain),
+}
+
+/** Gym-ops admin API — members, plans, trainers, classes, attendance, announcements. */
+export const gymApi = {
+  members: {
+    list: (s: string) => fetchApi<any>('/fitness/members', s),
+    stats: (s: string) => fetchApi<any>('/fitness/members/stats', s),
+    create: (s: string, data: any) => fetchApi<any>('/fitness/members', s, { method: 'POST', body: JSON.stringify(data) }),
+    verify: (s: string, id: string) => fetchApi<any>(`/fitness/members/${id}/verify`, s, { method: 'POST' }),
+  },
+  plans: {
+    list: (s: string) => fetchApi<any>('/fitness/membership-plans', s),
+    create: (s: string, data: any) => fetchApi<any>('/fitness/membership-plans', s, { method: 'POST', body: JSON.stringify(data) }),
+    update: (s: string, id: string, data: any) => fetchApi<any>(`/fitness/membership-plans/${id}`, s, { method: 'PUT', body: JSON.stringify(data) }),
+  },
+  trainers: {
+    list: (s: string) => fetchApi<any>('/fitness/trainers', s),
+    create: (s: string, data: any) => fetchApi<any>('/fitness/trainers', s, { method: 'POST', body: JSON.stringify(data) }),
+  },
+  classes: {
+    list: (s: string) => fetchApi<any>('/fitness/classes', s),
+    create: (s: string, data: any) => fetchApi<any>('/fitness/classes', s, { method: 'POST', body: JSON.stringify(data) }),
+  },
+  attendance: {
+    today: (s: string) => fetchApi<any>('/fitness/checkin/today', s),
+    manual: (s: string, memberId: string) => fetchApi<any>('/fitness/checkin/manual', s, { method: 'POST', body: JSON.stringify({ memberId }) }),
+    qr: (s: string, qrCode: string) => fetchApi<any>('/fitness/checkin/qr', s, { method: 'POST', body: JSON.stringify({ qrCode }) }),
+  },
+  finance: {
+    recordExpense: (s: string, data: any) => fetchApi<any>('/fitness/finance/expense', s, { method: 'POST', body: JSON.stringify(data) }),
+  },
+  announcements: {
+    send: (s: string, data: { title: string; message: string; audience?: string }) =>
+      fetchApi<any>('/notifications/send', s, { method: 'POST', body: JSON.stringify({ type: 'ANNOUNCEMENT', ...data }) }),
+  },
+  workouts: {
+    list: (s: string, params?: { memberId?: string; status?: string }) => {
+      const p = new URLSearchParams()
+      if (params?.memberId) p.append('memberId', params.memberId)
+      if (params?.status) p.append('status', params.status)
+      const q = p.toString() ? `?${p.toString()}` : ''
+      return fetchApi<any>(`/fitness/workout-plans${q}`, s)
+    },
+    byMember: (s: string, memberId: string) => fetchApi<any>(`/fitness/workout-plans?memberId=${memberId}`, s),
+    create: (s: string, data: any) => fetchApi<any>('/fitness/workout-plans', s, { method: 'POST', body: JSON.stringify(data) }),
+    generate: (s: string, data: any) => fetchApi<any>('/fitness/workout-plans/generate', s, { method: 'POST', body: JSON.stringify(data) }),
+    approve: (s: string, id: string) => fetchApi<any>(`/fitness/workout-plans/${id}/approve`, s, { method: 'POST' }),
+    remove: (s: string, id: string) => fetchApi<any>(`/fitness/workout-plans/${id}`, s, { method: 'DELETE' }),
+  },
+  diet: {
+    list: (s: string, params?: { memberId?: string; status?: string }) => {
+      const p = new URLSearchParams()
+      if (params?.memberId) p.append('memberId', params.memberId)
+      if (params?.status) p.append('status', params.status)
+      const q = p.toString() ? `?${p.toString()}` : ''
+      return fetchApi<any>(`/fitness/diet-plans${q}`, s)
+    },
+    create: (s: string, data: any) => fetchApi<any>('/fitness/diet-plans', s, { method: 'POST', body: JSON.stringify(data) }),
+    generate: (s: string, data: any) => fetchApi<any>('/fitness/diet-plans/generate', s, { method: 'POST', body: JSON.stringify(data) }),
+    approve: (s: string, id: string) => fetchApi<any>(`/fitness/diet-plans/${id}/approve`, s, { method: 'POST' }),
+    remove: (s: string, id: string) => fetchApi<any>(`/fitness/diet-plans/${id}`, s, { method: 'DELETE' }),
+  },
+  assessments: {
+    list: (s: string, memberId?: string) => fetchApi<any>(`/fitness/assessments${memberId ? `?memberId=${memberId}` : ''}`, s),
+    create: (s: string, data: any) => fetchApi<any>('/fitness/assessments', s, { method: 'POST', body: JSON.stringify(data) }),
+    progress: (s: string, memberId: string) => fetchApi<any>(`/fitness/assessments/progress/${memberId}`, s),
+    remove: (s: string, id: string) => fetchApi<any>(`/fitness/assessments/${id}`, s, { method: 'DELETE' }),
+  },
+  equipment: {
+    list: (s: string) => fetchApi<any>('/fitness/equipment', s),
+    stats: (s: string) => fetchApi<any>('/fitness/equipment/stats', s),
+    create: (s: string, data: any) => fetchApi<any>('/fitness/equipment', s, { method: 'POST', body: JSON.stringify(data) }),
+    update: (s: string, id: string, data: any) => fetchApi<any>(`/fitness/equipment/${id}`, s, { method: 'PUT', body: JSON.stringify(data) }),
+    maintenance: {
+      list: (s: string) => fetchApi<any>('/fitness/equipment-maintenance', s),
+      create: (s: string, data: any) => fetchApi<any>('/fitness/equipment-maintenance', s, { method: 'POST', body: JSON.stringify(data) }),
+    },
+  },
+  badges: {
+    list: (s: string) => fetchApi<any>('/fitness/badges', s),
+    create: (s: string, data: any) => fetchApi<any>('/fitness/badges', s, { method: 'POST', body: JSON.stringify(data) }),
+    award: (s: string, data: { memberId: string; badgeId: string }) =>
+      fetchApi<any>('/fitness/customer-badges/award', s, { method: 'POST', body: JSON.stringify(data) }),
+    byMember: (s: string, memberId: string) => fetchApi<any>(`/fitness/customer-badges/member/${memberId}`, s),
+  },
+  referrals: {
+    list: (s: string) => fetchApi<any>('/fitness/referrals', s),
+    stats: (s: string, memberId: string) => fetchApi<any>(`/fitness/referrals/stats/${memberId}`, s),
+    create: (s: string, data: any) => fetchApi<any>('/fitness/referrals', s, { method: 'POST', body: JSON.stringify(data) }),
+    complete: (s: string, id: string) => fetchApi<any>(`/fitness/referrals/${id}/complete`, s, { method: 'POST' }),
+  },
+  foodDb: {
+    list: (s: string, params?: { category?: string; search?: string }) => {
+      const p = new URLSearchParams()
+      if (params?.category) p.append('category', params.category)
+      if (params?.search) p.append('search', params.search)
+      const q = p.toString() ? `?${p.toString()}` : ''
+      return fetchApi<any>(`/fitness/nepali-foods${q}`, s)
+    },
+    categories: (s: string) => fetchApi<any>('/fitness/nepali-foods/categories', s),
+    create: (s: string, data: any) => fetchApi<any>('/fitness/nepali-foods', s, { method: 'POST', body: JSON.stringify(data) }),
+  },
+  trainerMe: (s: string) => fetchApi<any>('/fitness/trainers/me', s),
+}
+
+/** Per-tenant SMTP (transactional email) settings. */
+export const tenantMailApi = {
+  getConfig: (s: string) => fetchApi<any>('/tenant-mail/config', s),
+  saveConfig: (s: string, data: any) => fetchApi<any>('/tenant-mail/config', s, { method: 'PUT', body: JSON.stringify(data) }),
+  test: (s: string, to?: string) => fetchApi<any>('/tenant-mail/test', s, { method: 'POST', body: JSON.stringify({ to }) }),
+}
+
+/** Biometric attendance — ZKTeco devices, data puller, logs & reports. */
+export const attendanceApi = {
+  devices: {
+    list: (s: string) => fetchApi<any>('/attendance-devices', s),
+    create: (s: string, data: any) => fetchApi<any>('/attendance-devices', s, { method: 'POST', body: JSON.stringify(data) }),
+    update: (s: string, id: string, data: any) => fetchApi<any>(`/attendance-devices/${id}`, s, { method: 'PUT', body: JSON.stringify(data) }),
+    remove: (s: string, id: string) => fetchApi<any>(`/attendance-devices/${id}`, s, { method: 'DELETE' }),
+    pull: (s: string, id: string) => fetchApi<any>(`/attendance-devices/${id}/pull`, s, { method: 'POST' }),
+    pullAll: (s: string) => fetchApi<any>('/attendance-devices/pull-all', s, { method: 'POST' }),
+    test: (s: string, id: string) => fetchApi<any>(`/attendance-devices/${id}/test`, s, { method: 'POST' }),
+    sessions: (s: string, deviceId?: string) => fetchApi<any>(`/attendance-devices/sessions${deviceId ? `?deviceId=${deviceId}` : ''}`, s),
+  },
+  logs: (s: string, q?: { from?: string; to?: string; deviceId?: string; search?: string }) => {
+    const p = new URLSearchParams()
+    if (q?.from) p.append('from', q.from)
+    if (q?.to) p.append('to', q.to)
+    if (q?.deviceId) p.append('deviceId', q.deviceId)
+    if (q?.search) p.append('search', q.search)
+    const qs = p.toString() ? `?${p.toString()}` : ''
+    return fetchApi<any>(`/attendance-logs${qs}`, s)
+  },
+  reports: {
+    daily: (s: string, date?: string) => fetchApi<any>(`/attendance-reports/daily${date ? `?date=${date}` : ''}`, s),
+    monthly: (s: string, month?: string) => fetchApi<any>(`/attendance-reports/monthly${month ? `?month=${month}` : ''}`, s),
+    summary: (s: string, days = 14) => fetchApi<any>(`/attendance-reports/summary?days=${days}`, s),
+  },
 }
 
 export const salonApi = {

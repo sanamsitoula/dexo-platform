@@ -182,6 +182,15 @@ export class TenantService {
       where: { subdomain },
       include: {
         plan: true,
+        // Active domain assignment → exposes the business type (FITNESS_CENTER,
+        // RESTAURANT_AND_CAFE, …) so public/customer-facing apps can render the
+        // right experience per tenant without any hardcoding.
+        domains: {
+          where: { isActive: true },
+          orderBy: { assignedAt: 'desc' },
+          take: 1,
+          include: { domain: { select: { code: true, name: true } } },
+        },
       },
     });
 
@@ -189,7 +198,10 @@ export class TenantService {
       throw new NotFoundException('Tenant not found');
     }
 
-    return tenant;
+    const domainCode = tenant.domains?.[0]?.domain?.code ?? null;
+    // Flatten so consumers can read `tenant.domainCode` directly.
+    const { domains, ...rest } = tenant as any;
+    return { ...rest, domainCode };
   }
 
   /**

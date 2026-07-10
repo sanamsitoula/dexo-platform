@@ -1,8 +1,8 @@
 import { Controller, Get, Post, Put, Body, Param, Query, UseGuards, Req, Res } from '@nestjs/common';
-import { Response } from 'express';
+import type { Response } from 'express';
 import { JwtAuthGuard } from '@dexo/auth';
 import { SocialAuthService } from './social-auth.service';
-import { OAuthProvider } from '@prisma/client';
+import { OAuthProvider } from './social-auth.service';
 
 @Controller('auth/social')
 export class SocialAuthController {
@@ -13,7 +13,7 @@ export class SocialAuthController {
   @Get('tenant/:tenantId/:provider/url')
   async getTenantAuthUrl(
     @Param('tenantId') tenantId: string,
-    @Param('provider') provider: OAuthProvider,
+    @Param('provider') provider: any,
     @Query('redirectUri') redirectUri?: string,
   ) {
     const url = await this.socialAuthService.getTenantAuthUrl(tenantId, provider, redirectUri);
@@ -23,7 +23,7 @@ export class SocialAuthController {
   @Get('tenant/:tenantId/:provider/callback')
   async handleTenantCallback(
     @Param('tenantId') tenantId: string,
-    @Param('provider') provider: OAuthProvider,
+    @Param('provider') provider: any,
     @Query('code') code: string,
     @Query('state') state: string,
     @Res() res: Response,
@@ -38,7 +38,7 @@ export class SocialAuthController {
   async updateTenantConfig(
     @Req() req: any,
     @Param('tenantId') tenantId: string,
-    @Param('provider') provider: OAuthProvider,
+    @Param('provider') provider: any,
     @Body() data: any,
   ) {
     return this.socialAuthService.updateTenantConfig(tenantId, provider, data);

@@ -6,6 +6,8 @@ import { MembershipPlansService } from './members/membership-plans.service';
 import { MembershipPlansController } from './members/membership-plans.controller';
 import { MembershipsService } from './members/memberships.service';
 import { MembershipsController } from './members/memberships.controller';
+import { GymLedgerService } from './members/gym-ledger.service';
+import { GymFinanceController } from './members/gym-finance.controller';
 import { TrainersService } from './trainers/trainers.service';
 import { TrainersController } from './trainers/trainers.controller';
 import { TrainerMessagesService } from './trainers/trainer-messages.service';
@@ -39,6 +41,7 @@ import { EquipmentMaintenanceController } from './inventory/equipment-maintenanc
 import { CheckinService } from './checkin/checkin.service';
 import { CheckinController } from './checkin/checkin.controller';
 import { FitnessPublicService } from './public/fitness-public.service';
+import { AiPlanService } from './ai/ai-plan.service';
 import { FitnessPublicController } from './public/fitness-public.controller';
 
 @Module({
@@ -47,6 +50,7 @@ import { FitnessPublicController } from './public/fitness-public.controller';
     MembersService,
     MembershipPlansService,
     MembershipsService,
+    GymLedgerService,
     TrainersService,
     TrainerMessagesService,
     AssessmentsService,
@@ -64,11 +68,13 @@ import { FitnessPublicController } from './public/fitness-public.controller';
     EquipmentMaintenanceService,
     CheckinService,
     FitnessPublicService,
+    AiPlanService,
   ],
   controllers: [
     MembersController,
     MembershipPlansController,
     MembershipsController,
+    GymFinanceController,
     TrainersController,
     TrainerMessagesController,
     AssessmentsController,

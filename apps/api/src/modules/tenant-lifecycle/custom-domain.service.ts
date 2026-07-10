@@ -1,6 +1,7 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { PrismaService } from '@dexo/shared';
 import * as crypto from 'crypto';
+import { promises as dns } from 'dns';
 
 export interface DnsInstructions {
   type: string;
@@ -43,7 +44,6 @@ export class CustomDomainService {
       return { verified: false, reason: 'no_domain_or_token' };
     }
     try {
-      const dns = require('dns').promises;
       const records = await dns.resolveTxt(`_dexo-verify.${lifecycle.customDomain}`);
       const flat = records.flat();
       const match = flat.includes(`dexo-verification=${lifecycle.dnsToken}`);

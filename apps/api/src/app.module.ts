@@ -23,12 +23,15 @@ import { SocialAuthModule } from './modules/social-auth/social-auth.module';
 import { BranchModule } from './modules/branch/branch.module';
 import { MobileAppModule } from './modules/mobile-app/mobile-app.module';
 import { ContactModule } from './modules/contact/contact.module';
+import { WhatsAppModule } from './modules/whatsapp/whatsapp.module';
 import { BlogModule } from '@dexo/blog';
 import { FitnessModule } from './modules/fitness/fitness.module';
 import { BusinessTemplateModule } from './modules/business-template/business-template.module';
 import { TenantLifecycleModule } from './modules/tenant-lifecycle/tenant-lifecycle.module';
 import { OnboardingModule } from './modules/onboarding/onboarding.module';
 import { HealthModule } from './modules/health/health.module';
+import { TenantMailApiModule } from './modules/tenant-mail/tenant-mail.module';
+import { AttendanceDevicesModule } from './modules/attendance-devices/attendance-devices.module';
 import { TenantStatusMiddleware } from './common/middleware/tenant-status.middleware';
 
 @Module({
@@ -68,8 +71,11 @@ import { TenantStatusMiddleware } from './common/middleware/tenant-status.middle
     BranchModule,
     MobileAppModule,
     ContactModule,
+    WhatsAppModule,
     BlogModule,
     FitnessModule,
+    TenantMailApiModule,
+    AttendanceDevicesModule,
     BusinessTemplateModule,
     TenantLifecycleModule,
     OnboardingModule,

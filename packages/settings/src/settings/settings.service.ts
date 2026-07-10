@@ -9,7 +9,7 @@ export class SettingsService {
     return this.prisma.setting.upsert({
       where: {
         tenantId_key: {
-          tenantId: data.tenantId || null,
+          tenantId: (data.tenantId || null) as any,
           key: data.key,
         },
       },
@@ -22,7 +22,7 @@ export class SettingsService {
     const setting = await this.prisma.setting.findUnique({
       where: {
         tenantId_key: {
-          tenantId: tenantId || null,
+          tenantId: (tenantId || null) as any,
           key,
         },
       },
@@ -50,7 +50,7 @@ export class SettingsService {
     await this.prisma.setting.delete({
       where: {
         tenantId_key: {
-          tenantId: tenantId || null,
+          tenantId: (tenantId || null) as any,
           key,
         },
       },

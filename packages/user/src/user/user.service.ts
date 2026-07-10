@@ -164,7 +164,7 @@ export class UserService {
         });
 
         const refreshToken = this.jwtService.sign(tokenPayload, {
-          secret: this.configService.get('REFRESH_TOKEN_SECRET') || this.jwtService.options.secret,
+          secret: this.configService.get('REFRESH_TOKEN_SECRET') || (this.jwtService as any).options.secret,
           expiresIn: this.configService.get('REFRESH_TOKEN_EXPIRATION') || '7d',
         });
 
@@ -202,7 +202,7 @@ export class UserService {
       } else {
         throw new BadRequestException('Invalid invitation type');
       }
-    } catch (error) {
+    } catch (error: any) {
       if (error.name === 'TokenExpiredError') {
         throw new BadRequestException('Invitation has expired');
       }

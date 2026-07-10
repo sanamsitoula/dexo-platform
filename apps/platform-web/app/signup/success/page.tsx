@@ -5,8 +5,8 @@ import Link from 'next/link';
 
 export default function SignupSuccess() {
   const params = useSearchParams();
-  const sub = params.get('sub') || 'your-tenant';
-  const tenantId = params.get('tenant') || '';
+  const sub = params?.get('sub') || 'your-tenant';
+  const tenantId = params?.get('tenant') || '';
 
   return (
     <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-emerald-50 to-slate-50 px-4">

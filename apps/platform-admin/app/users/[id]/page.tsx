@@ -5,7 +5,7 @@ import { useParams, useRouter } from 'next/navigation'
 import { usersApi, rolesApi } from '@/lib/api'
 
 export default function UserDetailPage() {
-  const { id } = useParams()
+  const { id } = useParams() as { id: string }
   const router = useRouter()
   const [user, setUser] = useState<any>(null)
   const [roles, setRoles] = useState<any[]>([])

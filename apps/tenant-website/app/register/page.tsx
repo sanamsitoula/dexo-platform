@@ -4,14 +4,25 @@ import { useState } from 'react';
 import Link from 'next/link';
 import { registerMember } from '@/lib/api';
 
-// Dev resolves to the env tenant; production sets x-tenant-slug via proxy and
-// the host subdomain matches. We read it from the hostname when available.
+// Tenant is resolved from the host by middleware.ts, which stamps the
+// `dexo_tenant` cookie. We read that (authoritative), then fall back to parsing
+// the hostname (supports `*.localhost` in dev and `sub.domain.tld` in prod).
+const RESERVED_SUBDOMAINS = new Set(['www', 'app', 'api', 'admin', 'localhost', 'dexo']);
+
 function resolveSubdomain(): string {
+  if (typeof document !== 'undefined') {
+    const m = document.cookie.match(/(?:^|;\s*)dexo_tenant=([^;]+)/);
+    if (m) return decodeURIComponent(m[1]);
+  }
   if (typeof window !== 'undefined') {
-    const host = window.location.hostname;
-    const parts = host.split('.');
-    // e.g. vrfitness.dexo.app → "vrfitness"; localhost → fallback
-    if (parts.length > 2 && parts[0] !== 'www') return parts[0];
+    const hostname = window.location.hostname.toLowerCase();
+    const parts = hostname.split('.');
+    if (hostname.endsWith('.localhost') && parts.length >= 2 && !RESERVED_SUBDOMAINS.has(parts[0])) {
+      return parts[0];
+    }
+    if (parts.length >= 3 && !RESERVED_SUBDOMAINS.has(parts[0])) {
+      return parts[0];
+    }
   }
   return process.env.NEXT_PUBLIC_DEV_TENANT || 'vrfitness';
 }

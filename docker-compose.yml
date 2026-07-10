@@ -1,14 +1,21 @@
+# ============================================================================
+# Dexo Platform v5 — infrastructure services
+# Container names use hyphens (dexo-postgres) to match run.bat. Postgres listens
+# on host port 5433 (not 5432) to avoid clashing with a native Windows install.
+# DB name is "dexo" to match .env / .env.example / migrations.
+# ============================================================================
+
 services:
   postgres:
-    image: postgres:15-alpine
-    container_name: dexo_postgres
+    image: postgres:16-alpine
+    container_name: dexo-postgres
     restart: unless-stopped
     environment:
       POSTGRES_USER: postgres
       POSTGRES_PASSWORD: postgres
-      POSTGRES_DB: dexo_dev
+      POSTGRES_DB: dexo
     ports:
-      - "5432:5432"
+      - "5433:5432"
     volumes:
       - postgres_data:/var/lib/postgresql/data
     healthcheck:
@@ -19,10 +26,11 @@ services:
 
   redis:
     image: redis:7-alpine
-    container_name: dexo_redis
+    container_name: dexo-redis
     restart: unless-stopped
     ports:
       - "6379:6379"
+    command: redis-server --appendonly yes
     volumes:
       - redis_data:/data
     healthcheck:
@@ -33,7 +41,7 @@ services:
 
   minio:
     image: minio/minio:latest
-    container_name: dexo_minio
+    container_name: dexo-minio
     restart: unless-stopped
     command: server /data --console-address ":9001"
     environment:
@@ -50,10 +58,9 @@ services:
       timeout: 5s
       retries: 5
 
-  # Mailhog for email testing (local SMTP server)
   mailhog:
     image: mailhog/mailhog:latest
-    container_name: dexo_mailhog
+    container_name: dexo-mailhog
     restart: unless-stopped
     ports:
       - "1025:1025" # SMTP server
@@ -61,15 +68,16 @@ services:
     environment:
       MH_STORAGE: memory
 
-  # PgAdmin for database management
+  # Optional: PgAdmin for database management (not started by run.bat)
   pgadmin:
     image: dpage/pgadmin4:latest
-    container_name: dexo_pgadmin
+    container_name: dexo-pgadmin
     restart: unless-stopped
+    profiles: ["extra"] # only starts with: docker-compose --profile extra up -d
     environment:
       PGADMIN_DEFAULT_EMAIL: admin@dexo.com
       PGADMIN_DEFAULT_PASSWORD: admin
-      PGADMIN_CONFIG_SERVER_MODE: 'False'
+      PGADMIN_CONFIG_SERVER_MODE: "False"
     ports:
       - "5050:80"
     volumes:

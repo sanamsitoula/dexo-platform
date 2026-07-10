@@ -17,6 +17,11 @@ export class MembershipsController {
     return this.service.getExpiring(req.user.tenantId, days ? parseInt(days) : 7);
   }
 
+  @Get('member/:memberId/payments')
+  paymentHistory(@Req() req: any, @Param('memberId') memberId: string) {
+    return this.service.getPaymentHistory(req.user.tenantId, memberId);
+  }
+
   @Get('qr/:qrCode')
   findByQr(@Param('qrCode') qrCode: string) {
     return this.service.findByQrCode(qrCode);

@@ -359,3 +359,32 @@ export const fitnessApi = {
     history: (memberId: string, days = 30) => fetchApi<any>(`/fitness/checkin/member/${memberId}?days=${days}`),
   },
 }
+
+// Public contact form (no auth required)
+export const contactApi = {
+  submit: (data: {
+    name: string;
+    email: string;
+    phone?: string;
+    company?: string;
+    subject?: string;
+    message: string;
+    source?: string;
+    subdomain?: string;
+    tenantId?: string;
+  }) => fetchApi<{ success: boolean; message: string; id: string }>('/contact', {
+    method: 'POST',
+    body: JSON.stringify(data),
+  }),
+  // Tenant-scoped submit (for tenant-website)
+  submitForTenant: (subdomain: string, data: {
+    name: string;
+    email: string;
+    phone?: string;
+    subject?: string;
+    message: string;
+  }) => fetchApi<{ success: boolean; message: string; id: string }>('/contact', {
+    method: 'POST',
+    body: JSON.stringify({ ...data, subdomain, source: 'tenant_website_contact_form' }),
+  }),
+}

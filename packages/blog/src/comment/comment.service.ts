@@ -23,7 +23,7 @@ export class CommentService {
       data: {
         content: createCommentDto.content,
         blogId,
-        authorId: userId,
+        authorId: userId as any,
         guestName: createCommentDto.guestName,
         guestEmail: createCommentDto.guestEmail,
         status: userId ? CommentStatusDto.PENDING : CommentStatusDto.PENDING,

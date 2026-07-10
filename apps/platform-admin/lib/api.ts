@@ -697,3 +697,9 @@ export const brandingApi = {
       body: JSON.stringify(data),
     }),
 }
+
+// Biometric attendance (ZKTeco) — platform-wide overview
+export const attendanceAdminApi = {
+  devices: () => fetchApi<any[]>('/attendance-devices/admin/all'),
+  sessions: () => fetchApi<any[]>('/attendance-devices/admin/sessions'),
+}

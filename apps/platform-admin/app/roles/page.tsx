@@ -25,7 +25,7 @@ export default function RolesPage() {
     const response = await rolesApi.list()
     if (response.data) {
       // API returns a plain array, not { roles: [...] }
-      const rolesList = Array.isArray(response.data) ? response.data : (response.data.roles || [])
+      const rolesList = Array.isArray(response.data) ? response.data : ((response.data as any).roles || [])
       setRoles(rolesList)
     } else if (response.error) {
       setError(response.error)

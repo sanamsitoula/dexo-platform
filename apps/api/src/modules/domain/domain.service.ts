@@ -31,7 +31,7 @@ export class DomainService {
 
   async getDomainByCode(code: string) {
     const domain = await this.prisma.domain.findUnique({
-      where: { code, isActive: true },
+      where: { code: code as DomainType, isActive: true },
       include: {
         modules: {
           include: {
@@ -84,7 +84,6 @@ export class DomainService {
       data: {
         tenant: { connect: { id: tenantId } },
         domain: { connect: { id: domain.id } },
-        createdBy: userId || 'system',
       },
     });
 
@@ -101,7 +100,6 @@ export class DomainService {
         name: role.name,
         description: `Auto-created from domain ${domain.name} role: ${role.description || ''}`,
         isSystem: false,
-        userRoles: [],
       })),
     });
 
@@ -140,7 +138,7 @@ export class DomainService {
   async getDomainWidgets(domainCode: string, roleCode?: string) {
     return this.prisma.domainWidget.findMany({
       where: {
-        domain: { code: domainCode },
+        domain: { code: domainCode as any },
         ...(roleCode ? { role: { code: roleCode } } : {}),
         isVisible: true,
       },
@@ -219,7 +217,7 @@ export class DomainService {
         roles: user.userRoles.map((ur) => ({
           roleId: ur.role.id,
           roleName: ur.role.name,
-          roleCode: ur.role.code,
+          roleCode: (ur.role as any).code ?? ur.role.name,
           isSystem: ur.role.isSystem,
         })),
       })),
@@ -232,15 +230,7 @@ export class DomainService {
       include: {
         userRoles: {
           include: {
-            role: {
-              include: {
-                permissions: {
-                  include: {
-                    module: true,
-                  },
-                },
-              },
-            },
+            role: true,
           },
         },
       },
@@ -311,12 +301,14 @@ export class DomainService {
       },
     });
 
+    if (!tenant) throw new NotFoundException('Tenant not found');
+
     return {
       tenantId: tenant.id,
       tenantName: tenant.name,
       provisioningStatus: {
         domainsAssigned: tenant.domains.length,
-        coreModulesEnabled: tenant.domains.reduce((count, td) => count + td.domain.modules.length, 0),
+        coreModulesEnabled: tenant.domains.reduce((count: number, td: any) => count + td.domain.modules.length, 0),
         rolesCreated: tenant.roles.length,
         financeModules: {
           chartOfAccounts: tenant.chartOfAccounts.length > 0,
@@ -331,7 +323,7 @@ export class DomainService {
     };
   }
 
-  private buildMenuTree(menuItems) {
+  private buildMenuTree(menuItems: any[]): any[] {
     const menuMap = new Map();
     const roots = [];
 

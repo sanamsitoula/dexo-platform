@@ -26,7 +26,7 @@ export class UserController {
   @UseGuards(JwtAuthGuard)
   @HttpCode(HttpStatus.CREATED)
   @ApiOperation({ summary: 'Invite a user to join tenant' })
-  async inviteUser(@Request() req, @Body() inviteDto: InviteUserDto) {
+  async inviteUser(@Request() req: any, @Body() inviteDto: InviteUserDto) {
     return this.userService.inviteUser(req.user.id, inviteDto);
   }
 
@@ -42,7 +42,7 @@ export class UserController {
   @UseGuards(JwtAuthGuard)
   @HttpCode(HttpStatus.OK)
   @ApiOperation({ summary: 'Resend an invitation' })
-  async resendInvitation(@Request() req, @Body() dto: ResendInvitationDto) {
+  async resendInvitation(@Request() req: any, @Body() dto: ResendInvitationDto) {
     return this.userService.resendInvitation(req.user.id, dto);
   }
 
@@ -50,35 +50,35 @@ export class UserController {
   @UseGuards(JwtAuthGuard)
   @HttpCode(HttpStatus.OK)
   @ApiOperation({ summary: 'Cancel an invitation' })
-  async cancelInvitation(@Request() req, @Body() dto: ResendInvitationDto) {
+  async cancelInvitation(@Request() req: any, @Body() dto: ResendInvitationDto) {
     return this.userService.cancelInvitation(req.user.id, dto);
   }
 
   @Get('invitations/pending')
   @UseGuards(JwtAuthGuard)
   @ApiOperation({ summary: 'Get pending invitations for tenant' })
-  async getPendingInvitations(@Request() req) {
+  async getPendingInvitations(@Request() req: any) {
     return this.userService.getPendingInvitations(req.user.tenantId);
   }
 
   @Get('profile')
   @UseGuards(JwtAuthGuard)
   @ApiOperation({ summary: 'Get current user profile' })
-  async getProfile(@Request() req) {
+  async getProfile(@Request() req: any) {
     return this.userService.getUserProfile(req.user.id);
   }
 
   @Put('profile')
   @UseGuards(JwtAuthGuard)
   @ApiOperation({ summary: 'Update current user profile' })
-  async updateProfile(@Request() req, @Body() data: any) {
+  async updateProfile(@Request() req: any, @Body() data: any) {
     return this.userService.updateUserProfile(req.user.id, data);
   }
 
   @Get('tenant')
   @UseGuards(JwtAuthGuard)
   @ApiOperation({ summary: 'Get all users in tenant' })
-  async getTenantUsers(@Request() req) {
+  async getTenantUsers(@Request() req: any) {
     return this.userService.getTenantUsers(req.user.tenantId);
   }
 
@@ -86,7 +86,7 @@ export class UserController {
   @UseGuards(JwtAuthGuard)
   @HttpCode(HttpStatus.OK)
   @ApiOperation({ summary: 'Deactivate a user' })
-  async deactivateUser(@Param('userId') userId: string, @Request() req) {
+  async deactivateUser(@Param('userId') userId: string, @Request() req: any) {
     return this.userService.deactivateUser(userId, req.user.tenantId);
   }
 
@@ -94,7 +94,7 @@ export class UserController {
   @UseGuards(JwtAuthGuard)
   @HttpCode(HttpStatus.OK)
   @ApiOperation({ summary: 'Reactivate a user' })
-  async reactivateUser(@Param('userId') userId: string, @Request() req) {
+  async reactivateUser(@Param('userId') userId: string, @Request() req: any) {
     return this.userService.reactivateUser(userId, req.user.tenantId);
   }
 
@@ -102,7 +102,7 @@ export class UserController {
   @UseGuards(JwtAuthGuard)
   @HttpCode(HttpStatus.OK)
   @ApiOperation({ summary: 'Reset a user password (Platform Admin only)' })
-  async resetUserPassword(@Request() req, @Body() body: { email: string; newPassword: string; tenantId?: string }) {
+  async resetUserPassword(@Request() req: any, @Body() body: { email: string; newPassword: string; tenantId?: string }) {
     return this.userService.adminResetPassword(req.user, body);
   }
 

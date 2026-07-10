@@ -57,76 +57,76 @@ enum DomainType {
 }
 
 model Domain {
-  id            String   @id @default(uuid())
-  name          String
-  code          DomainType @unique
-  description   String?
-  modulesEnabled Json   // Array of module codes enabled by default
-  theme         String   @default("default")
-  isActive      Boolean  @default(true)
-  createdAt     DateTime @default(now())
-  updatedAt     DateTime @updatedAt
-  modules       DomainModule[]
-  roles         DomainRole[]
-  permissions   DomainPermission[]
-  menus         DomainMenu[]
-  widgets       DomainWidget[]
-  themes        DomainTheme[]
-  tenantDomains TenantDomain[]
+  id             String             @id @default(uuid())
+  name           String
+  code           DomainType         @unique
+  description    String?
+  modulesEnabled Json // Array of module codes enabled by default
+  theme          String             @default("default")
+  isActive       Boolean            @default(true)
+  createdAt      DateTime           @default(now())
+  updatedAt      DateTime           @updatedAt
+  modules        DomainModule[]
+  roles          DomainRole[]
+  permissions    DomainPermission[]
+  menus          DomainMenu[]
+  widgets        DomainWidget[]
+  themes         DomainTheme[]
+  tenantDomains  TenantDomain[]
 }
 
 model DomainModule {
-  id            String   @id @default(uuid())
-  domain        Domain   @relation(fields: [domainId], references: [id])
-  domainId      String
-  code          String   @unique  // fitness_members, salon_appointments, etc.
-  name          String
-  description   String?
-  category      String   // MEMBERS, OPERATIONS, FINANCE, COMMERCE, etc.
-  icon          String?
-  route        String?  // React route: /members, /appointments, etc.
-  isCore       Boolean  @default(true)  // Core vs optional module
-  sortOrder    Int      @default(0)
-  createdAt     DateTime @default(now())
-  updatedAt     DateTime @updatedAt
-  permissions   DomainPermission[]
-  menus         DomainMenu[]
-  widgets       DomainWidget[]
-  enabledBy     TenantEnabledModule[]
+  id          String                @id @default(uuid())
+  domain      Domain                @relation(fields: [domainId], references: [id])
+  domainId    String
+  code        String                @unique // fitness_members, salon_appointments, etc.
+  name        String
+  description String?
+  category    String // MEMBERS, OPERATIONS, FINANCE, COMMERCE, etc.
+  icon        String?
+  route       String? // React route: /members, /appointments, etc.
+  isCore      Boolean               @default(true) // Core vs optional module
+  sortOrder   Int                   @default(0)
+  createdAt   DateTime              @default(now())
+  updatedAt   DateTime              @updatedAt
+  permissions DomainPermission[]
+  menus       DomainMenu[]
+  widgets     DomainWidget[]
+  enabledBy   TenantEnabledModule[]
 
   @@index([domainId])
   @@index([code])
 }
 
 model DomainRole {
-  id            String   @id @default(uuid())
-  domain        Domain   @relation(fields: [domainId], references: [id])
-  domainId      String
-  name          String
-  code          String   // owner, manager, trainer, customer, etc.
-  description   String?
-  isDefault     Boolean  @default(false)
-  sortOrder    Int      @default(0)
-  createdAt     DateTime @default(now())
-  updatedAt     DateTime @updatedAt
-  permissions   DomainPermission[]
-  menus         DomainMenu[]
-  widgets       DomainWidget[]
+  id          String             @id @default(uuid())
+  domain      Domain             @relation(fields: [domainId], references: [id])
+  domainId    String
+  name        String
+  code        String // owner, manager, trainer, customer, etc.
+  description String?
+  isDefault   Boolean            @default(false)
+  sortOrder   Int                @default(0)
+  createdAt   DateTime           @default(now())
+  updatedAt   DateTime           @updatedAt
+  permissions DomainPermission[]
+  menus       DomainMenu[]
+  widgets     DomainWidget[]
 
   @@unique([domainId, code])
   @@index([domainId])
 }
 
 model DomainPermission {
-  id            String   @id @default(uuid())
-  domain        Domain   @relation(fields: [domainId], references: [id])
-  domainId      String
-  module        DomainModule @relation(fields: [moduleId], references: [id])
-  moduleId      String
-  role          DomainRole @relation(fields: [roleId], references: [id])
-  roleId        String
-  action        String   // view, create, edit, delete, manage
-  createdAt     DateTime @default(now())
+  id        String       @id @default(uuid())
+  domain    Domain       @relation(fields: [domainId], references: [id])
+  domainId  String
+  module    DomainModule @relation(fields: [moduleId], references: [id])
+  moduleId  String
+  role      DomainRole   @relation(fields: [roleId], references: [id])
+  roleId    String
+  action    String // view, create, edit, delete, manage
+  createdAt DateTime     @default(now())
 
   @@unique([domainId, moduleId, roleId, action])
   @@index([domainId])
@@ -135,26 +135,26 @@ model DomainPermission {
 }
 
 model DomainMenu {
-  id            String   @id @default(uuid())
-  domain        Domain   @relation(fields: [domainId], references: [id])
-  domainId      String
-  parent        DomainMenu? @relation("MenuHierarchy", fields: [parentId], references: [id])
-  parentId      String?
-  children      DomainMenu[] @relation("MenuHierarchy")
-  code          String   // dashboard, members, appointments, etc.
-  label         String
+  id           String       @id @default(uuid())
+  domain       Domain       @relation(fields: [domainId], references: [id])
+  domainId     String
+  parent       DomainMenu?  @relation("MenuHierarchy", fields: [parentId], references: [id])
+  parentId     String?
+  children     DomainMenu[] @relation("MenuHierarchy")
+  code         String // dashboard, members, appointments, etc.
+  label        String
   icon         String?
-  route       String?
+  route        String?
   module       DomainModule @relation(fields: [moduleId], references: [id])
   moduleId     String
-  role         DomainRole? @relation(fields: [roleId], references: [id])
+  role         DomainRole?  @relation(fields: [roleId], references: [id])
   roleId       String?
-  sortOrder    Int      @default(0)
-  isPublic     Boolean  @default(false)
-  isVisible    Boolean  @default(true)
-  requiredPlan String?  // starter, professional, enterprise
-  createdAt    DateTime @default(now())
-  updatedAt    DateTime @updatedAt
+  sortOrder    Int          @default(0)
+  isPublic     Boolean      @default(false)
+  isVisible    Boolean      @default(true)
+  requiredPlan String? // starter, professional, enterprise
+  createdAt    DateTime     @default(now())
+  updatedAt    DateTime     @updatedAt
 
   @@unique([domainId, code])
   @@index([domainId, sortOrder])
@@ -162,24 +162,24 @@ model DomainMenu {
 }
 
 model DomainWidget {
-  id            String   @id @default(uuid())
-  domain        Domain   @relation(fields: [domainId], references: [id])
-  domainId      String
-  code          String   // today_attendance, active_members, revenue, etc.
-  name         String
-  description  String?
-  category     String   // DASHBOARD, REPORTS, ANALYTICS, etc.
-  icon        String?
-  component   String   // React component path
-  config      Json?    // Widget-specific configuration
-  module      DomainModule @relation(fields: [moduleId], references: [id])
-  moduleId    String
-  role        DomainRole? @relation(fields: [roleId], references: [id])
-  roleId      String?
-  isVisible   Boolean   @default(true)
-  refreshInterval Int?   // seconds
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
+  id              String       @id @default(uuid())
+  domain          Domain       @relation(fields: [domainId], references: [id])
+  domainId        String
+  code            String // today_attendance, active_members, revenue, etc.
+  name            String
+  description     String?
+  category        String // DASHBOARD, REPORTS, ANALYTICS, etc.
+  icon            String?
+  component       String // React component path
+  config          Json? // Widget-specific configuration
+  module          DomainModule @relation(fields: [moduleId], references: [id])
+  moduleId        String
+  role            DomainRole?  @relation(fields: [roleId], references: [id])
+  roleId          String?
+  isVisible       Boolean      @default(true)
+  refreshInterval Int? // seconds
+  createdAt       DateTime     @default(now())
+  updatedAt       DateTime     @updatedAt
 
   @@unique([domainId, code])
   @@index([domainId])
@@ -187,36 +187,36 @@ model DomainWidget {
 }
 
 model DomainTheme {
-  id            String   @id @default(uuid())
-  domain        Domain   @relation(fields: [domainId], references: [id])
-  domainId      String
-  name         String
-  code         String   @unique // fitness_theme, salon_theme, etc.
-  primaryColor String   @default("#007bff")
-  secondaryColor String @default("#6c757d")
-  backgroundColor String @default("#ffffff")
-  textColor String @default("#212529")
-  logoUrl String?
-  primaryFont String @default("system-ui, -apple-system, sans-serif")
+  id                String   @id @default(uuid())
+  domain            Domain   @relation(fields: [domainId], references: [id])
+  domainId          String
+  name              String
+  code              String   @unique // fitness_theme, salon_theme, etc.
+  primaryColor      String   @default("#007bff")
+  secondaryColor    String   @default("#6c757d")
+  backgroundColor   String   @default("#ffffff")
+  textColor         String   @default("#212529")
+  logoUrl           String?
+  primaryFont       String   @default("system-ui, -apple-system, sans-serif")
   dashboardTemplate Json // Layout configuration
-  websiteTemplate Json // Landing page configuration
-  isActive Boolean @default(true)
-  sortOrder Int @default(0)
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  websiteTemplate   Json // Landing page configuration
+  isActive          Boolean  @default(true)
+  sortOrder         Int      @default(0)
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
 
   @@index([domainId, isActive])
   @@index([code])
 }
 
 model TenantDomain {
-  id           String   @id @default(uuid())
-  tenant       Tenant   @relation(fields: [tenantId], references: [id])
-  tenantId     String
-  domain       Domain   @relation(fields: [domainId], references: [id])
-  domainId     String
-  assignedAt   DateTime @default(now())
-  isActive     Boolean  @default(true)
+  id         String   @id @default(uuid())
+  tenant     Tenant   @relation(fields: [tenantId], references: [id])
+  tenantId   String
+  domain     Domain   @relation(fields: [domainId], references: [id])
+  domainId   String
+  assignedAt DateTime @default(now())
+  isActive   Boolean  @default(true)
 
   @@unique([tenantId, domainId])
   @@index([tenantId])
@@ -224,14 +224,14 @@ model TenantDomain {
 }
 
 model TenantEnabledModule {
-  id           String   @id @default(uuid())
-  tenant       Tenant   @relation(fields: [tenantId], references: [id])
-  tenantId     String
-  module       DomainModule @relation(fields: [moduleId], references: [id])
-  moduleId     String
-  isEnabled    Boolean  @default(true)
-  settings     Json?   // Module-specific settings
-  assignedAt   DateTime @default(now())
+  id         String       @id @default(uuid())
+  tenant     Tenant       @relation(fields: [tenantId], references: [id])
+  tenantId   String
+  module     DomainModule @relation(fields: [moduleId], references: [id])
+  moduleId   String
+  isEnabled  Boolean      @default(true)
+  settings   Json? // Module-specific settings
+  assignedAt DateTime     @default(now())
 
   @@unique([tenantId, moduleId])
   @@index([tenantId])
@@ -239,159 +239,165 @@ model TenantEnabledModule {
 }
 
 model Tenant {
-  id            String   @id @default(uuid())
-  name          String
-  subdomain     String?  @unique
-  domain        String?
-  status        TenantStatus @default(active)
-  plan          Plan?    @relation(fields: [planId], references: [id])
-  planId        String?
-  settings      Json?
-  users         User[]
-  roles         Role[]
-  subscriptions Subscription[]
-  auditLogs     AuditLog[]
-  files         File[]
-  permissions   Permission[]
-  notificationTemplates NotificationTemplate[]
-  tenantSettings Setting[]
+  id                     String                  @id @default(uuid())
+  name                   String
+  subdomain              String?                 @unique
+  domain                 String?
+  status                 TenantStatus            @default(active)
+  plan                   Plan?                   @relation(fields: [planId], references: [id])
+  planId                 String?
+  settings               Json?
+  users                  User[]
+  roles                  Role[]
+  subscriptions          Subscription[]
+  auditLogs              AuditLog[]
+  files                  File[]
+  permissions            Permission[]
+  notificationTemplates  NotificationTemplate[]
+  tenantSettings         Setting[]
   // Domain-driven tenant architecture
-  domains       TenantDomain[]
-  enabledModules TenantEnabledModule[]
+  domains                TenantDomain[]
+  enabledModules         TenantEnabledModule[]
   // Finance module relations
-  chartOfAccounts ChartOfAccount[]
-  fiscalYears FiscalYear[]
-  accountingPeriods AccountingPeriod[]
-  journalEntries JournalEntry[]
-  journalEntryLines JournalEntryLine[]
-  masterBills MasterBill[]
-  customers Customer[]
-  suppliers Supplier[]
-  bankAccounts BankAccount[]
-  reprintLogs ReprintLog[]
-  financeAuditLogs FinanceAuditLog[]
-  invoices Invoice[]
-  invoiceItems InvoiceItem[]
-  bills Bill[]
-  paymentsReceived PaymentReceived[]
-  paymentsMade PaymentMade[]
-  paymentAllocations PaymentAllocation[]
-  createdAt     DateTime @default(now())
-  updatedAt     DateTime @updatedAt
-  trialEndsAt   DateTime?
-  createdBy     String?
+  chartOfAccounts        ChartOfAccount[]
+  fiscalYears            FiscalYear[]
+  accountingPeriods      AccountingPeriod[]
+  journalEntries         JournalEntry[]
+  journalEntryLines      JournalEntryLine[]
+  masterBills            MasterBill[]
+  customers              Customer[]
+  suppliers              Supplier[]
+  bankAccounts           BankAccount[]
+  reprintLogs            ReprintLog[]
+  financeAuditLogs       FinanceAuditLog[]
+  invoices               Invoice[]
+  invoiceItems           InvoiceItem[]
+  bills                  Bill[]
+  paymentsReceived       PaymentReceived[]
+  paymentsMade           PaymentMade[]
+  paymentAllocations     PaymentAllocation[]
+  createdAt              DateTime                @default(now())
+  updatedAt              DateTime                @updatedAt
+  trialEndsAt            DateTime?
+  createdBy              String?
   // Globalization relations
-  languages     TenantLanguage[]
-  currencies    TenantCurrency[]
-  taxRates      TaxRate[]
-  taxGroups     TaxGroup[]
-  coupons       Coupon[]
-  marketingCampaigns MarketingCampaign[]
-  leads         Lead[]
-  brandAssets   BrandAsset[]
-  brandGuidelines BrandGuideline[]
-  brandVoice    BrandVoice?
-  paymentProviders PaymentProvider[]
-  paymentTransactions PaymentTransaction[]
+  languages              TenantLanguage[]
+  currencies             TenantCurrency[]
+  taxRates               TaxRate[]
+  taxGroups              TaxGroup[]
+  coupons                Coupon[]
+  marketingCampaigns     MarketingCampaign[]
+  leads                  Lead[]
+  brandAssets            BrandAsset[]
+  brandGuidelines        BrandGuideline[]
+  brandVoice             BrandVoice?
+  paymentProviders       PaymentProvider[]
+  paymentTransactions    PaymentTransaction[]
   // Multi-Branch & OAuth relations
-  branches      Branch[]
-  oauthConfigs  TenantOAuthConfig[]
+  branches               Branch[]
+  oauthConfigs           TenantOAuthConfig[]
   // Blog relations
-  blogs         Blog[]
-  blogCategories BlogCategory[]
-  contactMessages ContactMessage[]
+  blogs                  Blog[]
+  blogCategories         BlogCategory[]
+  contactMessages        ContactMessage[]
+  whatsappConfig         TenantWhatsAppConfig?
   // v5 onboarding + lifecycle
-  customerOnboardings CustomerOnboarding[]
-  tenantOnboarding    TenantOnboarding?
-  tenantLifecycle     TenantLifecycle?
+  customerOnboardings    CustomerOnboarding[]
+  tenantOnboarding       TenantOnboarding?
+  tenantLifecycle        TenantLifecycle?
   // Fitness domain relations
-  members       Member[]
-  trainers      Trainer[]
-  workouts      Workout[]
-  trainingSessions TrainingSession[]
+  members                Member[]
+  trainers               Trainer[]
+  workouts               Workout[]
+  trainingSessions       TrainingSession[]
   // Salon domain relations
-  appointments  Appointment[]
-  stylists      Stylist[]
-  services      Service[]
+  appointments           Appointment[]
+  stylists               Stylist[]
+  services               Service[]
   // School domain relations
-  students      Student[]
-  teachers      Teacher[]
-  classes       Class[]
-  enrollments   Enrollment[]
-  exams         Exam[]
-  examResults   ExamResult[]
+  students               Student[]
+  teachers               Teacher[]
+  classes                Class[]
+  enrollments            Enrollment[]
+  exams                  Exam[]
+  examResults            ExamResult[]
   // FitNepal fitness domain relations
-  membershipPlans MembershipPlan[]
-  memberships   Membership[]
-  bodyAssessments BodyAssessment[]
-  workoutPlans  WorkoutPlan[]
-  workoutDays   WorkoutDay[]
-  workoutExercises WorkoutExercise[]
-  workoutLogs   WorkoutLog[]
-  exerciseLogs  ExerciseLog[]
-  dietPlans     DietPlan[]
-  dietMeals     DietMeal[]
-  foodLogs      FoodLog[]
-  attendances   Attendance[]
-  groupClasses  GroupClass[]
-  classBookings ClassBooking[]
-  trainerMessages TrainerMessage[]
-  badges        Badge[]
-  customerBadges CustomerBadge[]
-  referrals     Referral[]
-  equipment     Equipment[]
-  equipmentMaintenance EquipmentMaintenance[]
+  membershipPlans        MembershipPlan[]
+  memberships            Membership[]
+  bodyAssessments        BodyAssessment[]
+  workoutPlans           WorkoutPlan[]
+  workoutDays            WorkoutDay[]
+  workoutExercises       WorkoutExercise[]
+  workoutLogs            WorkoutLog[]
+  exerciseLogs           ExerciseLog[]
+  dietPlans              DietPlan[]
+  dietMeals              DietMeal[]
+  foodLogs               FoodLog[]
+  attendances            Attendance[]
+  groupClasses           GroupClass[]
+  classBookings          ClassBooking[]
+  trainerMessages        TrainerMessage[]
+  badges                 Badge[]
+  customerBadges         CustomerBadge[]
+  referrals              Referral[]
+  equipment              Equipment[]
+  equipmentMaintenance   EquipmentMaintenance[]
+  // Biometric attendance (ZKTeco) relations
+  attendanceDevices      AttendanceDevice[]
+  attendancePullSessions AttendancePullSession[]
+
   @@index([subdomain])
   @@index([domain])
   @@index([status])
 }
 
 model User {
-  id            String   @id @default(uuid())
-  tenant        Tenant?  @relation(fields: [tenantId], references: [id])
-  tenantId      String?
-  email         String   @unique
-  passwordHash  String?
-  firstName     String?
-  lastName      String?
-  phone         String?
-  avatarUrl     String?
-  status        UserStatus @default(active)
-  emailVerified Boolean @default(false)
-  isPlatformAdmin Boolean @default(false)
-  mfaEnabled    Boolean @default(false)
-  mfaSecret     String?
-  recoveryCodes String?
-  createdAt     DateTime @default(now())
-  updatedAt     DateTime @updatedAt
-  lastLoginAt   DateTime?
-  userRoles     UserRoles[] @relation("userRoles")
-  auditLogs     AuditLog[]
-  files         File[]
-  invitedBy     User?    @relation("Invitations", fields: [invitedById], references: [id])
-  invitedById   String?
-  invitationToken String?
-  invitationExpiresAt DateTime?
-  invitedUsers    User[]   @relation("Invitations")
-  assignedUserRoles UserRoles[] @relation("AssignedBy")
-  assignedLeads   Lead[]
+  id                      String               @id @default(uuid())
+  tenant                  Tenant?              @relation(fields: [tenantId], references: [id])
+  tenantId                String?
+  email                   String               @unique
+  passwordHash            String?
+  firstName               String?
+  lastName                String?
+  phone                   String?
+  avatarUrl               String?
+  status                  UserStatus           @default(active)
+  emailVerified           Boolean              @default(false)
+  isPlatformAdmin         Boolean              @default(false)
+  mfaEnabled              Boolean              @default(false)
+  mfaSecret               String?
+  recoveryCodes           String?
+  createdAt               DateTime             @default(now())
+  updatedAt               DateTime             @updatedAt
+  lastLoginAt             DateTime?
+  userRoles               UserRoles[]          @relation("userRoles")
+  auditLogs               AuditLog[]
+  files                   File[]
+  invitedBy               User?                @relation("Invitations", fields: [invitedById], references: [id])
+  invitedById             String?
+  invitationToken         String?
+  invitationExpiresAt     DateTime?
+  invitedUsers            User[]               @relation("Invitations")
+  assignedUserRoles       UserRoles[]          @relation("AssignedBy")
+  assignedLeads           Lead[]
   assignedContactMessages ContactMessage[]
-  voucherRedemptions VoucherRedemption[]
-  couponRedemptions CouponRedemption[]
-  oauthAccounts  OAuthAccount[]
-  branchUsers    BranchUser[]
+  voucherRedemptions      VoucherRedemption[]
+  couponRedemptions       CouponRedemption[]
+  oauthAccounts           OAuthAccount[]
+  branchUsers             BranchUser[]
   // Blog relations
-  blogs          Blog[]        @relation("BlogAuthor")
-  blogComments   BlogComment[] @relation("CommentAuthor")
+  blogs                   Blog[]               @relation("BlogAuthor")
+  blogComments            BlogComment[]        @relation("CommentAuthor")
   // Domain-specific relations (one-to-many since user can have roles across tenants)
-  members        Member[]
-  trainers       Trainer[]
-  stylists       Stylist[]
-  students       Student[]
-  teachers       Teacher[]
-  appointmentCustomer Appointment[] @relation("AppointmentCustomer")
+  members                 Member[]
+  trainers                Trainer[]
+  stylists                Stylist[]
+  students                Student[]
+  teachers                Teacher[]
+  appointmentCustomer     Appointment[]        @relation("AppointmentCustomer")
   // v5 onboarding
-  customerOnboardings CustomerOnboarding[]
+  customerOnboardings     CustomerOnboarding[]
+
   @@index([tenantId])
   @@index([email])
   @@index([status])
@@ -411,25 +417,25 @@ enum OAuthProvider {
 }
 
 model OAuthAccount {
-  id              String   @id @default(uuid())
-  user            User     @relation(fields: [userId], references: [id], onDelete: Cascade)
-  userId          String
-  provider        OAuthProvider
-  providerUserId   String   // User ID from OAuth provider
+  id               String        @id @default(uuid())
+  user             User          @relation(fields: [userId], references: [id], onDelete: Cascade)
+  userId           String
+  provider         OAuthProvider
+  providerUserId   String // User ID from OAuth provider
   providerEmail    String?
   providerUsername String?
   providerAvatar   String?
-  accessToken      String?  // Encrypted
-  refreshToken     String?  // Encrypted
+  accessToken      String? // Encrypted
+  refreshToken     String? // Encrypted
   tokenExpiresAt   DateTime?
   scope            String?
-  idToken          String?  // For OIDC providers
-  rawProfile       Json?    // Full profile from provider
-  isPrimary        Boolean  @default(false)  // Is this the primary auth method
-  tenantId         String?  // Optional tenant binding for tenant-level OAuth
+  idToken          String? // For OIDC providers
+  rawProfile       Json? // Full profile from provider
+  isPrimary        Boolean       @default(false) // Is this the primary auth method
+  tenantId         String? // Optional tenant binding for tenant-level OAuth
   lastUsedAt       DateTime?
-  createdAt        DateTime @default(now())
-  updatedAt        DateTime @updatedAt
+  createdAt        DateTime      @default(now())
+  updatedAt        DateTime      @updatedAt
 
   @@unique([provider, providerUserId])
   @@index([userId])
@@ -438,21 +444,21 @@ model OAuthAccount {
 }
 
 model TenantOAuthConfig {
-  id              String   @id @default(uuid())
-  tenant          Tenant   @relation(fields: [tenantId], references: [id], onDelete: Cascade)
-  tenantId        String
-  provider        OAuthProvider
-  clientId        String
-  clientSecret    String?  // Encrypted
-  redirectUri     String
-  scope           String?
-  isEnabled       Boolean  @default(true)
-  autoCreateUser  Boolean  @default(false)  // Auto-create user on first OAuth login
-  defaultRoleId   String?  // Role assigned to auto-created users
-  allowedDomains  String?  // Comma-separated email domains allowed
-  customBranding  Json?    // Provider-specific branding
-  createdAt       DateTime @default(now())
-  updatedAt       DateTime @updatedAt
+  id             String        @id @default(uuid())
+  tenant         Tenant        @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  tenantId       String
+  provider       OAuthProvider
+  clientId       String
+  clientSecret   String? // Encrypted
+  redirectUri    String
+  scope          String?
+  isEnabled      Boolean       @default(true)
+  autoCreateUser Boolean       @default(false) // Auto-create user on first OAuth login
+  defaultRoleId  String? // Role assigned to auto-created users
+  allowedDomains String? // Comma-separated email domains allowed
+  customBranding Json? // Provider-specific branding
+  createdAt      DateTime      @default(now())
+  updatedAt      DateTime      @updatedAt
 
   @@unique([tenantId, provider])
   @@index([tenantId])
@@ -460,15 +466,45 @@ model TenantOAuthConfig {
 }
 
 model PlatformOAuthConfig {
-  id              String   @id @default(uuid())
-  provider        OAuthProvider @unique
-  clientId        String
-  clientSecret    String?  // Encrypted
-  redirectUri     String
-  scope           String?
-  isEnabled       Boolean  @default(true)
-  createdAt       DateTime @default(now())
-  updatedAt       DateTime @updatedAt
+  id           String        @id @default(uuid())
+  provider     OAuthProvider @unique
+  clientId     String
+  clientSecret String? // Encrypted
+  redirectUri  String
+  scope        String?
+  isEnabled    Boolean       @default(true)
+  createdAt    DateTime      @default(now())
+  updatedAt    DateTime      @updatedAt
+}
+
+// =====================================================
+// WHATSAPP BUSINESS INTEGRATION (4.2)
+// =====================================================
+
+model TenantWhatsAppConfig {
+  id                 String   @id @default(uuid())
+  tenant             Tenant   @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  tenantId           String
+  phoneNumber        String // E.164 format: 9779800000000 (no +)
+  displayName        String? // Business name shown in WhatsApp profile
+  // Meta Cloud API credentials (TODO: rotate secrets + encrypt at rest)
+  accessToken        String? // Meta Cloud API access token (system user token)
+  phoneNumberId      String? // Meta Cloud API phone_number_id
+  wabaId             String? // WhatsApp Business Account ID
+  webhookVerifyToken String? // Token used to verify webhook subscription
+  // Feature flags
+  isEnabled          Boolean  @default(false)
+  autoReplyEnabled   Boolean  @default(false) // Auto-reply to inbound messages (TODO)
+  // Template messages (JSON keyed by notification type, e.g. { "membership_expiry": "membership_expiry_template" })
+  templates          Json?
+  // Opt-out list (comma-separated phone numbers) — Meta policy compliance
+  optOutList         String?  @db.Text
+  createdAt          DateTime @default(now())
+  updatedAt          DateTime @updatedAt
+
+  @@unique([tenantId])
+  @@index([tenantId])
+  @@index([phoneNumber])
 }
 
 // =====================================================
@@ -476,50 +512,51 @@ model PlatformOAuthConfig {
 // =====================================================
 
 model Branch {
-  id              String   @id @default(uuid())
-  tenant          Tenant   @relation(fields: [tenantId], references: [id], onDelete: Cascade)
-  tenantId        String
-  code            String   // Branch code/SKU
-  name            String
-  slug            String?  // For subdomain-based branch access
-  type            String?  // HQ, BRANCH, FRANCHISE, POPUP
-  email           String?
-  phone           String?
-  address         String?
-  city            String?
-  state           String?
-  country         String?
-  postalCode      String?
-  latitude        Decimal? @db.Decimal(10, 7)
-  longitude       Decimal? @db.Decimal(10, 7)
-  timezone        String?  @default("UTC")
-  currency        String?  @default("NPR")
-  managerId       String?  // Branch manager user ID
-  status          String   @default("active") // active, inactive, closed
-  settings        Json?    // Branch-specific settings
-  operatingHours  Json?    // Operating hours per day
-  isHeadquarters  Boolean  @default(false)
-  openedAt        DateTime?
-  closedAt        DateTime?
-  createdAt       DateTime @default(now())
-  updatedAt       DateTime @updatedAt
+  id             String    @id @default(uuid())
+  tenant         Tenant    @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  tenantId       String
+  code           String // Branch code/SKU
+  name           String
+  slug           String? // For subdomain-based branch access
+  type           String? // HQ, BRANCH, FRANCHISE, POPUP
+  email          String?
+  phone          String?
+  address        String?
+  city           String?
+  state          String?
+  country        String?
+  postalCode     String?
+  latitude       Decimal?  @db.Decimal(10, 7)
+  longitude      Decimal?  @db.Decimal(10, 7)
+  timezone       String?   @default("UTC")
+  currency       String?   @default("NPR")
+  managerId      String? // Branch manager user ID
+  status         String    @default("active") // active, inactive, closed
+  settings       Json? // Branch-specific settings
+  operatingHours Json? // Operating hours per day
+  isHeadquarters Boolean   @default(false)
+  openedAt       DateTime?
+  closedAt       DateTime?
+  createdAt      DateTime  @default(now())
+  updatedAt      DateTime  @updatedAt
 
-  branchUsers     BranchUser[]
-  invoices        Invoice[]
-  paymentsReceived PaymentReceived[]
-  paymentsMade    PaymentMade[]
-  customers       Customer[]
-  bankAccounts    BankAccount[]
-  journalEntries  JournalEntry[]
-  reports         BranchReport[]
-  expenses        BranchExpense[]
-  schedules       BranchSchedule[]
-  attendances     Attendance[]
+  branchUsers       BranchUser[]
+  invoices          Invoice[]
+  paymentsReceived  PaymentReceived[]
+  paymentsMade      PaymentMade[]
+  customers         Customer[]
+  bankAccounts      BankAccount[]
+  journalEntries    JournalEntry[]
+  reports           BranchReport[]
+  expenses          BranchExpense[]
+  schedules         BranchSchedule[]
+  attendances       Attendance[]
   // FitNepal fitness relations
-  groupClasses    GroupClass[]
-  equipment       Equipment[]
-  members         Member[]
-  trainers        Trainer[]
+  groupClasses      GroupClass[]
+  equipment         Equipment[]
+  members           Member[]
+  trainers          Trainer[]
+  attendanceDevices AttendanceDevice[]
 
   @@unique([tenantId, code])
   @@index([tenantId])
@@ -529,19 +566,19 @@ model Branch {
 }
 
 model BranchUser {
-  id              String   @id @default(uuid())
-  branch          Branch   @relation(fields: [branchId], references: [id], onDelete: Cascade)
-  branchId        String
-  user            User     @relation(fields: [userId], references: [id], onDelete: Cascade)
-  userId          String
-  role            String   // BRANCH_MANAGER, TRAINER, STAFF, MEMBER
-  isPrimary       Boolean  @default(false)  // User's primary branch
-  startDate       DateTime @default(now())
-  endDate         DateTime?
-  isActive        Boolean  @default(true)
-  permissions     Json?    // Branch-specific permissions
-  createdAt       DateTime @default(now())
-  updatedAt       DateTime @updatedAt
+  id          String    @id @default(uuid())
+  branch      Branch    @relation(fields: [branchId], references: [id], onDelete: Cascade)
+  branchId    String
+  user        User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  userId      String
+  role        String // BRANCH_MANAGER, TRAINER, STAFF, MEMBER
+  isPrimary   Boolean   @default(false) // User's primary branch
+  startDate   DateTime  @default(now())
+  endDate     DateTime?
+  isActive    Boolean   @default(true)
+  permissions Json? // Branch-specific permissions
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
 
   @@unique([branchId, userId, role])
   @@index([branchId])
@@ -551,18 +588,18 @@ model BranchUser {
 }
 
 model BranchSchedule {
-  id              String   @id @default(uuid())
-  branch          Branch   @relation(fields: [branchId], references: [id], onDelete: Cascade)
-  branchId        String
-  userId          String?  // Employee/trainer
-  className       String?
-  startTime       DateTime
-  endTime         DateTime
-  type            String   // CLASS, APPOINTMENT, SHIFT
-  status          String   @default("scheduled")
-  metadata        Json?
-  createdAt       DateTime @default(now())
-  updatedAt       DateTime @updatedAt
+  id        String   @id @default(uuid())
+  branch    Branch   @relation(fields: [branchId], references: [id], onDelete: Cascade)
+  branchId  String
+  userId    String? // Employee/trainer
+  className String?
+  startTime DateTime
+  endTime   DateTime
+  type      String // CLASS, APPOINTMENT, SHIFT
+  status    String   @default("scheduled")
+  metadata  Json?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 
   @@index([branchId])
   @@index([userId])
@@ -571,26 +608,31 @@ model BranchSchedule {
 }
 
 model Attendance {
-  id              String   @id @default(uuid())
-  branch          Branch   @relation(fields: [branchId], references: [id], onDelete: Cascade)
-  branchId        String
-  userId          String
-  customerId      String?  // For member check-ins
-  type            String   // MEMBER_CHECKIN, STAFF_CLOCKIN, CLASS
-  checkInTime     DateTime
-  checkOutTime    DateTime?
-  duration        Int?     // minutes
-  status          String   @default("present")
-  notes           String?
-  memberId        String?
-  member          Member?  @relation(fields: [memberId], references: [id])
-  membershipId    String?
-  membership      Membership? @relation(fields: [membershipId], references: [id])
-  method          AttendanceMethod? @default(QR_CODE)
-  tenantId        String?
-  tenant          Tenant?  @relation(fields: [tenantId], references: [id])
-  createdAt       DateTime @default(now())
+  id           String            @id @default(uuid())
+  branch       Branch            @relation(fields: [branchId], references: [id], onDelete: Cascade)
+  branchId     String
+  userId       String
+  customerId   String? // For member check-ins
+  type         String // MEMBER_CHECKIN, STAFF_CLOCKIN, CLASS
+  checkInTime  DateTime
+  checkOutTime DateTime?
+  duration     Int? // minutes
+  status       String            @default("present")
+  notes        String?
+  memberId     String?
+  member       Member?           @relation(fields: [memberId], references: [id])
+  membershipId String?
+  membership   Membership?       @relation(fields: [membershipId], references: [id])
+  method       AttendanceMethod? @default(QR_CODE)
+  tenantId     String?
+  tenant       Tenant?           @relation(fields: [tenantId], references: [id])
+  // Biometric device punch source (ZKTeco puller)
+  deviceId     String?
+  device       AttendanceDevice? @relation(fields: [deviceId], references: [id])
+  deviceUid    String? // user id on the device
+  createdAt    DateTime          @default(now())
 
+  @@unique([deviceId, deviceUid, checkInTime])
   @@index([branchId])
   @@index([userId])
   @@index([customerId])
@@ -601,14 +643,14 @@ model Attendance {
 }
 
 model BranchReport {
-  id              String   @id @default(uuid())
-  branch          Branch   @relation(fields: [branchId], references: [id], onDelete: Cascade)
-  branchId        String
-  reportType      String   // DAILY_SALES, MONTHLY_REVENUE, STAFF_PERFORMANCE, etc.
-  period          String   // YYYY-MM, YYYY-MM-DD, YYYY-Q1
-  data            Json
-  generatedAt     DateTime @default(now())
-  generatedBy     String?  // userId
+  id          String   @id @default(uuid())
+  branch      Branch   @relation(fields: [branchId], references: [id], onDelete: Cascade)
+  branchId    String
+  reportType  String // DAILY_SALES, MONTHLY_REVENUE, STAFF_PERFORMANCE, etc.
+  period      String // YYYY-MM, YYYY-MM-DD, YYYY-Q1
+  data        Json
+  generatedAt DateTime @default(now())
+  generatedBy String? // userId
 
   @@unique([branchId, reportType, period])
   @@index([branchId])
@@ -617,19 +659,19 @@ model BranchReport {
 }
 
 model BranchExpense {
-  id              String   @id @default(uuid())
-  branch          Branch   @relation(fields: [branchId], references: [id], onDelete: Cascade)
-  branchId        String
-  category        String   // RENT, UTILITIES, SALARY, SUPPLIES, etc.
-  description     String
-  amount          Decimal  @db.Decimal(15, 2)
-  currency        String   @default("NPR")
-  expenseDate     DateTime
-  approvedBy      String?
-  receiptUrl      String?
-  status          String   @default("pending")
-  createdAt       DateTime @default(now())
-  updatedAt       DateTime @updatedAt
+  id          String   @id @default(uuid())
+  branch      Branch   @relation(fields: [branchId], references: [id], onDelete: Cascade)
+  branchId    String
+  category    String // RENT, UTILITIES, SALARY, SUPPLIES, etc.
+  description String
+  amount      Decimal  @db.Decimal(15, 2)
+  currency    String   @default("NPR")
+  expenseDate DateTime
+  approvedBy  String?
+  receiptUrl  String?
+  status      String   @default("pending")
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
 
   @@index([branchId])
   @@index([category])
@@ -638,102 +680,108 @@ model BranchExpense {
 }
 
 model Role {
-  id            String   @id @default(uuid())
-  tenant        Tenant?  @relation(fields: [tenantId], references: [id])
-  tenantId      String?
-  name          String
-  description   String?
-  isSystem      Boolean @default(false)
-  permissions   Json?
-  userRoles     UserRoles[] @relation("roleRoles")
-  createdAt     DateTime @default(now())
-  updatedAt     DateTime @updatedAt
+  id          String      @id @default(uuid())
+  tenant      Tenant?     @relation(fields: [tenantId], references: [id])
+  tenantId    String?
+  name        String
+  description String?
+  isSystem    Boolean     @default(false)
+  permissions Json?
+  userRoles   UserRoles[] @relation("roleRoles")
+  createdAt   DateTime    @default(now())
+  updatedAt   DateTime    @updatedAt
+
   @@index([tenantId])
 }
 
 model Permission {
-  id            String   @id @default(uuid())
-  resource      String
-  action        String
-  description   String?
-  tenant        Tenant?  @relation(fields: [tenantId], references: [id])
-  tenantId      String?
-  createdAt     DateTime @default(now())
-  @@index([tenantId])
+  id          String   @id @default(uuid())
+  resource    String
+  action      String
+  description String?
+  tenant      Tenant?  @relation(fields: [tenantId], references: [id])
+  tenantId    String?
+  createdAt   DateTime @default(now())
+
   @@unique([resource, action, tenantId])
+  @@index([tenantId])
 }
 
 model UserRoles {
-  user          User     @relation("userRoles", fields: [userId], references: [id])
-  userId        String
-  role          Role     @relation("roleRoles", fields: [roleId], references: [id])
-  roleId        String
-  assignedBy    User?    @relation("AssignedBy", fields: [assignedById], references: [id])
-  assignedById  String?
-  assignedAt    DateTime @default(now())
+  user         User     @relation("userRoles", fields: [userId], references: [id])
+  userId       String
+  role         Role     @relation("roleRoles", fields: [roleId], references: [id])
+  roleId       String
+  assignedBy   User?    @relation("AssignedBy", fields: [assignedById], references: [id])
+  assignedById String?
+  assignedAt   DateTime @default(now())
+
   @@id([userId, roleId])
   @@index([userId])
   @@index([roleId])
 }
 
 model Plan {
-  id            String   @id @default(uuid())
-  name          String
-  slug          String   @unique
-  description   String?
-  priceCents    Int
-  pricePerCustomerCents Int @default(0)
-  currency      String   @default("USD")
-  billingInterval BillingInterval @default(monthly)
-  maxCustomers  Int      @default(9999)
-  maxUsers      Int      @default(50)
-  maxBranches   Int      @default(10)
-  trialDays     Int      @default(30)
-  isFeatured    Boolean  @default(false)
-  features      Json?
-  limits        Json?
-  isActive      Boolean @default(true)
-  createdAt     DateTime @default(now())
-  updatedAt     DateTime @updatedAt
-  subscriptions Subscription[]
-  tenants       Tenant[]
+  id                    String          @id @default(uuid())
+  name                  String
+  slug                  String          @unique
+  description           String?
+  priceCents            Int
+  pricePerCustomerCents Int             @default(0)
+  currency              String          @default("USD")
+  billingInterval       BillingInterval @default(monthly)
+  maxCustomers          Int             @default(9999)
+  maxUsers              Int             @default(50)
+  maxBranches           Int             @default(10)
+  trialDays             Int             @default(30)
+  isFeatured            Boolean         @default(false)
+  features              Json?
+  limits                Json?
+  isActive              Boolean         @default(true)
+  createdAt             DateTime        @default(now())
+  updatedAt             DateTime        @updatedAt
+  subscriptions         Subscription[]
+  tenants               Tenant[]
+
   @@index([slug])
   @@index([isActive])
 }
 
 model Subscription {
-  id            String   @id @default(uuid())
-  tenant        Tenant   @relation(fields: [tenantId], references: [id])
-  tenantId      String
-  plan          Plan     @relation(fields: [planId], references: [id])
-  planId        String
-  status        SubscriptionStatus @default(trial)
+  id                 String             @id @default(uuid())
+  tenant             Tenant             @relation(fields: [tenantId], references: [id])
+  tenantId           String
+  plan               Plan               @relation(fields: [planId], references: [id])
+  planId             String
+  status             SubscriptionStatus @default(trial)
   currentPeriodStart DateTime
   currentPeriodEnd   DateTime
-  trialStart    DateTime?
-  trialEnd      DateTime?
-  canceledAt    DateTime?
-  endedAt       DateTime?
-  createdAt     DateTime @default(now())
-  updatedAt     DateTime @updatedAt
+  trialStart         DateTime?
+  trialEnd           DateTime?
+  canceledAt         DateTime?
+  endedAt            DateTime?
+  createdAt          DateTime           @default(now())
+  updatedAt          DateTime           @updatedAt
+
   @@index([tenantId])
   @@index([planId])
   @@index([status])
 }
 
 model AuditLog {
-  id            String   @id @default(uuid())
-  tenant        Tenant?  @relation(fields: [tenantId], references: [id])
-  tenantId      String?
-  user          User?    @relation(fields: [userId], references: [id])
-  userId        String?
-  action        String
-  resourceType  String?
-  resourceId    String?
-  changes       Json?
-  ipAddress     String?
-  userAgent     String?
-  createdAt     DateTime @default(now())
+  id           String   @id @default(uuid())
+  tenant       Tenant?  @relation(fields: [tenantId], references: [id])
+  tenantId     String?
+  user         User?    @relation(fields: [userId], references: [id])
+  userId       String?
+  action       String
+  resourceType String?
+  resourceId   String?
+  changes      Json?
+  ipAddress    String?
+  userAgent    String?
+  createdAt    DateTime @default(now())
+
   @@index([tenantId])
   @@index([userId])
   @@index([action])
@@ -741,47 +789,50 @@ model AuditLog {
 }
 
 model NotificationTemplate {
-  id            String   @id @default(uuid())
-  tenant        Tenant?  @relation(fields: [tenantId], references: [id])
-  tenantId      String?
-  name          String
-  type          NotificationType
-  subject       String?
-  body          String
-  variables     Json?
-  isActive      Boolean @default(true)
-  createdAt     DateTime @default(now())
-  updatedAt     DateTime @updatedAt
+  id        String           @id @default(uuid())
+  tenant    Tenant?          @relation(fields: [tenantId], references: [id])
+  tenantId  String?
+  name      String
+  type      NotificationType
+  subject   String?
+  body      String
+  variables Json?
+  isActive  Boolean          @default(true)
+  createdAt DateTime         @default(now())
+  updatedAt DateTime         @updatedAt
+
   @@index([tenantId])
   @@index([type])
 }
 
 model File {
-  id            String   @id @default(uuid())
-  tenant        Tenant   @relation(fields: [tenantId], references: [id])
-  tenantId      String
-  user          User?    @relation(fields: [userId], references: [id])
-  userId        String?
-  s3Key         String
-  originalName  String
-  mimeType      String?
-  sizeBytes     BigInt?
-  isPublic      Boolean @default(false)
-  uploadedAt    DateTime @default(now())
+  id           String   @id @default(uuid())
+  tenant       Tenant   @relation(fields: [tenantId], references: [id])
+  tenantId     String
+  user         User?    @relation(fields: [userId], references: [id])
+  userId       String?
+  s3Key        String
+  originalName String
+  mimeType     String?
+  sizeBytes    BigInt?
+  isPublic     Boolean  @default(false)
+  uploadedAt   DateTime @default(now())
+
   @@index([tenantId])
   @@index([userId])
   @@index([s3Key])
 }
 
 model Setting {
-  id            String   @id @default(uuid())
-  tenant        Tenant?  @relation(fields: [tenantId], references: [id])
-  tenantId      String?
-  key           String
-  value         Json
-  isPublic      Boolean @default(false)
-  createdAt     DateTime @default(now())
-  updatedAt     DateTime @updatedAt
+  id        String   @id @default(uuid())
+  tenant    Tenant?  @relation(fields: [tenantId], references: [id])
+  tenantId  String?
+  key       String
+  value     Json
+  isPublic  Boolean  @default(false)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
   @@unique([tenantId, key])
   @@index([tenantId])
 }
@@ -791,25 +842,25 @@ model Setting {
 // =============================================
 
 model ChartOfAccount {
-  id              String   @id @default(uuid())
-  tenant          Tenant   @relation(fields: [tenantId], references: [id])
-  tenantId        String
-  accountCode     String
-  accountName     String
-  accountType     String   // ASSET, LIABILITY, EQUITY, REVENUE, EXPENSE, COGS
-  parent          ChartOfAccount? @relation("AccountHierarchy", fields: [parentId], references: [id])
-  parentId        String?
-  children        ChartOfAccount[] @relation("AccountHierarchy")
-  isControl       Boolean  @default(false)
-  currency        String   @default("NPR")
-  normalBalance   String   // DEBIT or CREDIT
-  isActive        Boolean  @default(true)
-  createdBy       String
-  createdAt       DateTime @default(now())
-  updatedAt       DateTime @updatedAt
+  id            String           @id @default(uuid())
+  tenant        Tenant           @relation(fields: [tenantId], references: [id])
+  tenantId      String
+  accountCode   String
+  accountName   String
+  accountType   String // ASSET, LIABILITY, EQUITY, REVENUE, EXPENSE, COGS
+  parent        ChartOfAccount?  @relation("AccountHierarchy", fields: [parentId], references: [id])
+  parentId      String?
+  children      ChartOfAccount[] @relation("AccountHierarchy")
+  isControl     Boolean          @default(false)
+  currency      String           @default("NPR")
+  normalBalance String // DEBIT or CREDIT
+  isActive      Boolean          @default(true)
+  createdBy     String
+  createdAt     DateTime         @default(now())
+  updatedAt     DateTime         @updatedAt
 
   journalEntryLines JournalEntryLine[]
-  invoiceItems InvoiceItem[]
+  invoiceItems      InvoiceItem[]
 
   @@unique([tenantId, accountCode])
   @@index([tenantId])
@@ -817,39 +868,39 @@ model ChartOfAccount {
 }
 
 model FiscalYear {
-  id              String   @id @default(uuid())
-  tenant          Tenant   @relation(fields: [tenantId], references: [id])
-  tenantId        String
-  name            String   // e.g., "2081/82"
-  startDate       DateTime
-  endDate         DateTime
-  isActive        Boolean  @default(false)
-  isClosed        Boolean  @default(false)
-  closedBy        String?
-  closedAt        DateTime?
-  createdAt       DateTime @default(now())
+  id        String    @id @default(uuid())
+  tenant    Tenant    @relation(fields: [tenantId], references: [id])
+  tenantId  String
+  name      String // e.g., "2081/82"
+  startDate DateTime
+  endDate   DateTime
+  isActive  Boolean   @default(false)
+  isClosed  Boolean   @default(false)
+  closedBy  String?
+  closedAt  DateTime?
+  createdAt DateTime  @default(now())
 
   accountingPeriods AccountingPeriod[]
-  journalEntries JournalEntry[]
-  invoices Invoice[]
-  bills Bill[]
+  journalEntries    JournalEntry[]
+  invoices          Invoice[]
+  bills             Bill[]
 
   @@unique([tenantId, name])
   @@index([tenantId])
 }
 
 model AccountingPeriod {
-  id              String   @id @default(uuid())
-  tenant          Tenant   @relation(fields: [tenantId], references: [id])
-  tenantId        String
-  fiscalYear      FiscalYear @relation(fields: [fiscalYearId], references: [id])
-  fiscalYearId    String
-  periodName      String   // e.g., "Shrawan 2081"
-  startDate       DateTime
-  endDate         DateTime
-  isClosed        Boolean  @default(false)
-  closedBy        String?
-  closedAt        DateTime?
+  id           String     @id @default(uuid())
+  tenant       Tenant     @relation(fields: [tenantId], references: [id])
+  tenantId     String
+  fiscalYear   FiscalYear @relation(fields: [fiscalYearId], references: [id])
+  fiscalYearId String
+  periodName   String // e.g., "Shrawan 2081"
+  startDate    DateTime
+  endDate      DateTime
+  isClosed     Boolean    @default(false)
+  closedBy     String?
+  closedAt     DateTime?
 
   journalEntries JournalEntry[]
 
@@ -859,36 +910,36 @@ model AccountingPeriod {
 }
 
 model JournalEntry {
-  id              String   @id @default(uuid())
-  tenant          Tenant   @relation(fields: [tenantId], references: [id])
-  tenantId        String
-  branch          Branch?  @relation(fields: [branchId], references: [id])
-  branchId        String?
-  fiscalYear      FiscalYear @relation(fields: [fiscalYearId], references: [id])
-  fiscalYearId    String
-  period          AccountingPeriod @relation(fields: [periodId], references: [id])
-  periodId        String
-  entryNo         String
-  entryDate       DateTime
-  referenceType   String?  // INVOICE, PAYMENT, PAYROLL, MANUAL, REVERSAL
-  referenceId     String?
-  description     String
-  narration       String?
-  isPosted        Boolean  @default(false)
-  isReversed      Boolean  @default(false)
-  reversalOf      JournalEntry? @relation("ReversalEntries", fields: [reversalOfId], references: [id])
-  reversalOfId    String?
-  reversals       JournalEntry[] @relation("ReversalEntries")
-  createdBy       String
-  createdAt       DateTime @default(now())
-  postedBy        String?
-  postedAt        DateTime?
+  id            String           @id @default(uuid())
+  tenant        Tenant           @relation(fields: [tenantId], references: [id])
+  tenantId      String
+  branch        Branch?          @relation(fields: [branchId], references: [id])
+  branchId      String?
+  fiscalYear    FiscalYear       @relation(fields: [fiscalYearId], references: [id])
+  fiscalYearId  String
+  period        AccountingPeriod @relation(fields: [periodId], references: [id])
+  periodId      String
+  entryNo       String
+  entryDate     DateTime
+  referenceType String? // INVOICE, PAYMENT, PAYROLL, MANUAL, REVERSAL
+  referenceId   String?
+  description   String
+  narration     String?
+  isPosted      Boolean          @default(false)
+  isReversed    Boolean          @default(false)
+  reversalOf    JournalEntry?    @relation("ReversalEntries", fields: [reversalOfId], references: [id])
+  reversalOfId  String?
+  reversals     JournalEntry[]   @relation("ReversalEntries")
+  createdBy     String
+  createdAt     DateTime         @default(now())
+  postedBy      String?
+  postedAt      DateTime?
 
-  lines JournalEntryLine[]
-  invoices Invoice[]
-  bills Bill[]
+  lines            JournalEntryLine[]
+  invoices         Invoice[]
+  bills            Bill[]
   paymentsReceived PaymentReceived[]
-  paymentsMade PaymentMade[]
+  paymentsMade     PaymentMade[]
 
   @@unique([tenantId, entryNo])
   @@index([tenantId])
@@ -896,50 +947,50 @@ model JournalEntry {
 }
 
 model JournalEntryLine {
-  id              String   @id @default(uuid())
-  journalEntry    JournalEntry @relation(fields: [journalEntryId], references: [id], onDelete: Cascade)
-  journalEntryId  String
-  tenant          Tenant   @relation(fields: [tenantId], references: [id])
-  tenantId        String
-  account         ChartOfAccount @relation(fields: [accountId], references: [id])
-  accountId       String
-  lineNo          Int
-  description     String?
-  debitAmount     Decimal  @default(0) @db.Decimal(18, 2)
-  creditAmount    Decimal  @default(0) @db.Decimal(18, 2)
-  currency        String   @default("NPR")
+  id             String         @id @default(uuid())
+  journalEntry   JournalEntry   @relation(fields: [journalEntryId], references: [id], onDelete: Cascade)
+  journalEntryId String
+  tenant         Tenant         @relation(fields: [tenantId], references: [id])
+  tenantId       String
+  account        ChartOfAccount @relation(fields: [accountId], references: [id])
+  accountId      String
+  lineNo         Int
+  description    String?
+  debitAmount    Decimal        @default(0) @db.Decimal(18, 2)
+  creditAmount   Decimal        @default(0) @db.Decimal(18, 2)
+  currency       String         @default("NPR")
 
   @@index([journalEntryId])
   @@index([accountId])
 }
 
 model MasterBill {
-  id              String   @id @default(uuid())
-  tenant          Tenant   @relation(fields: [tenantId], references: [id])
+  id              String    @id @default(uuid())
+  tenant          Tenant    @relation(fields: [tenantId], references: [id])
   tenantId        String
   fiscalYear      String
   billNo          String
   customerName    String?
   customerPan     String?
   billDate        DateTime
-  amount          Decimal  @db.Decimal(15, 2)
-  discount        Decimal  @default(0) @db.Decimal(15, 2)
-  taxableAmount   Decimal  @db.Decimal(15, 2)
-  taxAmount       Decimal  @db.Decimal(15, 2)
-  totalAmount     Decimal  @db.Decimal(15, 2)
-  syncWithIrd     Boolean  @default(false)
-  isBillPrinted   Boolean  @default(false)
-  isBillActive    Boolean  @default(true)
+  amount          Decimal   @db.Decimal(15, 2)
+  discount        Decimal   @default(0) @db.Decimal(15, 2)
+  taxableAmount   Decimal   @db.Decimal(15, 2)
+  taxAmount       Decimal   @db.Decimal(15, 2)
+  totalAmount     Decimal   @db.Decimal(15, 2)
+  syncWithIrd     Boolean   @default(false)
+  isBillPrinted   Boolean   @default(false)
+  isBillActive    Boolean   @default(true)
   printedTime     DateTime?
   enteredBy       String
   printedBy       String?
-  isRealtime      Boolean  @default(true)
+  isRealtime      Boolean   @default(true)
   paymentMethod   String?
-  vatRefundAmount Decimal? @db.Decimal(15, 2)
+  vatRefundAmount Decimal?  @db.Decimal(15, 2)
   transactionId   String?
-  invoice         Invoice? @relation(fields: [invoiceId], references: [id])
+  invoice         Invoice?  @relation(fields: [invoiceId], references: [id])
   invoiceId       String?
-  createdAt       DateTime @default(now())
+  createdAt       DateTime  @default(now())
 
   @@unique([tenantId, fiscalYear, billNo])
   @@index([tenantId])
@@ -947,43 +998,43 @@ model MasterBill {
 }
 
 model Invoice {
-  id              String   @id @default(uuid())
-  tenant          Tenant   @relation(fields: [tenantId], references: [id])
-  tenantId        String
-  branch          Branch?  @relation(fields: [branchId], references: [id])
-  branchId        String?
-  masterBills     MasterBill[]
-  fiscalYear      FiscalYear @relation(fields: [fiscalYearId], references: [id])
-  fiscalYearId    String
-  invoiceNumber   String
-  invoiceType     String   // TAX_INVOICE, ABBREVIATED, INVOICE, CREDIT_NOTE, DEBIT_NOTE
-  invoiceDate     DateTime
-  dueDate         DateTime?
-  customer        Customer @relation(fields: [customerId], references: [id])
-  customerId      String
-  customerPan     String?
-  billingAddress  String?
-  subtotal        Decimal  @db.Decimal(15, 2)
-  discountAmount  Decimal  @default(0) @db.Decimal(15, 2)
-  taxableAmount   Decimal  @db.Decimal(15, 2)
-  vatAmount       Decimal  @default(0) @db.Decimal(15, 2)
-  totalAmount     Decimal  @db.Decimal(15, 2)
-  paidAmount      Decimal  @default(0) @db.Decimal(15, 2)
-  paymentStatus   String   @default("UNPAID") // UNPAID, PARTIAL, PAID, CANCELLED
-  currency        String   @default("NPR")
-  notes           String?
-  isActive        Boolean  @default(true)
-  cancelledAt     DateTime?
-  cancelledBy     String?
-  cancelReason    String?
-  journalEntry    JournalEntry? @relation(fields: [journalEntryId], references: [id])
-  journalEntryId  String?
-  createdBy       String
-  createdAt       DateTime @default(now())
-  updatedAt       DateTime @updatedAt
+  id             String        @id @default(uuid())
+  tenant         Tenant        @relation(fields: [tenantId], references: [id])
+  tenantId       String
+  branch         Branch?       @relation(fields: [branchId], references: [id])
+  branchId       String?
+  masterBills    MasterBill[]
+  fiscalYear     FiscalYear    @relation(fields: [fiscalYearId], references: [id])
+  fiscalYearId   String
+  invoiceNumber  String
+  invoiceType    String // TAX_INVOICE, ABBREVIATED, INVOICE, CREDIT_NOTE, DEBIT_NOTE
+  invoiceDate    DateTime
+  dueDate        DateTime?
+  customer       Customer      @relation(fields: [customerId], references: [id])
+  customerId     String
+  customerPan    String?
+  billingAddress String?
+  subtotal       Decimal       @db.Decimal(15, 2)
+  discountAmount Decimal       @default(0) @db.Decimal(15, 2)
+  taxableAmount  Decimal       @db.Decimal(15, 2)
+  vatAmount      Decimal       @default(0) @db.Decimal(15, 2)
+  totalAmount    Decimal       @db.Decimal(15, 2)
+  paidAmount     Decimal       @default(0) @db.Decimal(15, 2)
+  paymentStatus  String        @default("UNPAID") // UNPAID, PARTIAL, PAID, CANCELLED
+  currency       String        @default("NPR")
+  notes          String?
+  isActive       Boolean       @default(true)
+  cancelledAt    DateTime?
+  cancelledBy    String?
+  cancelReason   String?
+  journalEntry   JournalEntry? @relation(fields: [journalEntryId], references: [id])
+  journalEntryId String?
+  createdBy      String
+  createdAt      DateTime      @default(now())
+  updatedAt      DateTime      @updatedAt
 
-  items InvoiceItem[]
-  reprintLogs ReprintLog[]
+  items              InvoiceItem[]
+  reprintLogs        ReprintLog[]
   paymentAllocations PaymentAllocation[]
 
   @@unique([tenantId, invoiceNumber])
@@ -993,55 +1044,55 @@ model Invoice {
 }
 
 model InvoiceItem {
-  id              String   @id @default(uuid())
-  invoice         Invoice   @relation(fields: [invoiceId], references: [id], onDelete: Cascade)
-  invoiceId       String
-  tenant          Tenant   @relation(fields: [tenantId], references: [id])
-  tenantId        String
-  itemNo          Int
-  description     String
-  quantity        Decimal  @db.Decimal(10, 3)
-  unitOfMeasure   String?
-  unitPrice       Decimal  @db.Decimal(15, 2)
-  discountPct     Decimal  @default(0) @db.Decimal(5, 2)
-  discountAmount  Decimal  @default(0) @db.Decimal(15, 2)
-  taxableAmount   Decimal  @db.Decimal(15, 2)
-  vatRate         Decimal  @default(13.00) @db.Decimal(5, 2)
-  vatAmount       Decimal  @default(0) @db.Decimal(15, 2)
-  totalAmount     Decimal  @db.Decimal(15, 2)
-  account         ChartOfAccount? @relation(fields: [accountId], references: [id])
-  accountId       String?
+  id             String          @id @default(uuid())
+  invoice        Invoice         @relation(fields: [invoiceId], references: [id], onDelete: Cascade)
+  invoiceId      String
+  tenant         Tenant          @relation(fields: [tenantId], references: [id])
+  tenantId       String
+  itemNo         Int
+  description    String
+  quantity       Decimal         @db.Decimal(10, 3)
+  unitOfMeasure  String?
+  unitPrice      Decimal         @db.Decimal(15, 2)
+  discountPct    Decimal         @default(0) @db.Decimal(5, 2)
+  discountAmount Decimal         @default(0) @db.Decimal(15, 2)
+  taxableAmount  Decimal         @db.Decimal(15, 2)
+  vatRate        Decimal         @default(13.00) @db.Decimal(5, 2)
+  vatAmount      Decimal         @default(0) @db.Decimal(15, 2)
+  totalAmount    Decimal         @db.Decimal(15, 2)
+  account        ChartOfAccount? @relation(fields: [accountId], references: [id])
+  accountId      String?
 
   @@index([invoiceId])
 }
 
 model Bill {
-  id              String   @id @default(uuid())
-  tenant          Tenant   @relation(fields: [tenantId], references: [id])
-  tenantId        String
-  fiscalYear      FiscalYear @relation(fields: [fiscalYearId], references: [id])
-  fiscalYearId    String
-  billNumber      String
-  billType        String   @default("PURCHASE") // PURCHASE, DEBIT_NOTE
-  billDate        DateTime
-  dueDate         DateTime?
-  supplier        Supplier @relation(fields: [supplierId], references: [id])
-  supplierId      String
-  supplierPan     String?
-  subtotal        Decimal  @db.Decimal(15, 2)
-  discountAmount  Decimal  @default(0) @db.Decimal(15, 2)
-  taxableAmount   Decimal  @db.Decimal(15, 2)
-  vatAmount       Decimal  @default(0) @db.Decimal(15, 2)
-  totalAmount     Decimal  @db.Decimal(15, 2)
-  paidAmount      Decimal  @default(0) @db.Decimal(15, 2)
-  paymentStatus   String   @default("UNPAID")
-  currency        String   @default("NPR")
-  notes           String?
-  isActive        Boolean  @default(true)
-  journalEntry    JournalEntry? @relation(fields: [journalEntryId], references: [id])
-  journalEntryId  String?
-  createdBy       String
-  createdAt       DateTime @default(now())
+  id             String        @id @default(uuid())
+  tenant         Tenant        @relation(fields: [tenantId], references: [id])
+  tenantId       String
+  fiscalYear     FiscalYear    @relation(fields: [fiscalYearId], references: [id])
+  fiscalYearId   String
+  billNumber     String
+  billType       String        @default("PURCHASE") // PURCHASE, DEBIT_NOTE
+  billDate       DateTime
+  dueDate        DateTime?
+  supplier       Supplier      @relation(fields: [supplierId], references: [id])
+  supplierId     String
+  supplierPan    String?
+  subtotal       Decimal       @db.Decimal(15, 2)
+  discountAmount Decimal       @default(0) @db.Decimal(15, 2)
+  taxableAmount  Decimal       @db.Decimal(15, 2)
+  vatAmount      Decimal       @default(0) @db.Decimal(15, 2)
+  totalAmount    Decimal       @db.Decimal(15, 2)
+  paidAmount     Decimal       @default(0) @db.Decimal(15, 2)
+  paymentStatus  String        @default("UNPAID")
+  currency       String        @default("NPR")
+  notes          String?
+  isActive       Boolean       @default(true)
+  journalEntry   JournalEntry? @relation(fields: [journalEntryId], references: [id])
+  journalEntryId String?
+  createdBy      String
+  createdAt      DateTime      @default(now())
 
   @@unique([tenantId, billNumber])
   @@index([tenantId])
@@ -1049,28 +1100,28 @@ model Bill {
 }
 
 model PaymentReceived {
-  id              String   @id @default(uuid())
-  tenant          Tenant   @relation(fields: [tenantId], references: [id])
+  id              String        @id @default(uuid())
+  tenant          Tenant        @relation(fields: [tenantId], references: [id])
   tenantId        String
-  branch          Branch?  @relation(fields: [branchId], references: [id])
+  branch          Branch?       @relation(fields: [branchId], references: [id])
   branchId        String?
   paymentNo       String
   paymentDate     DateTime
-  customer        Customer @relation(fields: [customerId], references: [id])
+  customer        Customer      @relation(fields: [customerId], references: [id])
   customerId      String
-  amount          Decimal  @db.Decimal(15, 2)
+  amount          Decimal       @db.Decimal(15, 2)
   paymentMethod   String // CASH, CHEQUE, ESEWA, KHALTI, CONNECTIPS, CARD, BANK_TRANSFER
   referenceNo     String?
   transactionId   String?
-  bankAccount     BankAccount? @relation("BankSource", fields: [bankAccountId], references: [id])
+  bankAccount     BankAccount?  @relation("BankSource", fields: [bankAccountId], references: [id])
   bankAccountId   String?
   notes           String?
-  vatRefundAmount Decimal? @db.Decimal(15, 2)
-  isRefunded      Boolean  @default(false)
+  vatRefundAmount Decimal?      @db.Decimal(15, 2)
+  isRefunded      Boolean       @default(false)
   journalEntry    JournalEntry? @relation(fields: [journalEntryId], references: [id])
   journalEntryId  String?
   createdBy       String
-  createdAt       DateTime @default(now())
+  createdAt       DateTime      @default(now())
 
   allocations PaymentAllocation[]
 
@@ -1081,15 +1132,15 @@ model PaymentReceived {
 }
 
 model PaymentAllocation {
-  id              String   @id @default(uuid())
-  tenant          Tenant   @relation(fields: [tenantId], references: [id])
+  id              String          @id @default(uuid())
+  tenant          Tenant          @relation(fields: [tenantId], references: [id])
   tenantId        String
   payment         PaymentReceived @relation(fields: [paymentId], references: [id])
   paymentId       String
-  invoice         Invoice @relation(fields: [invoiceId], references: [id])
+  invoice         Invoice         @relation(fields: [invoiceId], references: [id])
   invoiceId       String
-  allocatedAmount Decimal  @db.Decimal(15, 2)
-  createdAt       DateTime @default(now())
+  allocatedAmount Decimal         @db.Decimal(15, 2)
+  createdAt       DateTime        @default(now())
 
   @@unique([paymentId, invoiceId])
   @@index([paymentId])
@@ -1097,28 +1148,28 @@ model PaymentAllocation {
 }
 
 model PaymentMade {
-  id              String   @id @default(uuid())
-  tenant          Tenant   @relation(fields: [tenantId], references: [id])
-  tenantId        String
-  branch          Branch?  @relation(fields: [branchId], references: [id])
-  branchId        String?
-  paymentNo       String
-  paymentDate     DateTime
-  paymentType     String // SUPPLIER, SALARY, TRAINER_WAGE, TAX, UTILITY
-  payeeType       String // SUPPLIER, EMPLOYEE, CONTRACTOR, TAX_AUTHORITY
-  payeeId         String
-  amount          Decimal  @db.Decimal(15, 2)
-  tdsAmount       Decimal  @default(0) @db.Decimal(15, 2)
-  netAmount       Decimal  @db.Decimal(15, 2)
-  paymentMethod   String
-  referenceNo     String?
-  bankAccount     BankAccount? @relation("BankSource", fields: [bankAccountId], references: [id])
-  bankAccountId   String?
-  notes           String?
-  journalEntry    JournalEntry? @relation(fields: [journalEntryId], references: [id])
-  journalEntryId  String?
-  createdBy       String
-  createdAt       DateTime @default(now())
+  id             String        @id @default(uuid())
+  tenant         Tenant        @relation(fields: [tenantId], references: [id])
+  tenantId       String
+  branch         Branch?       @relation(fields: [branchId], references: [id])
+  branchId       String?
+  paymentNo      String
+  paymentDate    DateTime
+  paymentType    String // SUPPLIER, SALARY, TRAINER_WAGE, TAX, UTILITY
+  payeeType      String // SUPPLIER, EMPLOYEE, CONTRACTOR, TAX_AUTHORITY
+  payeeId        String
+  amount         Decimal       @db.Decimal(15, 2)
+  tdsAmount      Decimal       @default(0) @db.Decimal(15, 2)
+  netAmount      Decimal       @db.Decimal(15, 2)
+  paymentMethod  String
+  referenceNo    String?
+  bankAccount    BankAccount?  @relation("BankSource", fields: [bankAccountId], references: [id])
+  bankAccountId  String?
+  notes          String?
+  journalEntry   JournalEntry? @relation(fields: [journalEntryId], references: [id])
+  journalEntryId String?
+  createdBy      String
+  createdAt      DateTime      @default(now())
 
   @@unique([tenantId, paymentNo])
   @@index([tenantId])
@@ -1126,10 +1177,10 @@ model PaymentMade {
 }
 
 model Customer {
-  id              String   @id @default(uuid())
-  tenant          Tenant   @relation(fields: [tenantId], references: [id])
+  id              String    @id @default(uuid())
+  tenant          Tenant    @relation(fields: [tenantId], references: [id])
   tenantId        String
-  branch          Branch?  @relation(fields: [branchId], references: [id])
+  branch          Branch?   @relation(fields: [branchId], references: [id])
   branchId        String?
   customerCode    String?
   name            String
@@ -1137,37 +1188,37 @@ model Customer {
   mobile          String?
   email           String?
   address         String?
-  creditLimit     Decimal  @default(0) @db.Decimal(15, 2)
-  isVatRegistered Boolean  @default(false)
+  creditLimit     Decimal   @default(0) @db.Decimal(15, 2)
+  isVatRegistered Boolean   @default(false)
   taxGroup        TaxGroup? @relation(fields: [taxGroupId], references: [id])
   taxGroupId      String?
-  currentBalance  Decimal  @default(0) @db.Decimal(12, 2)
-  isActive        Boolean  @default(true)
-  createdAt       DateTime @default(now())
+  currentBalance  Decimal   @default(0) @db.Decimal(12, 2)
+  isActive        Boolean   @default(true)
+  createdAt       DateTime  @default(now())
 
-  invoices Invoice[]
+  invoices         Invoice[]
   paymentsReceived PaymentReceived[]
 
   @@index([tenantId])
 }
 
 model Supplier {
-  id              String   @id @default(uuid())
-  tenant          Tenant   @relation(fields: [tenantId], references: [id])
-  tenantId        String
-  supplierCode    String?
-  name            String
-  pan             String?
-  mobile          String?
-  email           String?
-  address         String?
-  isVatRegistered Boolean  @default(false)
-  paymentTermsDays Int     @default(30)
-  taxGroup        TaxGroup? @relation(fields: [taxGroupId], references: [id])
-  taxGroupId      String?
-  currentBalance  Decimal  @default(0) @db.Decimal(12, 2)
-  isActive        Boolean  @default(true)
-  createdAt       DateTime @default(now())
+  id               String    @id @default(uuid())
+  tenant           Tenant    @relation(fields: [tenantId], references: [id])
+  tenantId         String
+  supplierCode     String?
+  name             String
+  pan              String?
+  mobile           String?
+  email            String?
+  address          String?
+  isVatRegistered  Boolean   @default(false)
+  paymentTermsDays Int       @default(30)
+  taxGroup         TaxGroup? @relation(fields: [taxGroupId], references: [id])
+  taxGroupId       String?
+  currentBalance   Decimal   @default(0) @db.Decimal(12, 2)
+  isActive         Boolean   @default(true)
+  createdAt        DateTime  @default(now())
 
   bills Bill[]
 
@@ -1175,58 +1226,58 @@ model Supplier {
 }
 
 model BankAccount {
-  id              String   @id @default(uuid())
-  tenant          Tenant   @relation(fields: [tenantId], references: [id])
-  tenantId        String
-  branch          Branch?  @relation(fields: [branchId], references: [id])
-  branchId        String?
-  accountName     String
-  accountNumber   String
-  bankName        String
-  branchName      String?
-  accountType     String // SAVINGS, CURRENT, etc.
-  currency        String   @default("NPR")
-  isDefault       Boolean  @default(false)
-  isActive        Boolean  @default(true)
-  createdAt       DateTime @default(now())
+  id            String   @id @default(uuid())
+  tenant        Tenant   @relation(fields: [tenantId], references: [id])
+  tenantId      String
+  branch        Branch?  @relation(fields: [branchId], references: [id])
+  branchId      String?
+  accountName   String
+  accountNumber String
+  bankName      String
+  branchName    String?
+  accountType   String // SAVINGS, CURRENT, etc.
+  currency      String   @default("NPR")
+  isDefault     Boolean  @default(false)
+  isActive      Boolean  @default(true)
+  createdAt     DateTime @default(now())
 
   paymentsReceivedAsSource PaymentReceived[] @relation("BankSource")
-  paymentsMadeAsSource PaymentMade[] @relation("BankSource")
+  paymentsMadeAsSource     PaymentMade[]     @relation("BankSource")
 
   @@index([tenantId])
 }
 
 model ReprintLog {
-  id              String   @id @default(uuid())
-  tenant          Tenant   @relation(fields: [tenantId], references: [id])
-  tenantId        String
-  invoice         Invoice @relation(fields: [invoiceId], references: [id])
-  invoiceId       String
-  billNo          String
-  printType       String // ORIGINAL, COPY
-  copyNumber      Int      @default(1)
-  printedBy       String
-  printedAt       DateTime @default(now())
-  reason          String?
-  ipAddress       String?
+  id         String   @id @default(uuid())
+  tenant     Tenant   @relation(fields: [tenantId], references: [id])
+  tenantId   String
+  invoice    Invoice  @relation(fields: [invoiceId], references: [id])
+  invoiceId  String
+  billNo     String
+  printType  String // ORIGINAL, COPY
+  copyNumber Int      @default(1)
+  printedBy  String
+  printedAt  DateTime @default(now())
+  reason     String?
+  ipAddress  String?
 
   @@index([tenantId])
   @@index([invoiceId])
 }
 
 model FinanceAuditLog {
-  id              String   @id @default(uuid())
-  tenant          Tenant   @relation(fields: [tenantId], references: [id])
-  tenantId        String
-  tableName       String
-  recordId        String
-  action          String // INSERT, UPDATE, CANCEL, PRINT, REPRINT, SYNC
-  oldData         Json?
-  newData         Json?
-  actionBy        String
-  actionAt        DateTime @default(now())
-  ipAddress       String?
-  userAgent       String?
+  id        String   @id @default(uuid())
+  tenant    Tenant   @relation(fields: [tenantId], references: [id])
+  tenantId  String
+  tableName String
+  recordId  String
+  action    String // INSERT, UPDATE, CANCEL, PRINT, REPRINT, SYNC
+  oldData   Json?
+  newData   Json?
+  actionBy  String
+  actionAt  DateTime @default(now())
+  ipAddress String?
+  userAgent String?
 
   @@index([tenantId])
   @@index([tableName])
@@ -1234,29 +1285,29 @@ model FinanceAuditLog {
 }
 
 model CbmsSyncQueue {
-  id              String   @id @default(uuid())
+  id              String    @id @default(uuid())
   tenantId        String
   invoiceId       String
   operation       String // CREATE, CANCEL, UPDATE
-  status          String   @default("PENDING") // PENDING, SUCCESS, FAILED, MAX_RETRY
+  status          String    @default("PENDING") // PENDING, SUCCESS, FAILED, MAX_RETRY
   requestPayload  Json
   responsePayload Json?
-  attemptCount    Int      @default(0)
+  attemptCount    Int       @default(0)
   lastAttemptedAt DateTime?
   nextRetryAt     DateTime?
   errorMessage    String?
-  createdAt       DateTime @default(now())
+  createdAt       DateTime  @default(now())
 
   @@index([status])
   @@index([nextRetryAt])
 }
 
 model BillSequence {
-  id              String   @id @default(uuid())
-  tenantId        String
-  fiscalYear      String
-  billType        String // INV, BILL, CN, DN, JE
-  lastNumber      Int      @default(0)
+  id         String @id @default(uuid())
+  tenantId   String
+  fiscalYear String
+  billType   String // INV, BILL, CN, DN, JE
+  lastNumber Int    @default(0)
 
   @@unique([tenantId, fiscalYear, billType])
 }
@@ -1266,130 +1317,130 @@ model BillSequence {
 // ==========================================
 
 model Language {
-  id              String   @id @default(uuid())
-  code            String   @unique // en, ne, hi, etc.
-  name            String   // English, Nepali, Hindi
-  nativeName      String?  // नेपाली, हिन्दी
-  isActive        Boolean  @default(true)
-  isRtl           Boolean  @default(false)
-  createdAt       DateTime @default(now())
-  updatedAt       DateTime @updatedAt
-  
+  id         String   @id @default(uuid())
+  code       String   @unique // en, ne, hi, etc.
+  name       String // English, Nepali, Hindi
+  nativeName String? // नेपाली, हिन्दी
+  isActive   Boolean  @default(true)
+  isRtl      Boolean  @default(false)
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
   tenantLanguages TenantLanguage[]
 }
 
 model TenantLanguage {
-  id              String   @id @default(uuid())
-  tenant          Tenant   @relation(fields: [tenantId], references: [id])
-  tenantId        String
-  language        Language @relation(fields: [languageId], references: [id])
-  languageId      String
-  isDefault       Boolean  @default(false)
-  isActive        Boolean  @default(true)
-  createdAt       DateTime @default(now())
-  
+  id         String   @id @default(uuid())
+  tenant     Tenant   @relation(fields: [tenantId], references: [id])
+  tenantId   String
+  language   Language @relation(fields: [languageId], references: [id])
+  languageId String
+  isDefault  Boolean  @default(false)
+  isActive   Boolean  @default(true)
+  createdAt  DateTime @default(now())
+
   @@unique([tenantId, languageId])
   @@index([tenantId])
 }
 
 model Currency {
-  id              String   @id @default(uuid())
-  code            String   @unique // NPR, USD, EUR, INR, etc.
-  name            String   // Nepalese Rupee, US Dollar, etc.
-  symbol          String   // ₹, $, €, etc.
-  decimalPlaces   Int      @default(2)
-  isActive        Boolean  @default(true)
-  createdAt       DateTime @default(now())
-  updatedAt       DateTime @updatedAt
-  
-  tenantCurrencies TenantCurrency[]
-  exchangeRatesFrom ExchangeRate[] @relation("FromCurrency")
-  exchangeRatesTo   ExchangeRate[] @relation("ToCurrency")
+  id            String   @id @default(uuid())
+  code          String   @unique // NPR, USD, EUR, INR, etc.
+  name          String // Nepalese Rupee, US Dollar, etc.
+  symbol        String // ₹, $, €, etc.
+  decimalPlaces Int      @default(2)
+  isActive      Boolean  @default(true)
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  tenantCurrencies  TenantCurrency[]
+  exchangeRatesFrom ExchangeRate[]   @relation("FromCurrency")
+  exchangeRatesTo   ExchangeRate[]   @relation("ToCurrency")
 }
 
 model TenantCurrency {
-  id              String   @id @default(uuid())
-  tenant          Tenant   @relation(fields: [tenantId], references: [id])
-  tenantId        String
-  currency        Currency @relation(fields: [currencyId], references: [id])
-  currencyId      String
-  isDefault       Boolean  @default(false)
-  isActive        Boolean  @default(true)
-  createdAt       DateTime @default(now())
-  
+  id         String   @id @default(uuid())
+  tenant     Tenant   @relation(fields: [tenantId], references: [id])
+  tenantId   String
+  currency   Currency @relation(fields: [currencyId], references: [id])
+  currencyId String
+  isDefault  Boolean  @default(false)
+  isActive   Boolean  @default(true)
+  createdAt  DateTime @default(now())
+
   @@unique([tenantId, currencyId])
   @@index([tenantId])
 }
 
 model ExchangeRate {
-  id              String   @id @default(uuid())
-  fromCurrency    Currency @relation("FromCurrency", fields: [fromCurrencyId], references: [id])
-  fromCurrencyId  String
-  toCurrency      Currency @relation("ToCurrency", fields: [toCurrencyId], references: [id])
-  toCurrencyId    String
-  rate            Decimal  @db.Decimal(18, 8)
-  source          String?  // manual, api, etc.
-  validFrom       DateTime @default(now())
-  validTo         DateTime?
-  isActive        Boolean  @default(true)
-  createdAt       DateTime @default(now())
-  updatedAt       DateTime @updatedAt
-  
+  id             String    @id @default(uuid())
+  fromCurrency   Currency  @relation("FromCurrency", fields: [fromCurrencyId], references: [id])
+  fromCurrencyId String
+  toCurrency     Currency  @relation("ToCurrency", fields: [toCurrencyId], references: [id])
+  toCurrencyId   String
+  rate           Decimal   @db.Decimal(18, 8)
+  source         String? // manual, api, etc.
+  validFrom      DateTime  @default(now())
+  validTo        DateTime?
+  isActive       Boolean   @default(true)
+  createdAt      DateTime  @default(now())
+  updatedAt      DateTime  @updatedAt
+
   @@index([fromCurrencyId, toCurrencyId])
   @@index([validFrom])
 }
 
 model TaxRate {
-  id              String   @id @default(uuid())
-  tenant          Tenant   @relation(fields: [tenantId], references: [id])
+  id              String    @id @default(uuid())
+  tenant          Tenant    @relation(fields: [tenantId], references: [id])
   tenantId        String
-  name            String   // VAT 13%, TDS 15%, etc.
-  code            String   // VAT, TDS, WHT, etc.
-  rate            Decimal  @db.Decimal(5, 2) // Percentage
-  type            String   // VAT, TDS, WHT, GST, SALES_TAX
-  isCompound      Boolean  @default(false)
+  name            String // VAT 13%, TDS 15%, etc.
+  code            String // VAT, TDS, WHT, etc.
+  rate            Decimal   @db.Decimal(5, 2) // Percentage
+  type            String // VAT, TDS, WHT, GST, SALES_TAX
+  isCompound      Boolean   @default(false)
   parentTaxRateId String?
-  parentTaxRate   TaxRate? @relation("CompoundTax", fields: [parentTaxRateId], references: [id])
+  parentTaxRate   TaxRate?  @relation("CompoundTax", fields: [parentTaxRateId], references: [id])
   childTaxRates   TaxRate[] @relation("CompoundTax")
-  isActive        Boolean  @default(true)
-  governmentCode  String?  // IRD code for Nepal
-  createdAt       DateTime @default(now())
-  updatedAt       DateTime @updatedAt
-  
-  taxGroups       TaxGroupTaxRate[]
-  
+  isActive        Boolean   @default(true)
+  governmentCode  String? // IRD code for Nepal
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
+
+  taxGroups TaxGroupTaxRate[]
+
   @@unique([tenantId, code])
   @@index([tenantId])
   @@index([type])
 }
 
 model TaxGroup {
-  id              String   @id @default(uuid())
-  tenant          Tenant   @relation(fields: [tenantId], references: [id])
-  tenantId        String
-  name            String   // Standard VAT, Zero Rated, Exempt, etc.
-  description     String?
-  isActive        Boolean  @default(true)
-  createdAt       DateTime @default(now())
-  updatedAt       DateTime @updatedAt
-  
-  taxRates        TaxGroupTaxRate[]
-  customers       Customer[]
-  suppliers       Supplier[]
-  
+  id          String   @id @default(uuid())
+  tenant      Tenant   @relation(fields: [tenantId], references: [id])
+  tenantId    String
+  name        String // Standard VAT, Zero Rated, Exempt, etc.
+  description String?
+  isActive    Boolean  @default(true)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  taxRates  TaxGroupTaxRate[]
+  customers Customer[]
+  suppliers Supplier[]
+
   @@unique([tenantId, name])
   @@index([tenantId])
 }
 
 model TaxGroupTaxRate {
-  id              String   @id @default(uuid())
-  taxGroup        TaxGroup @relation(fields: [taxGroupId], references: [id])
-  taxGroupId      String
-  taxRate         TaxRate  @relation(fields: [taxRateId], references: [id])
-  taxRateId       String
-  priority        Int      @default(0) // Order of application
-  createdAt       DateTime @default(now())
-  
+  id         String   @id @default(uuid())
+  taxGroup   TaxGroup @relation(fields: [taxGroupId], references: [id])
+  taxGroupId String
+  taxRate    TaxRate  @relation(fields: [taxRateId], references: [id])
+  taxRateId  String
+  priority   Int      @default(0) // Order of application
+  createdAt  DateTime @default(now())
+
   @@unique([taxGroupId, taxRateId])
   @@index([taxGroupId])
 }
@@ -1413,45 +1464,45 @@ enum VoucherStatus {
 }
 
 model Voucher {
-  id              String   @id @default(uuid())
-  code            String   @unique
-  description     String?
-  type            VoucherType
-  value           Decimal  @db.Decimal(10, 2) // Percentage or fixed amount
-  maxDiscount     Decimal? @db.Decimal(10, 2) // Max discount for percentage type
-  minPurchase     Decimal? @db.Decimal(10, 2) // Min purchase amount
-  currency        String?  @default("USD")
-  usageLimit      Int?     // Total usage limit
-  usageCount      Int      @default(0)
-  perUserLimit    Int      @default(1)
-  planId          String?  // Restrict to specific plan
-  tenantId        String?  // Restrict to specific tenant (null = all tenants)
-  startsAt        DateTime?
-  expiresAt       DateTime?
-  status          VoucherStatus @default(ACTIVE)
-  createdBy       String?
-  createdAt       DateTime @default(now())
-  updatedAt       DateTime @updatedAt
-  
-  redemptions     VoucherRedemption[]
-  
+  id           String        @id @default(uuid())
+  code         String        @unique
+  description  String?
+  type         VoucherType
+  value        Decimal       @db.Decimal(10, 2) // Percentage or fixed amount
+  maxDiscount  Decimal?      @db.Decimal(10, 2) // Max discount for percentage type
+  minPurchase  Decimal?      @db.Decimal(10, 2) // Min purchase amount
+  currency     String?       @default("USD")
+  usageLimit   Int? // Total usage limit
+  usageCount   Int           @default(0)
+  perUserLimit Int           @default(1)
+  planId       String? // Restrict to specific plan
+  tenantId     String? // Restrict to specific tenant (null = all tenants)
+  startsAt     DateTime?
+  expiresAt    DateTime?
+  status       VoucherStatus @default(ACTIVE)
+  createdBy    String?
+  createdAt    DateTime      @default(now())
+  updatedAt    DateTime      @updatedAt
+
+  redemptions VoucherRedemption[]
+
   @@index([code])
   @@index([status])
   @@index([expiresAt])
 }
 
 model VoucherRedemption {
-  id              String   @id @default(uuid())
-  voucher         Voucher  @relation(fields: [voucherId], references: [id])
-  voucherId       String
-  user            User?    @relation(fields: [userId], references: [id])
-  userId          String?
-  tenantId        String?
-  email           String   // Email used for redemption
-  orderId         String?  // Associated order/subscription
-  discountAmount  Decimal  @db.Decimal(10, 2)
-  redeemedAt      DateTime @default(now())
-  
+  id             String   @id @default(uuid())
+  voucher        Voucher  @relation(fields: [voucherId], references: [id])
+  voucherId      String
+  user           User?    @relation(fields: [userId], references: [id])
+  userId         String?
+  tenantId       String?
+  email          String // Email used for redemption
+  orderId        String? // Associated order/subscription
+  discountAmount Decimal  @db.Decimal(10, 2)
+  redeemedAt     DateTime @default(now())
+
   @@index([voucherId])
   @@index([userId])
   @@index([email])
@@ -1472,31 +1523,31 @@ enum CouponStatus {
 }
 
 model Coupon {
-  id              String   @id @default(uuid())
-  tenant          Tenant   @relation(fields: [tenantId], references: [id])
+  id              String       @id @default(uuid())
+  tenant          Tenant       @relation(fields: [tenantId], references: [id])
   tenantId        String
   code            String
   name            String
   description     String?
   type            CouponType
-  value           Decimal  @db.Decimal(10, 2)
-  maxDiscount     Decimal? @db.Decimal(10, 2)
-  minPurchase     Decimal? @db.Decimal(10, 2)
-  currency        String?  @default("USD")
+  value           Decimal      @db.Decimal(10, 2)
+  maxDiscount     Decimal?     @db.Decimal(10, 2)
+  minPurchase     Decimal?     @db.Decimal(10, 2)
+  currency        String?      @default("USD")
   usageLimit      Int?
-  usageCount      Int      @default(0)
-  perUserLimit    Int      @default(1)
-  appliesTo       Json?    // Product/service restrictions
-  customerSegment Json?    // Customer segment restrictions
+  usageCount      Int          @default(0)
+  perUserLimit    Int          @default(1)
+  appliesTo       Json? // Product/service restrictions
+  customerSegment Json? // Customer segment restrictions
   startsAt        DateTime?
   expiresAt       DateTime?
   status          CouponStatus @default(ACTIVE)
   createdBy       String?
-  createdAt       DateTime @default(now())
-  updatedAt       DateTime @updatedAt
-  
-  redemptions     CouponRedemption[]
-  
+  createdAt       DateTime     @default(now())
+  updatedAt       DateTime     @updatedAt
+
+  redemptions CouponRedemption[]
+
   @@unique([tenantId, code])
   @@index([tenantId])
   @@index([status])
@@ -1504,16 +1555,16 @@ model Coupon {
 }
 
 model CouponRedemption {
-  id              String   @id @default(uuid())
-  coupon          Coupon   @relation(fields: [couponId], references: [id])
-  couponId        String
-  user            User?    @relation(fields: [userId], references: [id])
-  userId          String?
-  email           String
-  orderId         String?
-  discountAmount  Decimal  @db.Decimal(10, 2)
-  redeemedAt      DateTime @default(now())
-  
+  id             String   @id @default(uuid())
+  coupon         Coupon   @relation(fields: [couponId], references: [id])
+  couponId       String
+  user           User?    @relation(fields: [userId], references: [id])
+  userId         String?
+  email          String
+  orderId        String?
+  discountAmount Decimal  @db.Decimal(10, 2)
+  redeemedAt     DateTime @default(now())
+
   @@index([couponId])
   @@index([userId])
   @@index([email])
@@ -1541,26 +1592,26 @@ enum CampaignType {
 }
 
 model MarketingCampaign {
-  id              String   @id @default(uuid())
-  tenant          Tenant   @relation(fields: [tenantId], references: [id])
-  tenantId        String
-  name            String
-  type            CampaignType
-  status          CampaignStatus @default(DRAFT)
-  subject         String?  // Email subject
-  content         Json?    // Campaign content
-  templateId      String?  // Reference to template
-  targetSegment   Json?    // Target audience segment
-  scheduledAt     DateTime?
-  startedAt       DateTime?
-  completedAt     DateTime?
-  metrics         Json?    // { sent, delivered, opened, clicked, converted }
-  budget          Decimal? @db.Decimal(10, 2)
-  spent           Decimal  @default(0) @db.Decimal(10, 2)
-  createdBy       String?
-  createdAt       DateTime @default(now())
-  updatedAt       DateTime @updatedAt
-  
+  id            String         @id @default(uuid())
+  tenant        Tenant         @relation(fields: [tenantId], references: [id])
+  tenantId      String
+  name          String
+  type          CampaignType
+  status        CampaignStatus @default(DRAFT)
+  subject       String? // Email subject
+  content       Json? // Campaign content
+  templateId    String? // Reference to template
+  targetSegment Json? // Target audience segment
+  scheduledAt   DateTime?
+  startedAt     DateTime?
+  completedAt   DateTime?
+  metrics       Json? // { sent, delivered, opened, clicked, converted }
+  budget        Decimal?       @db.Decimal(10, 2)
+  spent         Decimal        @default(0) @db.Decimal(10, 2)
+  createdBy     String?
+  createdAt     DateTime       @default(now())
+  updatedAt     DateTime       @updatedAt
+
   @@index([tenantId])
   @@index([status])
   @@index([type])
@@ -1588,8 +1639,8 @@ enum LeadSource {
 }
 
 model Lead {
-  id              String   @id @default(uuid())
-  tenant          Tenant   @relation(fields: [tenantId], references: [id])
+  id              String     @id @default(uuid())
+  tenant          Tenant     @relation(fields: [tenantId], references: [id])
   tenantId        String
   name            String
   email           String?
@@ -1597,20 +1648,20 @@ model Lead {
   company         String?
   source          LeadSource @default(WEBSITE)
   status          LeadStatus @default(NEW)
-  score           Int      @default(0) // Lead score 0-100
-  value           Decimal? @db.Decimal(12, 2) // Potential deal value
-  assignedTo      User?    @relation(fields: [assignedToId], references: [id])
+  score           Int        @default(0) // Lead score 0-100
+  value           Decimal?   @db.Decimal(12, 2) // Potential deal value
+  assignedTo      User?      @relation(fields: [assignedToId], references: [id])
   assignedToId    String?
   contactPerson   String?
   notes           String?
   tags            String[] // Array of tags
-  customFields    Json?    // Custom field values
+  customFields    Json? // Custom field values
   convertedAt     DateTime?
   convertedUserId String?
-  createdAt       DateTime @default(now())
-  updatedAt       DateTime @updatedAt
+  createdAt       DateTime   @default(now())
+  updatedAt       DateTime   @updatedAt
 
-  activities      LeadActivity[]
+  activities LeadActivity[]
 
   @@index([tenantId])
   @@index([status])
@@ -1620,29 +1671,29 @@ model Lead {
 
 /// Platform-level contact form submissions (no tenant association)
 model ContactMessage {
-  id          String   @id @default(uuid())
-  name        String
-  email       String
-  phone       String?
-  company     String?
-  subject     String?
-  message     String   @db.Text
-  screenshot  String?  @db.Text  // Base64-encoded image
-  source      String?  // Where the message came from (web, app, etc.)
-  status      ContactMessageStatus @default(NEW)
-  priority    ContactMessagePriority @default(NORMAL)
-  assignedTo  User?    @relation(fields: [assignedToId], references: [id])
+  id           String                 @id @default(uuid())
+  name         String
+  email        String
+  phone        String?
+  company      String?
+  subject      String?
+  message      String                 @db.Text
+  screenshot   String?                @db.Text // Base64-encoded image
+  source       String? // Where the message came from (web, app, etc.)
+  status       ContactMessageStatus   @default(NEW)
+  priority     ContactMessagePriority @default(NORMAL)
+  assignedTo   User?                  @relation(fields: [assignedToId], references: [id])
   assignedToId String?
-  notes       String?  @db.Text
-  ipAddress   String?
-  userAgent   String?
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
-  repliedAt   DateTime?
+  notes        String?                @db.Text
+  ipAddress    String?
+  userAgent    String?
+  createdAt    DateTime               @default(now())
+  updatedAt    DateTime               @updatedAt
+  repliedAt    DateTime?
 
   // Tenant scoping (null = platform-level message)
-  tenant      Tenant?  @relation(fields: [tenantId], references: [id])
-  tenantId    String?
+  tenant   Tenant? @relation(fields: [tenantId], references: [id])
+  tenantId String?
 
   @@index([status])
   @@index([email])
@@ -1666,14 +1717,14 @@ enum ContactMessagePriority {
 }
 
 model LeadActivity {
-  id              String   @id @default(uuid())
-  lead            Lead     @relation(fields: [leadId], references: [id])
-  leadId          String
-  type            String   // CALL, EMAIL, MEETING, NOTE, STATUS_CHANGE
-  description     String
-  performedBy     String?
-  performedAt     DateTime @default(now())
-  
+  id          String   @id @default(uuid())
+  lead        Lead     @relation(fields: [leadId], references: [id])
+  leadId      String
+  type        String // CALL, EMAIL, MEETING, NOTE, STATUS_CHANGE
+  description String
+  performedBy String?
+  performedAt DateTime @default(now())
+
   @@index([leadId])
   @@index([performedAt])
 }
@@ -1695,67 +1746,67 @@ enum AssetType {
 }
 
 model BrandAsset {
-  id              String   @id @default(uuid())
-  tenant          Tenant   @relation(fields: [tenantId], references: [id])
-  tenantId        String
-  name            String
-  type            AssetType
-  description     String?
-  fileUrl         String
-  fileSize        Int?     // bytes
-  mimeType        String?
-  width           Int?     // For images
-  height          Int?     // For images
-  tags            String[]
-  isPrimary       Boolean  @default(false) // Primary logo, etc.
-  metadata        Json?    // Additional metadata
-  uploadedBy      String?
-  createdAt       DateTime @default(now())
-  updatedAt       DateTime @updatedAt
-  
+  id          String    @id @default(uuid())
+  tenant      Tenant    @relation(fields: [tenantId], references: [id])
+  tenantId    String
+  name        String
+  type        AssetType
+  description String?
+  fileUrl     String
+  fileSize    Int? // bytes
+  mimeType    String?
+  width       Int? // For images
+  height      Int? // For images
+  tags        String[]
+  isPrimary   Boolean   @default(false) // Primary logo, etc.
+  metadata    Json? // Additional metadata
+  uploadedBy  String?
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+
   @@index([tenantId])
   @@index([type])
   @@index([isPrimary])
 }
 
 model BrandGuideline {
-  id              String   @id @default(uuid())
-  tenant          Tenant   @relation(fields: [tenantId], references: [id])
-  tenantId        String
-  name            String   // e.g., "Primary Logo Usage"
-  category        String   // LOGO, COLOR, TYPOGRAPHY, VOICE, IMAGERY
-  description     String
-  rules           Json     // Detailed rules and guidelines
-  examples        Json?    // Example images/references
-  doExamples      String[] // What to do
-  dontExamples    String[] // What not to do
-  isActive        Boolean  @default(true)
-  createdAt       DateTime @default(now())
-  updatedAt       DateTime @updatedAt
-  
+  id           String   @id @default(uuid())
+  tenant       Tenant   @relation(fields: [tenantId], references: [id])
+  tenantId     String
+  name         String // e.g., "Primary Logo Usage"
+  category     String // LOGO, COLOR, TYPOGRAPHY, VOICE, IMAGERY
+  description  String
+  rules        Json // Detailed rules and guidelines
+  examples     Json? // Example images/references
+  doExamples   String[] // What to do
+  dontExamples String[] // What not to do
+  isActive     Boolean  @default(true)
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
   @@unique([tenantId, name])
   @@index([tenantId])
   @@index([category])
 }
 
 model BrandVoice {
-  id              String   @id @default(uuid())
-  tenant          Tenant   @relation(fields: [tenantId], references: [id])
-  tenantId        String   @unique
-  purpose         String?  // Brand purpose/mission
-  mission         String?  // Mission statement
-  vision          String?  // Vision statement
-  values          String[] // Brand values
-  personality     Json?    // Personality traits
-  toneGuide       Json?    // Tone guidelines per context
-  writingStyle    Json?    // Writing style guide
-  terminology     Json?    // Terminology glossary
-  targetAudience  Json?    // Target audience personas
-  positioning     String?  // Brand positioning statement
-  tagline         String?  // Brand tagline
-  createdAt       DateTime @default(now())
-  updatedAt       DateTime @updatedAt
-  
+  id             String   @id @default(uuid())
+  tenant         Tenant   @relation(fields: [tenantId], references: [id])
+  tenantId       String   @unique
+  purpose        String? // Brand purpose/mission
+  mission        String? // Mission statement
+  vision         String? // Vision statement
+  values         String[] // Brand values
+  personality    Json? // Personality traits
+  toneGuide      Json? // Tone guidelines per context
+  writingStyle   Json? // Writing style guide
+  terminology    Json? // Terminology glossary
+  targetAudience Json? // Target audience personas
+  positioning    String? // Brand positioning statement
+  tagline        String? // Brand tagline
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
   @@index([tenantId])
 }
 
@@ -1798,32 +1849,32 @@ enum PaymentTransactionType {
 }
 
 model PaymentProvider {
-  id              String   @id @default(uuid())
-  tenant          Tenant?  @relation(fields: [tenantId], references: [id])
-  tenantId        String?  // null = platform-level provider
-  name            String   // Display name: "eSewa", "Fonepay", etc.
-  type            PaymentProviderType
-  status          PaymentProviderStatus @default(INACTIVE)
-  isDefault       Boolean  @default(false)
-  
+  id        String                @id @default(uuid())
+  tenant    Tenant?               @relation(fields: [tenantId], references: [id])
+  tenantId  String? // null = platform-level provider
+  name      String // Display name: "eSewa", "Fonepay", etc.
+  type      PaymentProviderType
+  status    PaymentProviderStatus @default(INACTIVE)
+  isDefault Boolean               @default(false)
+
   // Credentials stored encrypted (JSON)
-  credentials     Json     // { merchantId, secretKey, ... }
-  
+  credentials Json // { merchantId, secretKey, ... }
+
   // Provider-specific config
-  config          Json?    // { sandbox: true, callbackUrl: "...", ... }
-  
+  config Json? // { sandbox: true, callbackUrl: "...", ... }
+
   // Fee structure
   transactionFeePercent Decimal? @db.Decimal(5, 2)
   fixedFee              Decimal? @db.Decimal(10, 2)
-  
+
   // Supported currencies
   supportedCurrencies String[] @default(["NPR"])
-  
-  createdAt       DateTime @default(now())
-  updatedAt       DateTime @updatedAt
-  
-  transactions    PaymentTransaction[]
-  
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  transactions PaymentTransaction[]
+
   @@unique([tenantId, type])
   @@index([tenantId])
   @@index([type])
@@ -1831,62 +1882,62 @@ model PaymentProvider {
 }
 
 model PaymentTransaction {
-  id              String   @id @default(uuid())
-  tenant          Tenant?  @relation(fields: [tenantId], references: [id])
-  tenantId        String?
-  provider        PaymentProvider @relation(fields: [providerId], references: [id])
-  providerId      String
-  
+  id         String          @id @default(uuid())
+  tenant     Tenant?         @relation(fields: [tenantId], references: [id])
+  tenantId   String?
+  provider   PaymentProvider @relation(fields: [providerId], references: [id])
+  providerId String
+
   // Transaction identifiers
-  internalOrderId String   // Our internal order/invoice reference
-  providerTxnId   String?  // Provider's transaction ID (eSewa ref_id, Fonepay UID, etc.)
-  
+  internalOrderId String // Our internal order/invoice reference
+  providerTxnId   String? // Provider's transaction ID (eSewa ref_id, Fonepay UID, etc.)
+
   // Amount details
-  amount          Decimal  @db.Decimal(15, 2)
-  currency        String   @default("NPR")
-  fee             Decimal? @db.Decimal(10, 2)
-  netAmount       Decimal? @db.Decimal(15, 2)
-  
+  amount    Decimal  @db.Decimal(15, 2)
+  currency  String   @default("NPR")
+  fee       Decimal? @db.Decimal(10, 2)
+  netAmount Decimal? @db.Decimal(15, 2)
+
   // Status
-  type            PaymentTransactionType @default(PAYMENT)
-  status          PaymentTransactionStatus @default(INITIATED)
-  
+  type   PaymentTransactionType   @default(PAYMENT)
+  status PaymentTransactionStatus @default(INITIATED)
+
   // Payment details
-  paymentMethod   String?  // eSewa, Fonepay QR, card, bank transfer, etc.
-  description     String?
-  
+  paymentMethod String? // eSewa, Fonepay QR, card, bank transfer, etc.
+  description   String?
+
   // Customer info
-  customerEmail   String?
-  customerPhone   String?
-  customerName    String?
-  
+  customerEmail String?
+  customerPhone String?
+  customerName  String?
+
   // Provider-specific data
-  providerRequest  Json?   // What we sent to provider
-  providerResponse Json?   // What provider returned
-  
+  providerRequest  Json? // What we sent to provider
+  providerResponse Json? // What provider returned
+
   // Redirect URLs
-  successUrl      String?
-  failureUrl      String?
-  cancelUrl       String?
-  callbackUrl     String?  // Server-to-server callback
-  
+  successUrl  String?
+  failureUrl  String?
+  cancelUrl   String?
+  callbackUrl String? // Server-to-server callback
+
   // Verification
-  verifiedAt      DateTime?
-  verifiedBy      String?  // "callback", "manual", "webhook"
-  
+  verifiedAt DateTime?
+  verifiedBy String? // "callback", "manual", "webhook"
+
   // Refund info
-  refundedAmount  Decimal? @db.Decimal(15, 2)
-  refundReason    String?
-  
+  refundedAmount Decimal? @db.Decimal(15, 2)
+  refundReason   String?
+
   // Metadata
-  metadata        Json?    // Additional custom data
-  ipAddress       String?
-  userAgent       String?
-  
-  createdAt       DateTime @default(now())
-  updatedAt       DateTime @updatedAt
-  expiresAt       DateTime?
-  
+  metadata  Json? // Additional custom data
+  ipAddress String?
+  userAgent String?
+
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+  expiresAt DateTime?
+
   @@unique([internalOrderId])
   @@index([tenantId])
   @@index([providerId])
@@ -1926,30 +1977,30 @@ model Blog {
   scheduledAt   DateTime?
 
   // Relations
-  author        User       @relation("BlogAuthor", fields: [authorId], references: [id])
-  authorId      String
-  category      BlogCategory? @relation(fields: [categoryId], references: [id])
-  categoryId    String?
+  author     User          @relation("BlogAuthor", fields: [authorId], references: [id])
+  authorId   String
+  category   BlogCategory? @relation(fields: [categoryId], references: [id])
+  categoryId String?
 
   // Tenant scoping (null = platform blog)
-  tenant        Tenant?    @relation(fields: [tenantId], references: [id])
-  tenantId      String?
+  tenant   Tenant? @relation(fields: [tenantId], references: [id])
+  tenantId String?
 
   // SEO
-  metaTitle     String?
+  metaTitle       String?
   metaDescription String?
 
   // Stats
-  viewCount     Int        @default(0)
-  likeCount     Int        @default(0)
+  viewCount Int @default(0)
+  likeCount Int @default(0)
 
   // Timestamps
-  createdAt     DateTime   @default(now())
-  updatedAt     DateTime   @updatedAt
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 
   // Relations
-  comments      BlogComment[]
-  tags          BlogTag[]
+  comments BlogComment[]
+  tags     BlogTag[]
 
   @@index([tenantId])
   @@index([authorId])
@@ -1959,49 +2010,49 @@ model Blog {
 }
 
 model BlogCategory {
-  id          String    @id @default(uuid())
+  id          String  @id @default(uuid())
   name        String
-  slug        String    @unique
+  slug        String  @unique
   description String?
   color       String?
   icon        String?
 
   // Tenant scoping (null = platform category)
-  tenant      Tenant?   @relation(fields: [tenantId], references: [id])
-  tenantId    String?
+  tenant   Tenant? @relation(fields: [tenantId], references: [id])
+  tenantId String?
 
   // Hierarchy
-  parent      BlogCategory? @relation("CategoryHierarchy", fields: [parentId], references: [id])
-  parentId    String?
-  children    BlogCategory[] @relation("CategoryHierarchy")
+  parent   BlogCategory?  @relation("CategoryHierarchy", fields: [parentId], references: [id])
+  parentId String?
+  children BlogCategory[] @relation("CategoryHierarchy")
 
-  createdAt   DateTime  @default(now())
-  updatedAt   DateTime  @updatedAt
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 
-  blogs       Blog[]
+  blogs Blog[]
 
   @@index([tenantId])
   @@index([slug])
 }
 
 model BlogComment {
-  id          String        @id @default(uuid())
-  content     String
-  status      CommentStatus @default(pending)
+  id      String        @id @default(uuid())
+  content String
+  status  CommentStatus @default(pending)
 
   // Relations
-  blog        Blog          @relation(fields: [blogId], references: [id], onDelete: Cascade)
-  blogId      String
-  author      User          @relation("CommentAuthor", fields: [authorId], references: [id])
-  authorId    String
+  blog     Blog   @relation(fields: [blogId], references: [id], onDelete: Cascade)
+  blogId   String
+  author   User   @relation("CommentAuthor", fields: [authorId], references: [id])
+  authorId String
 
   // For guest comments (optional)
-  guestName   String?
-  guestEmail  String?
+  guestName  String?
+  guestEmail String?
 
   // Timestamps
-  createdAt   DateTime      @default(now())
-  updatedAt   DateTime      @updatedAt
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 
   @@index([blogId])
   @@index([authorId])
@@ -2009,13 +2060,13 @@ model BlogComment {
 }
 
 model BlogTag {
-  id        String   @id @default(uuid())
-  name      String   @unique
-  slug      String   @unique
+  id   String @id @default(uuid())
+  name String @unique
+  slug String @unique
 
   createdAt DateTime @default(now())
 
-  blogs     Blog[]
+  blogs Blog[]
 }
 
 // =====================================================
@@ -2023,42 +2074,42 @@ model BlogTag {
 // =====================================================
 
 model PlatformBranding {
-  id              String   @id @default(uuid())
+  id String @id @default(uuid())
 
   // Identity
-  platformName    String   @default("Dexo")
-  tagline         String?  @default("Multi-tenant SaaS Platform")
+  platformName String  @default("Dexo")
+  tagline      String? @default("Multi-tenant SaaS Platform")
 
   // Logos
-  logoUrl         String?
-  logoDarkUrl     String?
-  faviconUrl      String?
-  ogImageUrl      String?
+  logoUrl     String?
+  logoDarkUrl String?
+  faviconUrl  String?
+  ogImageUrl  String?
 
   // Contact
-  supportEmail    String?
-  supportPhone    String?
-  websiteUrl      String?
+  supportEmail String?
+  supportPhone String?
+  websiteUrl   String?
 
   // Social
-  twitterUrl      String?
-  linkedinUrl     String?
-  githubUrl       String?
+  twitterUrl  String?
+  linkedinUrl String?
+  githubUrl   String?
 
   // Footer
-  footerText      String?
-  privacyPolicyUrl String?
+  footerText        String?
+  privacyPolicyUrl  String?
   termsOfServiceUrl String?
 
   // SEO
-  defaultMetaTitle String?
+  defaultMetaTitle       String?
   defaultMetaDescription String?
 
   // Theme reference
-  themeConfig     Json?
+  themeConfig Json?
 
-  createdAt       DateTime @default(now())
-  updatedAt       DateTime @updatedAt
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 }
 
 // =====================================================
@@ -2081,119 +2132,120 @@ enum SessionStatus {
 }
 
 model Member {
-  id            String   @id @default(uuid())
-  tenant        Tenant   @relation(fields: [tenantId], references: [id])
-  tenantId      String
-  user          User?    @relation(fields: [userId], references: [id])
-  userId        String?
+  id             String       @id @default(uuid())
+  tenant         Tenant       @relation(fields: [tenantId], references: [id])
+  tenantId       String
+  user           User?        @relation(fields: [userId], references: [id])
+  userId         String?
   membershipType String
-  startDate     DateTime
-  endDate       DateTime?
-  status        MemberStatus @default(ACTIVE)
-  isVerified    Boolean  @default(false)
-  verifiedBy    String?
-  verifiedAt    DateTime?
-  branch        Branch?  @relation(fields: [branchId], references: [id])
-  branchId      String?
-  
-  height        Decimal? @db.Decimal(5, 2)
-  weight        Decimal? @db.Decimal(5, 2)
-  goals         String?  @db.Text
-  medicalConditions String? @db.Text
-  
-  trainer       Trainer? @relation(fields: [trainerId], references: [id])
-  trainerId     String?
-  workouts      Workout[]
-  sessions      TrainingSession[]
+  startDate      DateTime
+  endDate        DateTime?
+  status         MemberStatus @default(ACTIVE)
+  isVerified     Boolean      @default(false)
+  verifiedBy     String?
+  verifiedAt     DateTime?
+  branch         Branch?      @relation(fields: [branchId], references: [id])
+  branchId       String?
+
+  height            Decimal? @db.Decimal(5, 2)
+  weight            Decimal? @db.Decimal(5, 2)
+  goals             String?  @db.Text
+  medicalConditions String?  @db.Text
+  deviceUserId      String? // user id on the biometric device (ZKTeco uid)
+
+  trainer             Trainer?          @relation(fields: [trainerId], references: [id])
+  trainerId           String?
+  workouts            Workout[]
+  sessions            TrainingSession[]
   // FitNepal fitness relations
-  memberships   Membership[]
-  bodyAssessments BodyAssessment[]
-  workoutPlans  WorkoutPlan[]
-  workoutLogs   WorkoutLog[]
-  dietPlans     DietPlan[]
-  foodLogs      FoodLog[]
-  attendances   Attendance[]
-  classBookings ClassBooking[]
-  trainerMessages TrainerMessage[]
-  customerBadges CustomerBadge[]
-  referralsAsReferrer Referral[] @relation("Referrer")
-  referralsAsReferee  Referral[] @relation("Referee")
-  
-  createdAt     DateTime @default(now())
-  updatedAt     DateTime @updatedAt
-  
+  memberships         Membership[]
+  bodyAssessments     BodyAssessment[]
+  workoutPlans        WorkoutPlan[]
+  workoutLogs         WorkoutLog[]
+  dietPlans           DietPlan[]
+  foodLogs            FoodLog[]
+  attendances         Attendance[]
+  classBookings       ClassBooking[]
+  trainerMessages     TrainerMessage[]
+  customerBadges      CustomerBadge[]
+  referralsAsReferrer Referral[]        @relation("Referrer")
+  referralsAsReferee  Referral[]        @relation("Referee")
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
   @@index([tenantId])
   @@index([userId])
   @@index([trainerId])
 }
 
 model Trainer {
-  id            String   @id @default(uuid())
-  tenant        Tenant   @relation(fields: [tenantId], references: [id])
-  tenantId      String
-  user          User?    @relation(fields: [userId], references: [id])
-  userId        String?
-  branch        Branch?  @relation(fields: [branchId], references: [id])
-  branchId      String?
-  
-  name          String
-  email         String?
-  phone         String?
+  id       String  @id @default(uuid())
+  tenant   Tenant  @relation(fields: [tenantId], references: [id])
+  tenantId String
+  user     User?   @relation(fields: [userId], references: [id])
+  userId   String?
+  branch   Branch? @relation(fields: [branchId], references: [id])
+  branchId String?
+
+  name           String
+  email          String?
+  phone          String?
   specialization String?
-  certifications String? @db.Text
-  bio           String?  @db.Text
-  hourlyRate    Decimal? @db.Decimal(10, 2)
-  
-  members       Member[]
-  sessions      TrainingSession[]
+  certifications String?  @db.Text
+  bio            String?  @db.Text
+  hourlyRate     Decimal? @db.Decimal(10, 2)
+
+  members         Member[]
+  sessions        TrainingSession[]
   // FitNepal fitness relations
-  workoutPlans  WorkoutPlan[]
-  groupClasses  GroupClass[]
+  workoutPlans    WorkoutPlan[]
+  groupClasses    GroupClass[]
   trainerMessages TrainerMessage[]
-  
-  createdAt     DateTime @default(now())
-  updatedAt     DateTime @updatedAt
-  
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
   @@index([tenantId])
 }
 
 model Workout {
-  id            String   @id @default(uuid())
-  tenant        Tenant   @relation(fields: [tenantId], references: [id])
-  tenantId      String
-  
-  member        Member   @relation(fields: [memberId], references: [id])
-  memberId      String
-  
+  id       String @id @default(uuid())
+  tenant   Tenant @relation(fields: [tenantId], references: [id])
+  tenantId String
+
+  member   Member @relation(fields: [memberId], references: [id])
+  memberId String
+
   name          String
-  description   String?  @db.Text
+  description   String?   @db.Text
   exercises     Json?
   scheduledDate DateTime?
-  completed     Boolean  @default(false)
-  
-  createdAt     DateTime @default(now())
-  
+  completed     Boolean   @default(false)
+
+  createdAt DateTime @default(now())
+
   @@index([tenantId])
   @@index([memberId])
 }
 
 model TrainingSession {
-  id            String   @id @default(uuid())
-  tenant        Tenant   @relation(fields: [tenantId], references: [id])
-  tenantId      String
-  
-  member        Member   @relation(fields: [memberId], references: [id])
-  memberId      String
-  trainer       Trainer  @relation(fields: [trainerId], references: [id])
-  trainerId     String
-  
-  scheduledAt   DateTime
-  duration      Int
-  status        SessionStatus @default(SCHEDULED)
-  notes         String?  @db.Text
-  
-  createdAt     DateTime @default(now())
-  
+  id       String @id @default(uuid())
+  tenant   Tenant @relation(fields: [tenantId], references: [id])
+  tenantId String
+
+  member    Member  @relation(fields: [memberId], references: [id])
+  memberId  String
+  trainer   Trainer @relation(fields: [trainerId], references: [id])
+  trainerId String
+
+  scheduledAt DateTime
+  duration    Int
+  status      SessionStatus @default(SCHEDULED)
+  notes       String?       @db.Text
+
+  createdAt DateTime @default(now())
+
   @@index([tenantId])
   @@index([memberId])
   @@index([trainerId])
@@ -2213,66 +2265,66 @@ enum AppointmentStatus {
 }
 
 model Appointment {
-  id            String   @id @default(uuid())
-  tenant        Tenant   @relation(fields: [tenantId], references: [id])
-  tenantId      String
-  
-  customer      User?    @relation("AppointmentCustomer", fields: [customerId], references: [id])
-  customerId    String?
-  
-  stylist       Stylist? @relation(fields: [stylistId], references: [id])
-  stylistId     String?
-  
-  service       Service  @relation(fields: [serviceId], references: [id])
-  serviceId     String
-  
-  scheduledAt   DateTime
-  duration      Int
-  status        AppointmentStatus @default(SCHEDULED)
-  notes         String?  @db.Text
-  
-  createdAt     DateTime @default(now())
-  
+  id       String @id @default(uuid())
+  tenant   Tenant @relation(fields: [tenantId], references: [id])
+  tenantId String
+
+  customer   User?   @relation("AppointmentCustomer", fields: [customerId], references: [id])
+  customerId String?
+
+  stylist   Stylist? @relation(fields: [stylistId], references: [id])
+  stylistId String?
+
+  service   Service @relation(fields: [serviceId], references: [id])
+  serviceId String
+
+  scheduledAt DateTime
+  duration    Int
+  status      AppointmentStatus @default(SCHEDULED)
+  notes       String?           @db.Text
+
+  createdAt DateTime @default(now())
+
   @@index([tenantId])
   @@index([stylistId])
   @@index([scheduledAt])
 }
 
 model Stylist {
-  id            String   @id @default(uuid())
-  tenant        Tenant   @relation(fields: [tenantId], references: [id])
-  tenantId      String
-  user          User?    @relation(fields: [userId], references: [id])
-  userId        String?
-  
-  name          String
-  email         String?
-  phone         String?
+  id       String  @id @default(uuid())
+  tenant   Tenant  @relation(fields: [tenantId], references: [id])
+  tenantId String
+  user     User?   @relation(fields: [userId], references: [id])
+  userId   String?
+
+  name           String
+  email          String?
+  phone          String?
   specialization String?
   commissionRate Decimal? @db.Decimal(5, 2)
-  
-  appointments  Appointment[]
-  
-  createdAt     DateTime @default(now())
-  
+
+  appointments Appointment[]
+
+  createdAt DateTime @default(now())
+
   @@index([tenantId])
 }
 
 model Service {
-  id            String   @id @default(uuid())
-  tenant        Tenant   @relation(fields: [tenantId], references: [id])
-  tenantId      String
-  
-  name          String
-  description   String?  @db.Text
-  duration      Int
-  price         Decimal  @db.Decimal(10, 2)
-  category      String?
-  
-  appointments  Appointment[]
-  
-  createdAt     DateTime @default(now())
-  
+  id       String @id @default(uuid())
+  tenant   Tenant @relation(fields: [tenantId], references: [id])
+  tenantId String
+
+  name        String
+  description String? @db.Text
+  duration    Int
+  price       Decimal @db.Decimal(10, 2)
+  category    String?
+
+  appointments Appointment[]
+
+  createdAt DateTime @default(now())
+
   @@index([tenantId])
 }
 
@@ -2281,12 +2333,12 @@ model Service {
 // =====================================================
 
 model Student {
-  id            String   @id @default(uuid())
-  tenant        Tenant   @relation(fields: [tenantId], references: [id])
-  tenantId      String
-  user          User?    @relation(fields: [userId], references: [id])
-  userId        String?
-  
+  id       String  @id @default(uuid())
+  tenant   Tenant  @relation(fields: [tenantId], references: [id])
+  tenantId String
+  user     User?   @relation(fields: [userId], references: [id])
+  userId   String?
+
   name          String
   email         String?
   phone         String?
@@ -2296,101 +2348,101 @@ model Student {
   admissionDate DateTime?
   parentName    String?
   parentPhone   String?
-  
-  enrollments   Enrollment[]
-  examResults   ExamResult[]
-  
-  createdAt     DateTime @default(now())
-  
+
+  enrollments Enrollment[]
+  examResults ExamResult[]
+
+  createdAt DateTime @default(now())
+
   @@index([tenantId])
 }
 
 model Teacher {
-  id            String   @id @default(uuid())
-  tenant        Tenant   @relation(fields: [tenantId], references: [id])
-  tenantId      String
-  user          User?    @relation(fields: [userId], references: [id])
-  userId        String?
-  
+  id       String  @id @default(uuid())
+  tenant   Tenant  @relation(fields: [tenantId], references: [id])
+  tenantId String
+  user     User?   @relation(fields: [userId], references: [id])
+  userId   String?
+
   name          String
   email         String?
   phone         String?
   subject       String?
   qualification String?
-  
-  classes       Class[]
-  
-  createdAt     DateTime @default(now())
-  
+
+  classes Class[]
+
+  createdAt DateTime @default(now())
+
   @@index([tenantId])
 }
 
 model Class {
-  id            String   @id @default(uuid())
-  tenant        Tenant   @relation(fields: [tenantId], references: [id])
-  tenantId      String
-  
-  name          String
-  grade         String?
-  section       String?
-  teacher       Teacher? @relation(fields: [teacherId], references: [id])
-  teacherId     String?
-  
-  students      Enrollment[]
-  
-  createdAt     DateTime @default(now())
-  
+  id       String @id @default(uuid())
+  tenant   Tenant @relation(fields: [tenantId], references: [id])
+  tenantId String
+
+  name      String
+  grade     String?
+  section   String?
+  teacher   Teacher? @relation(fields: [teacherId], references: [id])
+  teacherId String?
+
+  students Enrollment[]
+
+  createdAt DateTime @default(now())
+
   @@index([tenantId])
 }
 
 model Enrollment {
-  id            String   @id @default(uuid())
-  tenant        Tenant   @relation(fields: [tenantId], references: [id])
-  tenantId      String
-  
-  student       Student  @relation(fields: [studentId], references: [id])
-  studentId     String
-  class         Class    @relation(fields: [classId], references: [id])
-  classId       String
-  
-  enrolledAt    DateTime @default(now())
-  
+  id       String @id @default(uuid())
+  tenant   Tenant @relation(fields: [tenantId], references: [id])
+  tenantId String
+
+  student   Student @relation(fields: [studentId], references: [id])
+  studentId String
+  class     Class   @relation(fields: [classId], references: [id])
+  classId   String
+
+  enrolledAt DateTime @default(now())
+
   @@unique([studentId, classId])
   @@index([tenantId])
 }
 
 model Exam {
-  id            String   @id @default(uuid())
-  tenant        Tenant   @relation(fields: [tenantId], references: [id])
-  tenantId      String
-  
-  name          String
-  subject       String
-  totalMarks    Int
-  passingMarks  Int
-  examDate      DateTime
-  
-  results       ExamResult[]
-  
-  createdAt     DateTime @default(now())
-  
+  id       String @id @default(uuid())
+  tenant   Tenant @relation(fields: [tenantId], references: [id])
+  tenantId String
+
+  name         String
+  subject      String
+  totalMarks   Int
+  passingMarks Int
+  examDate     DateTime
+
+  results ExamResult[]
+
+  createdAt DateTime @default(now())
+
   @@index([tenantId])
 }
 
 model ExamResult {
-  id            String   @id @default(uuid())
-  tenant        Tenant   @relation(fields: [tenantId], references: [id])
-  tenantId      String
-  
-  student       Student  @relation(fields: [studentId], references: [id])
-  studentId     String
-  exam          Exam     @relation(fields: [examId], references: [id])
-  examId        String
-  
+  id       String @id @default(uuid())
+  tenant   Tenant @relation(fields: [tenantId], references: [id])
+  tenantId String
+
+  student   Student @relation(fields: [studentId], references: [id])
+  studentId String
+  exam      Exam    @relation(fields: [examId], references: [id])
+  examId    String
+
   marksObtained Int
   grade         String?
   remarks       String?
-  
+
   @@unique([studentId, examId])
   @@index([tenantId])
 }
@@ -2492,86 +2544,86 @@ enum ReferralStatus {
 
 // Membership Plans (defined by gym)
 model MembershipPlan {
-  id              String          @id @default(uuid())
-  tenant          Tenant          @relation(fields: [tenantId], references: [id])
-  tenantId        String
-  
-  name            String
-  description     String?         @db.Text
-  type            MembershipType
-  durationDays    Int
-  
+  id       String @id @default(uuid())
+  tenant   Tenant @relation(fields: [tenantId], references: [id])
+  tenantId String
+
+  name         String
+  description  String?        @db.Text
+  type         MembershipType
+  durationDays Int
+
   // Pricing in NPR
-  priceNpr        Decimal         @db.Decimal(10, 2)
-  vatPercent      Decimal         @default(13) @db.Decimal(5, 2)
-  totalWithVat    Decimal         @db.Decimal(10, 2)
-  
+  priceNpr     Decimal @db.Decimal(10, 2)
+  vatPercent   Decimal @default(13) @db.Decimal(5, 2)
+  totalWithVat Decimal @db.Decimal(10, 2)
+
   // Features
-  includesTrainer Boolean         @default(false)
-  includesClasses Boolean         @default(false)
-  includesDietPlan Boolean        @default(false)
-  includesLocker  Boolean         @default(false)
-  freezeAllowed   Boolean         @default(true)
-  maxFreezeDays   Int             @default(30)
-  
+  includesTrainer  Boolean @default(false)
+  includesClasses  Boolean @default(false)
+  includesDietPlan Boolean @default(false)
+  includesLocker   Boolean @default(false)
+  freezeAllowed    Boolean @default(true)
+  maxFreezeDays    Int     @default(30)
+
   // Access
-  accessHours     String?         @db.Text // "24/7" or "6AM-10PM"
-  branchAccess    String          @default("single") // "single" or "all"
-  
-  isActive        Boolean         @default(true)
-  sortOrder       Int             @default(0)
-  
+  accessHours  String? @db.Text // "24/7" or "6AM-10PM"
+  branchAccess String  @default("single") // "single" or "all"
+
+  isActive  Boolean @default(true)
+  sortOrder Int     @default(0)
+
   // Relations
-  memberships     Membership[]
-  
-  createdAt       DateTime        @default(now())
-  updatedAt       DateTime        @updatedAt
-  
+  memberships Membership[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
   @@index([tenantId])
   @@index([type])
 }
 
 // Customer Memberships
 model Membership {
-  id              String          @id @default(uuid())
-  tenant          Tenant          @relation(fields: [tenantId], references: [id])
-  tenantId        String
-  
-  member          Member          @relation(fields: [memberId], references: [id])
-  memberId        String
-  
-  plan            MembershipPlan  @relation(fields: [planId], references: [id])
-  planId          String
-  
-  status          MembershipStatus @default(PENDING)
-  startDate       DateTime
-  endDate         DateTime
-  
+  id       String @id @default(uuid())
+  tenant   Tenant @relation(fields: [tenantId], references: [id])
+  tenantId String
+
+  member   Member @relation(fields: [memberId], references: [id])
+  memberId String
+
+  plan   MembershipPlan @relation(fields: [planId], references: [id])
+  planId String
+
+  status    MembershipStatus @default(PENDING)
+  startDate DateTime
+  endDate   DateTime
+
   // Payment
-  amountPaid      Decimal         @db.Decimal(10, 2)
-  paymentMethod   String?         // eSewa, Khalti, ConnectIPS, Cash
-  paymentRef      String?         // Transaction reference
-  
+  amountPaid    Decimal @db.Decimal(10, 2)
+  paymentMethod String? // eSewa, Khalti, ConnectIPS, Cash
+  paymentRef    String? // Transaction reference
+
   // Freeze support
-  isFrozen        Boolean         @default(false)
-  frozenAt        DateTime?
-  frozenDays      Int             @default(0)
-  freezeReason    String?         @db.Text
-  
+  isFrozen     Boolean   @default(false)
+  frozenAt     DateTime?
+  frozenDays   Int       @default(0)
+  freezeReason String?   @db.Text
+
   // QR Code for check-in
-  qrCode          String?         @unique
-  
+  qrCode String? @unique
+
   // Auto-renewal
-  autoRenew       Boolean         @default(false)
-  renewBeforeDays Int             @default(7)
-  
-  createdAt       DateTime        @default(now())
-  updatedAt       DateTime        @updatedAt
-  
+  autoRenew       Boolean @default(false)
+  renewBeforeDays Int     @default(7)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
   // Relations
-  attendances     Attendance[]
-  classBookings   ClassBooking[]
-  
+  attendances   Attendance[]
+  classBookings ClassBooking[]
+
   @@index([tenantId])
   @@index([memberId])
   @@index([status])
@@ -2580,55 +2632,55 @@ model Membership {
 
 // Body Assessment & Health Tracking
 model BodyAssessment {
-  id              String          @id @default(uuid())
-  tenant          Tenant          @relation(fields: [tenantId], references: [id])
-  tenantId        String
-  
-  member          Member          @relation(fields: [memberId], references: [id])
-  memberId        String
-  
-  assessmentType  BodyAssessmentType
-  
+  id       String @id @default(uuid())
+  tenant   Tenant @relation(fields: [tenantId], references: [id])
+  tenantId String
+
+  member   Member @relation(fields: [memberId], references: [id])
+  memberId String
+
+  assessmentType BodyAssessmentType
+
   // Basic measurements
-  weight          Decimal?        @db.Decimal(5, 2) // kg
-  height          Decimal?        @db.Decimal(5, 2) // cm
-  bmi             Decimal?        @db.Decimal(4, 2)
-  bodyFatPercent  Decimal?        @db.Decimal(4, 2)
-  muscleMass      Decimal?        @db.Decimal(5, 2) // kg
-  
+  weight         Decimal? @db.Decimal(5, 2) // kg
+  height         Decimal? @db.Decimal(5, 2) // cm
+  bmi            Decimal? @db.Decimal(4, 2)
+  bodyFatPercent Decimal? @db.Decimal(4, 2)
+  muscleMass     Decimal? @db.Decimal(5, 2) // kg
+
   // Body measurements (in cm)
-  waist           Decimal?        @db.Decimal(5, 2)
-  chest           Decimal?        @db.Decimal(5, 2)
-  hips            Decimal?        @db.Decimal(5, 2)
-  arms            Decimal?        @db.Decimal(5, 2)
-  thighs          Decimal?        @db.Decimal(5, 2)
-  calves          Decimal?        @db.Decimal(5, 2)
-  
+  waist  Decimal? @db.Decimal(5, 2)
+  chest  Decimal? @db.Decimal(5, 2)
+  hips   Decimal? @db.Decimal(5, 2)
+  arms   Decimal? @db.Decimal(5, 2)
+  thighs Decimal? @db.Decimal(5, 2)
+  calves Decimal? @db.Decimal(5, 2)
+
   // Health metrics
   restingHeartRate Int?
-  bloodPressure   String?         // "120/80"
-  bloodSugar      Decimal?        @db.Decimal(5, 2) // mg/dL
-  cholesterol     Decimal?        @db.Decimal(5, 2) // mg/dL
-  
+  bloodPressure    String? // "120/80"
+  bloodSugar       Decimal? @db.Decimal(5, 2) // mg/dL
+  cholesterol      Decimal? @db.Decimal(5, 2) // mg/dL
+
   // Health conditions & injuries
-  healthConditions String?        @db.Text
-  injuries        String?         @db.Text
-  medications     String?         @db.Text
-  
+  healthConditions String? @db.Text
+  injuries         String? @db.Text
+  medications      String? @db.Text
+
   // Fitness level & goals
-  fitnessLevel    String?         // BEGINNER, INTERMEDIATE, ADVANCED
-  goalType        String?         // WEIGHT_LOSS, MUSCLE_GAIN, ENDURANCE, GENERAL_FITNESS
-  targetWeight    Decimal?        @db.Decimal(5, 2)
-  targetDate      DateTime?
-  
+  fitnessLevel String? // BEGINNER, INTERMEDIATE, ADVANCED
+  goalType     String? // WEIGHT_LOSS, MUSCLE_GAIN, ENDURANCE, GENERAL_FITNESS
+  targetWeight Decimal?  @db.Decimal(5, 2)
+  targetDate   DateTime?
+
   // Notes
-  trainerNotes    String?         @db.Text
-  
-  assessedBy      String?         // Trainer user ID
-  assessedAt      DateTime        @default(now())
-  
-  createdAt       DateTime        @default(now())
-  
+  trainerNotes String? @db.Text
+
+  assessedBy String? // Trainer user ID
+  assessedAt DateTime @default(now())
+
+  createdAt DateTime @default(now())
+
   @@index([tenantId])
   @@index([memberId])
   @@index([assessedAt])
@@ -2636,42 +2688,42 @@ model BodyAssessment {
 
 // Workout Plans (AI-generated + trainer approved)
 model WorkoutPlan {
-  id              String          @id @default(uuid())
-  tenant          Tenant          @relation(fields: [tenantId], references: [id])
-  tenantId        String
-  
-  member          Member          @relation(fields: [memberId], references: [id])
-  memberId        String
-  
-  trainer         Trainer?        @relation(fields: [trainerId], references: [id])
-  trainerId       String?
-  
-  name            String
-  description     String?         @db.Text
-  goalType        String?         // WEIGHT_LOSS, MUSCLE_GAIN, ENDURANCE, GENERAL
-  fitnessLevel    String?         // BEGINNER, INTERMEDIATE, ADVANCED
-  
-  durationWeeks   Int             @default(4)
-  daysPerWeek     Int             @default(4)
-  
-  status          WorkoutPlanStatus @default(DRAFT)
-  isAiGenerated   Boolean         @default(false)
-  aiPrompt        String?         @db.Text
-  aiResponse      String?         @db.Text
-  
-  approvedBy      String?         // Trainer who approved
-  approvedAt      DateTime?
-  
-  startDate       DateTime?
-  endDate         DateTime?
-  
-  createdAt       DateTime        @default(now())
-  updatedAt       DateTime        @updatedAt
-  
+  id       String @id @default(uuid())
+  tenant   Tenant @relation(fields: [tenantId], references: [id])
+  tenantId String
+
+  member   Member @relation(fields: [memberId], references: [id])
+  memberId String
+
+  trainer   Trainer? @relation(fields: [trainerId], references: [id])
+  trainerId String?
+
+  name         String
+  description  String? @db.Text
+  goalType     String? // WEIGHT_LOSS, MUSCLE_GAIN, ENDURANCE, GENERAL
+  fitnessLevel String? // BEGINNER, INTERMEDIATE, ADVANCED
+
+  durationWeeks Int @default(4)
+  daysPerWeek   Int @default(4)
+
+  status        WorkoutPlanStatus @default(DRAFT)
+  isAiGenerated Boolean           @default(false)
+  aiPrompt      String?           @db.Text
+  aiResponse    String?           @db.Text
+
+  approvedBy String? // Trainer who approved
+  approvedAt DateTime?
+
+  startDate DateTime?
+  endDate   DateTime?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
   // Relations
-  workoutDays     WorkoutDay[]
-  workoutLogs     WorkoutLog[]
-  
+  workoutDays WorkoutDay[]
+  workoutLogs WorkoutLog[]
+
   @@index([tenantId])
   @@index([memberId])
   @@index([status])
@@ -2679,59 +2731,59 @@ model WorkoutPlan {
 
 // Workout Day (part of a plan)
 model WorkoutDay {
-  id              String          @id @default(uuid())
-  tenant          Tenant          @relation(fields: [tenantId], references: [id])
-  tenantId        String
-  
-  plan            WorkoutPlan     @relation(fields: [planId], references: [id])
-  planId          String
-  
-  dayNumber       Int             // 1-7
-  dayName         String          // "Monday", "Push Day", etc.
-  muscleGroup     String?         // "Chest & Triceps", "Full Body", etc.
-  isRestDay       Boolean         @default(false)
-  
-  notes           String?         @db.Text
-  
-  createdAt       DateTime        @default(now())
-  
+  id       String @id @default(uuid())
+  tenant   Tenant @relation(fields: [tenantId], references: [id])
+  tenantId String
+
+  plan   WorkoutPlan @relation(fields: [planId], references: [id])
+  planId String
+
+  dayNumber   Int // 1-7
+  dayName     String // "Monday", "Push Day", etc.
+  muscleGroup String? // "Chest & Triceps", "Full Body", etc.
+  isRestDay   Boolean @default(false)
+
+  notes String? @db.Text
+
+  createdAt DateTime @default(now())
+
   // Relations
-  exercises       WorkoutExercise[]
-  
+  exercises WorkoutExercise[]
+
   @@index([tenantId])
   @@index([planId])
 }
 
 // Exercise in a workout day
 model WorkoutExercise {
-  id              String          @id @default(uuid())
-  tenant          Tenant          @relation(fields: [tenantId], references: [id])
-  tenantId        String
+  id       String @id @default(uuid())
+  tenant   Tenant @relation(fields: [tenantId], references: [id])
+  tenantId String
 
-  day             WorkoutDay      @relation(fields: [dayId], references: [id])
-  dayId           String
+  day   WorkoutDay @relation(fields: [dayId], references: [id])
+  dayId String
 
-  name            String
-  description     String?         @db.Text
-  videoUrl        String?         // Exercise demo video
+  name        String
+  description String? @db.Text
+  videoUrl    String? // Exercise demo video
 
   // Prescription
-  sets            Int?
-  reps            Int?
-  weight          Decimal?        @db.Decimal(6, 2) // kg
-  duration        Int?            // seconds (for cardio/planks)
-  restSeconds     Int             @default(60)
+  sets        Int?
+  reps        Int?
+  weight      Decimal? @db.Decimal(6, 2) // kg
+  duration    Int? // seconds (for cardio/planks)
+  restSeconds Int      @default(60)
 
   // Order
-  sortOrder       Int             @default(0)
+  sortOrder Int @default(0)
 
   // Equipment needed
-  equipment       String?         // "Barbell", "Dumbbell", "Bodyweight", etc.
+  equipment String? // "Barbell", "Dumbbell", "Bodyweight", etc.
 
   // Back-relations
-  exerciseLogs    ExerciseLog[]
+  exerciseLogs ExerciseLog[]
 
-  createdAt       DateTime        @default(now())
+  createdAt DateTime @default(now())
 
   @@index([tenantId])
   @@index([dayId])
@@ -2739,30 +2791,30 @@ model WorkoutExercise {
 
 // Daily Workout Log
 model WorkoutLog {
-  id              String          @id @default(uuid())
-  tenant          Tenant          @relation(fields: [tenantId], references: [id])
-  tenantId        String
-  
-  member          Member          @relation(fields: [memberId], references: [id])
-  memberId        String
-  
-  plan            WorkoutPlan?    @relation(fields: [planId], references: [id])
-  planId          String?
-  
-  workoutDate     DateTime
-  status          WorkoutLogStatus @default(PLANNED)
-  
-  duration        Int?            // minutes
-  caloriesBurned  Int?
-  
-  notes           String?         @db.Text
-  rating          Int?            // 1-5 stars
-  
-  loggedAt        DateTime        @default(now())
-  
+  id       String @id @default(uuid())
+  tenant   Tenant @relation(fields: [tenantId], references: [id])
+  tenantId String
+
+  member   Member @relation(fields: [memberId], references: [id])
+  memberId String
+
+  plan   WorkoutPlan? @relation(fields: [planId], references: [id])
+  planId String?
+
+  workoutDate DateTime
+  status      WorkoutLogStatus @default(PLANNED)
+
+  duration       Int? // minutes
+  caloriesBurned Int?
+
+  notes  String? @db.Text
+  rating Int? // 1-5 stars
+
+  loggedAt DateTime @default(now())
+
   // Relations
-  exerciseLogs    ExerciseLog[]
-  
+  exerciseLogs ExerciseLog[]
+
   @@index([tenantId])
   @@index([memberId])
   @@index([workoutDate])
@@ -2770,23 +2822,23 @@ model WorkoutLog {
 
 // Individual exercise log entry
 model ExerciseLog {
-  id              String          @id @default(uuid())
-  tenant          Tenant          @relation(fields: [tenantId], references: [id])
-  tenantId      String
+  id       String @id @default(uuid())
+  tenant   Tenant @relation(fields: [tenantId], references: [id])
+  tenantId String
 
-  workoutLog      WorkoutLog      @relation(fields: [workoutLogId], references: [id])
-  workoutLogId    String
+  workoutLog   WorkoutLog @relation(fields: [workoutLogId], references: [id])
+  workoutLogId String
 
-  exercise        WorkoutExercise @relation(fields: [exerciseId], references: [id])
-  exerciseId      String
+  exercise   WorkoutExercise @relation(fields: [exerciseId], references: [id])
+  exerciseId String
 
   // Actual performance
-  setsCompleted   Int
-  repsCompleted   Int?
-  weightUsed      Decimal?        @db.Decimal(6, 2)
-  duration        Int?            // seconds
+  setsCompleted Int
+  repsCompleted Int?
+  weightUsed    Decimal? @db.Decimal(6, 2)
+  duration      Int? // seconds
 
-  notes           String?
+  notes String?
 
   @@index([tenantId])
   @@index([workoutLogId])
@@ -2795,108 +2847,108 @@ model ExerciseLog {
 
 // Diet Plans (AI-generated with Nepali foods)
 model DietPlan {
-  id              String          @id @default(uuid())
-  tenant          Tenant          @relation(fields: [tenantId], references: [id])
-  tenantId        String
-  
-  member          Member          @relation(fields: [memberId], references: [id])
-  memberId        String
-  
-  name            String
-  description     String?         @db.Text
-  
+  id       String @id @default(uuid())
+  tenant   Tenant @relation(fields: [tenantId], references: [id])
+  tenantId String
+
+  member   Member @relation(fields: [memberId], references: [id])
+  memberId String
+
+  name        String
+  description String? @db.Text
+
   // Nutrition targets
-  dailyCalories   Int
-  proteinGrams    Int?
-  carbsGrams      Int?
-  fatsGrams       Int?
-  fiberGrams      Int?
-  
+  dailyCalories Int
+  proteinGrams  Int?
+  carbsGrams    Int?
+  fatsGrams     Int?
+  fiberGrams    Int?
+
   // Dietary preferences
-  dietType        String?         // VEGETARIAN, NON_VEGETARIAN, VEGAN, KETO
-  allergies       String?         @db.Text
-  
-  status          DietPlanStatus  @default(DRAFT)
-  isAiGenerated   Boolean         @default(false)
-  
-  approvedBy      String?
-  approvedAt      DateTime?
-  
-  startDate       DateTime?
-  endDate         DateTime?
-  
-  createdAt       DateTime        @default(now())
-  updatedAt       DateTime        @updatedAt
-  
+  dietType  String? // VEGETARIAN, NON_VEGETARIAN, VEGAN, KETO
+  allergies String? @db.Text
+
+  status        DietPlanStatus @default(DRAFT)
+  isAiGenerated Boolean        @default(false)
+
+  approvedBy String?
+  approvedAt DateTime?
+
+  startDate DateTime?
+  endDate   DateTime?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
   // Relations
-  meals           DietMeal[]
-  foodLogs        FoodLog[]
-  
+  meals    DietMeal[]
+  foodLogs FoodLog[]
+
   @@index([tenantId])
   @@index([memberId])
 }
 
 // Diet Meal (part of a diet plan)
 model DietMeal {
-  id              String          @id @default(uuid())
-  tenant          Tenant          @relation(fields: [tenantId], references: [id])
-  tenantId        String
-  
-  plan            DietPlan        @relation(fields: [planId], references: [id])
-  planId          String
-  
-  mealType        MealType
-  dayOfWeek       Int?            // 0-6, null = every day
-  
-  name            String          // "Breakfast", "Morning Snack", etc.
-  description     String?         @db.Text
-  
+  id       String @id @default(uuid())
+  tenant   Tenant @relation(fields: [tenantId], references: [id])
+  tenantId String
+
+  plan   DietPlan @relation(fields: [planId], references: [id])
+  planId String
+
+  mealType  MealType
+  dayOfWeek Int? // 0-6, null = every day
+
+  name        String // "Breakfast", "Morning Snack", etc.
+  description String? @db.Text
+
   // Food items (JSON array of {name, quantity, calories, protein, carbs, fats})
-  foodItems       Json?
-  
+  foodItems Json?
+
   // Totals
-  totalCalories   Int?
-  totalProtein    Decimal?        @db.Decimal(5, 2)
-  totalCarbs      Decimal?        @db.Decimal(5, 2)
-  totalFats       Decimal?        @db.Decimal(5, 2)
-  
-  sortOrder       Int             @default(0)
-  
-  createdAt       DateTime        @default(now())
-  
+  totalCalories Int?
+  totalProtein  Decimal? @db.Decimal(5, 2)
+  totalCarbs    Decimal? @db.Decimal(5, 2)
+  totalFats     Decimal? @db.Decimal(5, 2)
+
+  sortOrder Int @default(0)
+
+  createdAt DateTime @default(now())
+
   @@index([tenantId])
   @@index([planId])
 }
 
 // Daily Food Log
 model FoodLog {
-  id              String          @id @default(uuid())
-  tenant          Tenant          @relation(fields: [tenantId], references: [id])
-  tenantId        String
-  
-  member          Member          @relation(fields: [memberId], references: [id])
-  memberId        String
-  
-  plan            DietPlan?       @relation(fields: [planId], references: [id])
-  planId          String?
-  
-  logDate         DateTime
-  mealType        MealType
-  
+  id       String @id @default(uuid())
+  tenant   Tenant @relation(fields: [tenantId], references: [id])
+  tenantId String
+
+  member   Member @relation(fields: [memberId], references: [id])
+  memberId String
+
+  plan   DietPlan? @relation(fields: [planId], references: [id])
+  planId String?
+
+  logDate  DateTime
+  mealType MealType
+
   // Food items consumed
-  foodItems       Json?           // Array of {name, quantity, calories, protein, carbs, fats}
-  
+  foodItems Json? // Array of {name, quantity, calories, protein, carbs, fats}
+
   // Totals
-  totalCalories   Int?
-  totalProtein    Decimal?        @db.Decimal(5, 2)
-  totalCarbs      Decimal?        @db.Decimal(5, 2)
-  totalFats       Decimal?        @db.Decimal(5, 2)
-  
-  waterIntake     Int?            // ml
-  notes           String?
-  
-  loggedAt        DateTime        @default(now())
-  
+  totalCalories Int?
+  totalProtein  Decimal? @db.Decimal(5, 2)
+  totalCarbs    Decimal? @db.Decimal(5, 2)
+  totalFats     Decimal? @db.Decimal(5, 2)
+
+  waterIntake Int? // ml
+  notes       String?
+
+  loggedAt DateTime @default(now())
+
   @@index([tenantId])
   @@index([memberId])
   @@index([logDate])
@@ -2904,42 +2956,42 @@ model FoodLog {
 
 // Group Fitness Classes
 model GroupClass {
-  id              String          @id @default(uuid())
-  tenant          Tenant          @relation(fields: [tenantId], references: [id])
-  tenantId        String
-  
-  name            String
-  description     String?         @db.Text
-  classType       ClassType
-  
-  trainer         Trainer?        @relation(fields: [trainerId], references: [id])
-  trainerId       String?
-  
-  branch          Branch?         @relation(fields: [branchId], references: [id])
-  branchId        String?
-  
+  id       String @id @default(uuid())
+  tenant   Tenant @relation(fields: [tenantId], references: [id])
+  tenantId String
+
+  name        String
+  description String?   @db.Text
+  classType   ClassType
+
+  trainer   Trainer? @relation(fields: [trainerId], references: [id])
+  trainerId String?
+
+  branch   Branch? @relation(fields: [branchId], references: [id])
+  branchId String?
+
   // Schedule
-  dayOfWeek       Int             // 0-6 (Sunday-Saturday)
-  startTime       DateTime
-  endTime         DateTime
-  duration        Int             // minutes
-  
+  dayOfWeek Int // 0-6 (Sunday-Saturday)
+  startTime DateTime
+  endTime   DateTime
+  duration  Int // minutes
+
   // Capacity
-  maxCapacity     Int             @default(20)
-  currentCount    Int             @default(0)
-  
+  maxCapacity  Int @default(20)
+  currentCount Int @default(0)
+
   // Pricing
-  isFree          Boolean         @default(false)
-  priceNpr        Decimal?        @db.Decimal(10, 2)
-  
-  isActive        Boolean         @default(true)
-  
-  createdAt       DateTime        @default(now())
-  updatedAt       DateTime        @updatedAt
-  
+  isFree   Boolean  @default(false)
+  priceNpr Decimal? @db.Decimal(10, 2)
+
+  isActive Boolean @default(true)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
   // Relations
-  bookings        ClassBooking[]
-  
+  bookings ClassBooking[]
+
   @@index([tenantId])
   @@index([classType])
   @@index([dayOfWeek])
@@ -2947,25 +2999,25 @@ model GroupClass {
 
 // Class Booking
 model ClassBooking {
-  id              String          @id @default(uuid())
-  tenant          Tenant          @relation(fields: [tenantId], references: [id])
-  tenantId        String
-  
-  member          Member          @relation(fields: [memberId], references: [id])
-  memberId        String
-  
-  class           GroupClass      @relation(fields: [classId], references: [id])
-  classId         String
-  
-  membership      Membership?     @relation(fields: [membershipId], references: [id])
-  membershipId    String?
-  
-  bookingDate     DateTime
-  status          String          @default("BOOKED") // BOOKED, ATTENDED, CANCELLED, NO_SHOW
-  
-  bookedAt        DateTime        @default(now())
-  cancelledAt     DateTime?
-  
+  id       String @id @default(uuid())
+  tenant   Tenant @relation(fields: [tenantId], references: [id])
+  tenantId String
+
+  member   Member @relation(fields: [memberId], references: [id])
+  memberId String
+
+  class   GroupClass @relation(fields: [classId], references: [id])
+  classId String
+
+  membership   Membership? @relation(fields: [membershipId], references: [id])
+  membershipId String?
+
+  bookingDate DateTime
+  status      String   @default("BOOKED") // BOOKED, ATTENDED, CANCELLED, NO_SHOW
+
+  bookedAt    DateTime  @default(now())
+  cancelledAt DateTime?
+
   @@unique([memberId, classId, bookingDate])
   @@index([tenantId])
   @@index([memberId])
@@ -2974,24 +3026,24 @@ model ClassBooking {
 
 // Trainer- Customer Chat Messages
 model TrainerMessage {
-  id              String          @id @default(uuid())
-  tenant          Tenant          @relation(fields: [tenantId], references: [id])
-  tenantId        String
-  
-  member          Member          @relation(fields: [memberId], references: [id])
-  memberId        String
-  
-  trainer         Trainer?        @relation(fields: [trainerId], references: [id])
-  trainerId       String?
-  
-  senderType      String          // "TRAINER", "MEMBER", "SYSTEM"
-  message         String          @db.Text
-  
-  isRead          Boolean         @default(false)
-  readAt          DateTime?
-  
-  createdAt       DateTime        @default(now())
-  
+  id       String @id @default(uuid())
+  tenant   Tenant @relation(fields: [tenantId], references: [id])
+  tenantId String
+
+  member   Member @relation(fields: [memberId], references: [id])
+  memberId String
+
+  trainer   Trainer? @relation(fields: [trainerId], references: [id])
+  trainerId String?
+
+  senderType String // "TRAINER", "MEMBER", "SYSTEM"
+  message    String @db.Text
+
+  isRead Boolean   @default(false)
+  readAt DateTime?
+
+  createdAt DateTime @default(now())
+
   @@index([tenantId])
   @@index([memberId])
   @@index([createdAt])
@@ -2999,47 +3051,47 @@ model TrainerMessage {
 
 // Badges & Achievements
 model Badge {
-  id              String          @id @default(uuid())
-  tenant          Tenant          @relation(fields: [tenantId], references: [id])
-  tenantId        String
-  
-  name            String
-  description     String?         @db.Text
-  icon            String?         // Icon name or emoji
-  category        BadgeCategory
-  
+  id       String @id @default(uuid())
+  tenant   Tenant @relation(fields: [tenantId], references: [id])
+  tenantId String
+
+  name        String
+  description String?       @db.Text
+  icon        String? // Icon name or emoji
+  category    BadgeCategory
+
   // Criteria (JSON: {type: "streak", days: 7} or {type: "workouts", count: 50})
-  criteria        Json
-  
+  criteria Json
+
   // Points/rewards
-  points          Int             @default(0)
-  rewardNpr       Decimal?        @db.Decimal(10, 2)
-  
-  isActive        Boolean         @default(true)
-  
-  createdAt       DateTime        @default(now())
-  
+  points    Int      @default(0)
+  rewardNpr Decimal? @db.Decimal(10, 2)
+
+  isActive Boolean @default(true)
+
+  createdAt DateTime @default(now())
+
   // Relations
-  earnedBy        CustomerBadge[]
-  
+  earnedBy CustomerBadge[]
+
   @@index([tenantId])
   @@index([category])
 }
 
 // Customer Earned Badges
 model CustomerBadge {
-  id              String          @id @default(uuid())
-  tenant          Tenant          @relation(fields: [tenantId], references: [id])
-  tenantId        String
-  
-  member          Member          @relation(fields: [memberId], references: [id])
-  memberId        String
-  
-  badge           Badge           @relation(fields: [badgeId], references: [id])
-  badgeId         String
-  
-  earnedAt        DateTime        @default(now())
-  
+  id       String @id @default(uuid())
+  tenant   Tenant @relation(fields: [tenantId], references: [id])
+  tenantId String
+
+  member   Member @relation(fields: [memberId], references: [id])
+  memberId String
+
+  badge   Badge  @relation(fields: [badgeId], references: [id])
+  badgeId String
+
+  earnedAt DateTime @default(now())
+
   @@unique([memberId, badgeId])
   @@index([tenantId])
   @@index([memberId])
@@ -3047,31 +3099,31 @@ model CustomerBadge {
 
 // Referral System
 model Referral {
-  id              String          @id @default(uuid())
-  tenant          Tenant          @relation(fields: [tenantId], references: [id])
-  tenantId        String
-  
-  referrer        Member          @relation("Referrer", fields: [referrerId], references: [id])
-  referrerId      String
-  
-  referee         Member?         @relation("Referee", fields: [refereeId], references: [id])
-  refereeId       String?
-  
-  referralCode    String          @unique
-  refereeEmail    String?
-  refereePhone    String?
-  
-  status          ReferralStatus  @default(PENDING)
-  
+  id       String @id @default(uuid())
+  tenant   Tenant @relation(fields: [tenantId], references: [id])
+  tenantId String
+
+  referrer   Member @relation("Referrer", fields: [referrerId], references: [id])
+  referrerId String
+
+  referee   Member? @relation("Referee", fields: [refereeId], references: [id])
+  refereeId String?
+
+  referralCode String  @unique
+  refereeEmail String?
+  refereePhone String?
+
+  status ReferralStatus @default(PENDING)
+
   // Reward
-  rewardType      String?         // "DISCOUNT", "FREE_DAYS", "CASHBACK"
-  rewardValue     Decimal?        @db.Decimal(10, 2)
-  
-  completedAt     DateTime?
-  expiresAt       DateTime?
-  
-  createdAt       DateTime        @default(now())
-  
+  rewardType  String? // "DISCOUNT", "FREE_DAYS", "CASHBACK"
+  rewardValue Decimal? @db.Decimal(10, 2)
+
+  completedAt DateTime?
+  expiresAt   DateTime?
+
+  createdAt DateTime @default(now())
+
   @@index([tenantId])
   @@index([referrerId])
   @@index([referralCode])
@@ -3079,37 +3131,37 @@ model Referral {
 
 // Gym Equipment & Inventory
 model Equipment {
-  id              String          @id @default(uuid())
-  tenant          Tenant          @relation(fields: [tenantId], references: [id])
-  tenantId        String
-  
-  branch          Branch?         @relation(fields: [branchId], references: [id])
-  branchId        String?
-  
-  name            String
-  category        String          // "CARDIO", "STRENGTH", "FREE_WEIGHTS", "MACHINES", "ACCESSORIES"
-  brand           String?
-  model           String?
-  serialNumber    String?
-  
-  quantity        Int             @default(1)
-  condition       String          @default("GOOD") // NEW, GOOD, FAIR, NEEDS_REPAIR, OUT_OF_SERVICE
-  
-  purchaseDate    DateTime?
-  purchaseCost    Decimal?        @db.Decimal(10, 2)
-  warrantyUntil   DateTime?
-  
+  id       String @id @default(uuid())
+  tenant   Tenant @relation(fields: [tenantId], references: [id])
+  tenantId String
+
+  branch   Branch? @relation(fields: [branchId], references: [id])
+  branchId String?
+
+  name         String
+  category     String // "CARDIO", "STRENGTH", "FREE_WEIGHTS", "MACHINES", "ACCESSORIES"
+  brand        String?
+  model        String?
+  serialNumber String?
+
+  quantity  Int    @default(1)
+  condition String @default("GOOD") // NEW, GOOD, FAIR, NEEDS_REPAIR, OUT_OF_SERVICE
+
+  purchaseDate  DateTime?
+  purchaseCost  Decimal?  @db.Decimal(10, 2)
+  warrantyUntil DateTime?
+
   lastMaintenance DateTime?
   nextMaintenance DateTime?
-  
-  notes           String?         @db.Text
-  
-  createdAt       DateTime        @default(now())
-  updatedAt       DateTime        @updatedAt
-  
+
+  notes String? @db.Text
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
   // Relations
   maintenanceLogs EquipmentMaintenance[]
-  
+
   @@index([tenantId])
   @@index([branchId])
   @@index([category])
@@ -3117,55 +3169,55 @@ model Equipment {
 
 // Equipment Maintenance Logs
 model EquipmentMaintenance {
-  id              String          @id @default(uuid())
-  tenant          Tenant          @relation(fields: [tenantId], references: [id])
-  tenantId        String
-  
-  equipment       Equipment       @relation(fields: [equipmentId], references: [id])
-  equipmentId     String
-  
-  maintenanceType String          // ROUTINE, REPAIR, INSPECTION
-  description     String          @db.Text
-  
-  cost            Decimal?        @db.Decimal(10, 2)
-  performedBy     String?
-  
-  performedAt     DateTime        @default(now())
-  nextService     DateTime?
-  
+  id       String @id @default(uuid())
+  tenant   Tenant @relation(fields: [tenantId], references: [id])
+  tenantId String
+
+  equipment   Equipment @relation(fields: [equipmentId], references: [id])
+  equipmentId String
+
+  maintenanceType String // ROUTINE, REPAIR, INSPECTION
+  description     String @db.Text
+
+  cost        Decimal? @db.Decimal(10, 2)
+  performedBy String?
+
+  performedAt DateTime  @default(now())
+  nextService DateTime?
+
   @@index([tenantId])
   @@index([equipmentId])
 }
 
 // Nepali Food Database (for diet plans)
 model NepaliFoodItem {
-  id              String          @id @default(uuid())
-  
-  name            String          // "Dal Bhat", "Momo", "Roti", etc.
-  nameNepali      String?         // "दाल भात", "मम", etc.
-  category        String          // "STAPLE", "VEGETABLE", "FRUIT", "PROTEIN", "SNACK", "BEVERAGE"
-  
+  id String @id @default(uuid())
+
+  name       String // "Dal Bhat", "Momo", "Roti", etc.
+  nameNepali String? // "दाल भात", "मम", etc.
+  category   String // "STAPLE", "VEGETABLE", "FRUIT", "PROTEIN", "SNACK", "BEVERAGE"
+
   // Nutrition per serving
-  servingSize     String          // "1 cup", "1 piece", "100g"
-  calories        Int
-  protein         Decimal         @db.Decimal(5, 2)
-  carbs           Decimal         @db.Decimal(5, 2)
-  fats            Decimal         @db.Decimal(5, 2)
-  fiber           Decimal?        @db.Decimal(5, 2)
-  
+  servingSize String // "1 cup", "1 piece", "100g"
+  calories    Int
+  protein     Decimal  @db.Decimal(5, 2)
+  carbs       Decimal  @db.Decimal(5, 2)
+  fats        Decimal  @db.Decimal(5, 2)
+  fiber       Decimal? @db.Decimal(5, 2)
+
   // Dietary info
-  isVegetarian    Boolean         @default(true)
-  isVegan         Boolean         @default(false)
-  allergens       String?         // Comma-separated: "gluten,nuts,dairy"
-  
+  isVegetarian Boolean @default(true)
+  isVegan      Boolean @default(false)
+  allergens    String? // Comma-separated: "gluten,nuts,dairy"
+
   // Common in Nepal
-  isTraditional   Boolean         @default(false)
-  region          String?         // "HILL", "TERAI", "NEWARI", "GENERAL"
-  
-  isActive        Boolean         @default(true)
-  
-  createdAt       DateTime        @default(now())
-  
+  isTraditional Boolean @default(false)
+  region        String? // "HILL", "TERAI", "NEWARI", "GENERAL"
+
+  isActive Boolean @default(true)
+
+  createdAt DateTime @default(now())
+
   @@index([category])
   @@index([name])
 }
@@ -3192,7 +3244,7 @@ enum SslStatus {
 }
 
 model BusinessTypeTemplate {
-  id              String   @id @default(uuid())
+  id              String     @id @default(uuid())
   domainType      DomainType @unique
   name            String
   description     String
@@ -3201,31 +3253,31 @@ model BusinessTypeTemplate {
   colorPrimary    String
   colorAccent     String
   colorBg         String
-  fontHeading     String   @default("Inter")
-  fontBody        String   @default("Inter")
+  fontHeading     String     @default("Inter")
+  fontBody        String     @default("Inter")
   websiteSections Json
   onboardingSteps Json
   dashboardLayout Json
   features        Json
-  createdAt       DateTime @default(now())
-  updatedAt       DateTime @updatedAt
+  createdAt       DateTime   @default(now())
+  updatedAt       DateTime   @updatedAt
 }
 
 model CustomerOnboarding {
-  id          String   @id @default(uuid())
-  tenant      Tenant   @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  id          String    @id @default(uuid())
+  tenant      Tenant    @relation(fields: [tenantId], references: [id], onDelete: Cascade)
   tenantId    String
-  user        User?    @relation(fields: [userId], references: [id])
+  user        User?     @relation(fields: [userId], references: [id])
   userId      String?
   email       String
-  step        Int      @default(1)
+  step        Int       @default(1)
   totalSteps  Int
   data        Json
-  completed   Boolean  @default(false)
+  completed   Boolean   @default(false)
   completedAt DateTime?
   source      String
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
 
   @@index([tenantId])
   @@index([email])
@@ -3233,47 +3285,100 @@ model CustomerOnboarding {
 }
 
 model TenantOnboarding {
-  id              String   @id @default(uuid())
-  tenant          Tenant   @relation(fields: [tenantId], references: [id], onDelete: Cascade)
-  tenantId        String   @unique
-  step            Int      @default(1)
-  totalSteps      Int      @default(6)
-  completed       Boolean  @default(false)
-  completedAt     DateTime?
-  profileComplete  Boolean @default(false)
-  brandingComplete Boolean @default(false)
-  modulesComplete  Boolean @default(false)
-  teamComplete     Boolean @default(false)
-  websiteComplete  Boolean @default(false)
-  billingComplete  Boolean @default(false)
-  createdAt       DateTime @default(now())
-  updatedAt       DateTime @updatedAt
+  id               String    @id @default(uuid())
+  tenant           Tenant    @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  tenantId         String    @unique
+  step             Int       @default(1)
+  totalSteps       Int       @default(6)
+  completed        Boolean   @default(false)
+  completedAt      DateTime?
+  profileComplete  Boolean   @default(false)
+  brandingComplete Boolean   @default(false)
+  modulesComplete  Boolean   @default(false)
+  teamComplete     Boolean   @default(false)
+  websiteComplete  Boolean   @default(false)
+  billingComplete  Boolean   @default(false)
+  createdAt        DateTime  @default(now())
+  updatedAt        DateTime  @updatedAt
 }
 
 model TenantLifecycle {
-  id                     String           @id @default(uuid())
-  tenant                 Tenant           @relation(fields: [tenantId], references: [id], onDelete: Cascade)
-  tenantId               String           @unique
-  status                 LifecycleStatus  @default(PROVISIONING)
-  subdomainSlug          String           @unique
-  customDomain           String?          @unique
-  customDomainVerified   Boolean          @default(false)
-  dnsToken               String?
-  sslStatus              SslStatus        @default(PENDING)
-  suspendedAt            DateTime?
-  suspendedBy            String?
-  suspendReason          String?
-  archivedAt             DateTime?
-  archivedBy             String?
-  deletedAt              DateTime?
-  deletedBy              String?
-  deletionScheduledAt    DateTime?
-  provisionedAt          DateTime?
-  createdAt              DateTime         @default(now())
-  updatedAt              DateTime         @updatedAt
+  id                   String          @id @default(uuid())
+  tenant               Tenant          @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  tenantId             String          @unique
+  status               LifecycleStatus @default(PROVISIONING)
+  subdomainSlug        String          @unique
+  customDomain         String?         @unique
+  customDomainVerified Boolean         @default(false)
+  dnsToken             String?
+  sslStatus            SslStatus       @default(PENDING)
+  suspendedAt          DateTime?
+  suspendedBy          String?
+  suspendReason        String?
+  archivedAt           DateTime?
+  archivedBy           String?
+  deletedAt            DateTime?
+  deletedBy            String?
+  deletionScheduledAt  DateTime?
+  provisionedAt        DateTime?
+  createdAt            DateTime        @default(now())
+  updatedAt            DateTime        @updatedAt
 
   @@index([status])
   @@index([subdomainSlug])
   @@index([customDomain])
 }
 
+// =============================================================================
+//  BIOMETRIC ATTENDANCE (ZKTeco) — device registry, data puller & reports
+//  Modeled after github.com/sanamsitoula/ZKTecoAttendancePuller
+//  (devices / attendance_logs / pull_sessions). Punches land in Attendance.
+// =============================================================================
+
+model AttendanceDevice {
+  id       String  @id @default(uuid())
+  tenant   Tenant  @relation(fields: [tenantId], references: [id])
+  tenantId String
+  branch   Branch? @relation(fields: [branchId], references: [id])
+  branchId String?
+
+  name       String
+  ip         String
+  port       Int     @default(4370)
+  commKey    String? // device password, default blank/0
+  model      String? // e.g. "K40", "iFace302"
+  forceUdp   Boolean @default(false) // older models (iFace302) need UDP
+  timeoutSec Int     @default(10)
+
+  isActive   Boolean   @default(true)
+  lastPullAt DateTime?
+  lastStatus String? // OK / FAILED / NEVER
+
+  pullSessions AttendancePullSession[]
+  attendances  Attendance[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([tenantId, ip, port])
+  @@index([tenantId])
+}
+
+model AttendancePullSession {
+  id       String           @id @default(uuid())
+  tenant   Tenant           @relation(fields: [tenantId], references: [id])
+  tenantId String
+  device   AttendanceDevice @relation(fields: [deviceId], references: [id], onDelete: Cascade)
+  deviceId String
+
+  startedAt     DateTime  @default(now())
+  completedAt   DateTime?
+  status        String    @default("RUNNING") // RUNNING / SUCCESS / FAILED
+  recordsPulled Int       @default(0)
+  newInserts    Int       @default(0)
+  errorDetail   String?   @db.Text
+
+  @@index([tenantId])
+  @@index([deviceId])
+  @@index([startedAt])
+}

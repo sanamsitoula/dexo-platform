@@ -8,7 +8,7 @@ import {
 import { JwtService } from '@nestjs/jwt';
 import * as bcrypt from 'bcryptjs';
 import { ConfigService } from '@nestjs/config';
-import { PrismaService, AuditService } from '@dexo/shared';
+import { PrismaService, AuditService, TenantMailService } from '@dexo/shared';
 import {
   RegisterDto,
   LoginDto,
@@ -28,6 +28,7 @@ export class AuthService {
     private jwtService: JwtService,
     private configService: ConfigService,
     private audit: AuditService,
+    private tenantMail: TenantMailService,
   ) {}
 
   async validateUser(email: string, password: string): Promise<any> {
@@ -254,8 +255,13 @@ export class AuthService {
       }
     }
 
-    // Queue verification email (would be handled by background job)
-    // await this.sendVerificationEmail(user, verificationToken);
+    // Onboarding welcome email via the tenant's SMTP (platform SMTP fallback).
+    // Best-effort: a mail failure must never fail registration.
+    if (userTenantId) {
+      this.tenantMail
+        .sendWelcome(userTenantId, user.email, firstName || 'there')
+        .catch((err) => this.logger.warn(`Welcome email failed: ${err?.message}`));
+    }
 
     return {
       accessToken,
@@ -376,16 +382,17 @@ export class AuthService {
       },
     );
 
-    // Store token hash in user record (or separate table for production)
-    // For simplicity, we'd send this via email
-    const _resetLink = `${this.configService.get('FRONTEND_URL') || 'http://localhost:3000'}/reset-password?token=${resetToken}`;
+    const resetLink = `${this.configService.get('FRONTEND_URL') || 'http://localhost:3000'}/reset-password?token=${resetToken}`;
 
-    // Queue password reset email
-    // await this.emailService.sendTemplateEmail('password-reset', user.email, { resetLink });
+    // Send via the user's tenant SMTP (platform SMTP fallback). Best-effort so
+    // the endpoint stays constant-time-ish and never leaks config problems.
+    this.tenantMail
+      .sendPasswordReset(user.tenantId, user.email, user.firstName || 'there', resetLink)
+      .catch((err) => this.logger.warn(`Password reset email failed: ${err?.message}`));
 
     return {
       message: 'If an account exists with this email, a password reset link has been sent.',
-      resetToken, // Only for development
+      ...(process.env.NODE_ENV !== 'production' ? { resetToken } : {}), // dev convenience only
     };
   }
 

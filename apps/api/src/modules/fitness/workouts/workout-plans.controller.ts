@@ -1,11 +1,17 @@
 import { Controller, Get, Post, Put, Delete, Body, Param, Query, UseGuards, Req } from '@nestjs/common';
 import { JwtAuthGuard } from '@dexo/auth';
 import { WorkoutPlansService } from './workout-plans.service';
+import { AiPlanService } from '../ai/ai-plan.service';
 
 @Controller('fitness/workout-plans')
 @UseGuards(JwtAuthGuard)
 export class WorkoutPlansController {
-  constructor(private service: WorkoutPlansService) {}
+  constructor(private service: WorkoutPlansService, private aiPlans: AiPlanService) {}
+
+  @Post('generate')
+  generate(@Req() req: any, @Body() dto: any) {
+    return this.aiPlans.generateWorkoutPlan(req.user.tenantId, dto);
+  }
 
   @Get()
   findAll(@Req() req: any, @Query() query: any) {

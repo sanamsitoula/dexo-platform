@@ -31,25 +31,19 @@ export class ConnectIpsProvider implements IPaymentProvider {
    */
   private generateSignature(message: string, pfxBuffer: Buffer, pfxPassword: string): string {
     try {
-      // Extract private key from PFX
-      const p12Asn1 = crypto.createPkcs12(pfxBuffer, pfxPassword);
-      const keyData = p12Asn1.toString();
-
-      // For Node.js, we use sign with SHA256
+      // For Node.js, we use sign with SHA256 using the PFX buffer directly
       const sign = crypto.createSign('SHA256');
       sign.update(message);
       sign.end();
 
-      // Sign with the PFX key
+      // Sign with the PFX key using pkcs8 format
       const signature = sign.sign({
         key: pfxBuffer,
         passphrase: pfxPassword,
-        format: 'der',
-        type: 'pkcs12',
       }, 'base64');
 
       return signature;
-    } catch (error) {
+    } catch (error: any) {
       throw new Error(`Failed to generate ConnectIPS signature: ${error.message}`);
     }
   }
@@ -208,7 +202,7 @@ export class ConnectIpsProvider implements IPaymentProvider {
         rawResponse: data,
         message: data.TXNSTATUS || data.message || 'Verification failed',
       };
-    } catch (error) {
+    } catch (error: any) {
       return {
         success: false,
         providerTxnId: request.providerTxnId,

@@ -23,7 +23,7 @@ export interface TenantBranding {
 export interface TenantAnalytics {
   gaMeasurementId?: string
   gtmId?: string
-  FacebookPixelId?: string
+  fbPixelId?: string
 }
 
 export interface TenantSettings {

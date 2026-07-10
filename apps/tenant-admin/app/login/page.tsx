@@ -31,6 +31,8 @@ export default function LoginPage() {
       const role = data?.user?.role || data?.user?.userRoles?.[0]?.role?.code || 'OWNER';
       const tenantSlug = data?.user?.tenant?.subdomain || 'vrfitness';
       localStorage.setItem('token', data.accessToken);
+      // Subdomain-scoped key that lib/api.ts reads first (multi-tenant safe).
+      localStorage.setItem(`tenant-token-${tenantSlug}`, data.accessToken);
       localStorage.setItem('refreshToken', data.refreshToken);
       localStorage.setItem('user', JSON.stringify(data.user || {}));
       document.cookie = `dexo-tenant-slug=${tenantSlug}; path=/; max-age=86400`;

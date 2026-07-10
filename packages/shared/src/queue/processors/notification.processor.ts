@@ -1,8 +1,8 @@
 import { Processor, Process, OnQueueActive, OnQueueCompleted, OnQueueFailed } from '@nestjs/bull';
 import { Logger } from '@nestjs/common';
-import { Job } from 'bull';
+import type { Job } from 'bull';
 import { QUEUE_NAMES } from '../queue.constants';
-import { NotificationJobData } from '../queue.service';
+import type { NotificationJobData } from '../queue.service';
 
 @Processor(QUEUE_NAMES.NOTIFICATIONS)
 export class NotificationProcessor {
@@ -46,7 +46,7 @@ export class NotificationProcessor {
         success: true,
         notificationId: `notif_${job.id}`,
       };
-    } catch (error) {
+    } catch (error: any) {
       this.logger.error(`Failed to send notification: ${error.message}`);
       throw error;
     }
@@ -65,7 +65,7 @@ export class NotificationProcessor {
         try {
           // Process each notification
           results.push({ userId: notification.userId, success: true });
-        } catch (error) {
+        } catch (error: any) {
           results.push({ userId: notification.userId, success: false, error: error.message });
         }
       }
@@ -76,7 +76,7 @@ export class NotificationProcessor {
         success: true,
         results,
       };
-    } catch (error) {
+    } catch (error: any) {
       this.logger.error(`Failed to send bulk notifications: ${error.message}`);
       throw error;
     }

@@ -15,6 +15,7 @@ const navItems = [
   { name: 'Subscriptions', href: '/subscriptions', icon: 'CreditCard', platformOnly: true },
   { name: 'Billing', href: '/billing', icon: 'Receipt', platformOnly: true },
   { name: 'Notifications', href: '/notifications', icon: 'Bell', platformOnly: false },
+  { name: 'Attendance', href: '/attendance', icon: 'Clipboard', platformOnly: true },
   { name: 'Audit Logs', href: '/audit', icon: 'Clipboard', platformOnly: true },
   { name: 'Reports', href: '/reports', icon: 'Document', platformOnly: true },
   { name: 'System Logs', href: '/logs', icon: 'Terminal', platformOnly: true },

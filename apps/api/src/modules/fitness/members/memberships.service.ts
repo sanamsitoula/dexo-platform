@@ -1,10 +1,11 @@
 import { Injectable, NotFoundException, BadRequestException } from '@nestjs/common';
 import { PrismaService } from '@dexo/shared';
 import { randomBytes } from 'crypto';
+import { GymLedgerService } from './gym-ledger.service';
 
 @Injectable()
 export class MembershipsService {
-  constructor(private prisma: PrismaService) {}
+  constructor(private prisma: PrismaService, private ledger: GymLedgerService) {}
 
   async findAll(tenantId: string, params?: { memberId?: string; status?: string; branchId?: string; page?: number; limit?: number }) {
     const where: any = { tenantId };
@@ -48,6 +49,29 @@ export class MembershipsService {
     return m;
   }
 
+  /** Payment history for a member — returns their membership payment records. */
+  async getPaymentHistory(tenantId: string, memberId: string) {
+    const memberships = await this.prisma.membership.findMany({
+      where: { tenantId, memberId },
+      orderBy: { startDate: 'desc' },
+      include: {
+        plan: { select: { name: true, priceNpr: true, durationDays: true } },
+      },
+    });
+    const totalPaid = memberships.reduce((s, m: any) => s + Number(m.amountPaid || 0), 0);
+    return { memberId, totalPaid, payments: memberships.map((m: any) => ({
+      membershipId: m.id,
+      date: m.startDate,
+      plan: m.plan?.name,
+      amount: m.plan?.price,
+      amountPaid: m.amountPaid,
+      paymentMethod: m.paymentMethod,
+      paymentRef: m.paymentRef,
+      status: m.status,
+      period: { start: m.startDate, end: m.endDate },
+    })) };
+  }
+
   async create(tenantId: string, dto: any) {
     if (!dto.memberId || !dto.planId) throw new BadRequestException('memberId and planId are required');
     const plan = await this.prisma.membershipPlan.findFirst({ where: { id: dto.planId, tenantId } });
@@ -73,11 +97,15 @@ export class MembershipsService {
   }
 
   async activateOnPayment(tenantId: string, id: string, paymentRef: string, paymentMethod: string) {
-    await this.findOne(tenantId, id);
-    return this.prisma.membership.update({
+    const existing = await this.findOne(tenantId, id);
+    const updated = await this.prisma.membership.update({
       where: { id },
       data: { status: 'ACTIVE', paymentRef, paymentMethod, member: { update: { isVerified: true, status: 'ACTIVE' } } },
+      include: { plan: true },
     });
+    // Post membership revenue to the general ledger (best-effort; never blocks payment).
+    await this.ledger.postMembershipRevenue(tenantId, updated as any, (updated as any).plan || existing.plan, undefined);
+    return updated;
   }
 
   async renew(tenantId: string, id: string) {

@@ -7,7 +7,7 @@ import { useDomainTheme } from '../../lib/domain-theme';
 import { useEffect, useState } from 'react';
 import { View, ActivityIndicator, Text } from 'react-native';
 import { Colors, FontSize } from '../../lib/theme';
-import * as SecureStore from 'expo-secure-store';
+import { storage } from '../../lib/storage';
 
 export default function TabLayout() {
   const { user } = useAuth();
@@ -24,7 +24,7 @@ export default function TabLayout() {
 
   async function loadRoleInfo() {
     try {
-      const userDataStr = await SecureStore.getItemAsync('user');
+      const userDataStr = await storage.getItem('user');
       if (userDataStr) {
         const userData = JSON.parse(userDataStr);
         if (userData.userRoles && userData.userRoles.length > 0) {
@@ -129,6 +129,8 @@ export default function TabLayout() {
           name={tab.route}
           options={{
             title: tab.label,
+            // Home has its own greeting hero — hide the default app bar there.
+            headerShown: tab.route !== 'index',
             tabBarIcon: ({ color, size }) => (
               <Ionicons name={getIconName(tab.code)} size={size} color={color} />
             ),

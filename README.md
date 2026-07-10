@@ -23,6 +23,12 @@ permissions, and a branded theme — with zero code changes.
 - ✅ 6 OAuth social login providers (Google, GitHub, Apple, Facebook, Microsoft, LinkedIn)
 - ✅ 5 payment gateways (eSewa, Fonepay, ConnectIPS, Stripe, PayPal)
 - ✅ NFRS-compliant double-entry finance module
+- ✅ IRD Electronic Billing reports (Schedule 6D sales-book, purchase-book, VAT return, TDS, aging, cancelled-bills, reprint-log, audit-trail, CBMS sync status) — 11 endpoints + tenant-admin UI
+- ✅ **Accounting & bookkeeping** — Chart of Accounts (ledger heads + sub-accounts, 46-account Nepal NFRS template), manual double-entry journal entries (draft/post/reverse), GL auto-posting from invoices & payments, trial balance / balance sheet / income statement now reflect real data
+- ✅ **Invoicing & printing** — invoice list + printable view with **Print / Save-as-PDF** button, reprint logging with **"COPY OF ORIGINAL / प्रतिलिपि"** watermark (IRD-compliant), every new invoice auto-posts DR Accounts Receivable / CR Sales / CR VAT Payable
+- ✅ **Fitness self-signup** — customers (`signupAs=MEMBER`) and trainers (`signupAs=TRAINER`) self-register; trainers view their assigned trainees via `/fitness/trainers/me/trainees`; per-member payment history
+- ✅ WhatsApp Business Cloud API integration (per-tenant config, template messages, opt-in/out, floating chat button, tenant-admin settings)
+- ✅ Contact Us pages (tenant-website public form + platform-web) with branch info, map, WhatsApp button
 - ✅ 10 languages, 10 currencies
 
 ---
@@ -111,10 +117,11 @@ Prefer to run things yourself? Each step below maps to one module of the platfor
 and can be rerun independently. Run them in order the first time.
 
 ### Step 1 — Infrastructure module (Docker services)
-Starts PostgreSQL, Redis, MinIO (S3), and MailHog.
+Starts PostgreSQL, Redis, MinIO (S3), and MailHog. `run.bat` does this for you
+automatically; if you're going modular, use compose:
 ```bash
 docker-compose up -d
-# verify: docker ps   (dexo_postgres, dexo_redis, dexo_minio, dexo_mailhog should be Up)
+# verify: docker ps   (dexo-postgres, dexo-redis, dexo-minio, dexo-mailhog should be Up)
 ```
 | Service    | Port | Console                      | Default creds            |
 |------------|------|------------------------------|--------------------------|
@@ -129,7 +136,7 @@ cp .env.example .env
 ```
 Then edit `.env` so the database URL matches the Docker container:
 ```
-DATABASE_URL=postgresql://postgres:postgres@localhost:5433/dexo_db
+DATABASE_URL=postgresql://postgres:postgres@localhost:5433/dexo
 REDIS_URL=redis://localhost:6379
 JWT_SECRET=dev-jwt-secret-key-change-in-production
 DEV_TENANT=vrfitness            # which tenant to simulate in dev
@@ -193,6 +200,11 @@ templates, seeded tenant states, and the `/api/health` endpoint.
 | Tenant Website (vrfitness) | 4005 | http://localhost:4005 | Tenant public website        |
 | Tenant Admin Portal    | 4006 | http://localhost:4006     | Tenant owner + staff portal      |
 | Tenant Customer App    | 4007 | http://localhost:4007     | Tenant customer-facing app       |
+| Tenant Reports (admin) | 4006 | http://localhost:4006/reports | NFRS + IRD financial reports |
+| Tenant Finance (admin) | 4006 | http://localhost:4006/finance | Chart of accounts, journal entries, invoices |
+| Tenant Invoices (admin) | 4006 | http://localhost:4006/finance/invoices | Invoice list + print/PDF + reprint copy |
+| Tenant WhatsApp settings | 4006 | http://localhost:4006/whatsapp | WhatsApp Business Cloud config |
+| Tenant Contact Us (public) | 4005 | http://localhost:4005/contact | Public contact form + branches |
 | Mobile (Expo)          | 8081 | http://localhost:8081     | Mobile-optimized interface        |
 | MinIO Console          | 9001 | http://localhost:9001     | S3 file storage console           |
 | MailHog                | 8025 | http://localhost:8025     | Email testing inbox               |
@@ -211,6 +223,130 @@ DEV_TENANT=spicegarden npm run dev --workspace=@dexo/tenant-website
 #   admin.vrfitness.localhost   → vrfitness admin
 #   portal.vrfitness.localhost  → vrfitness customer app
 ```
+
+---
+
+## 📒 Finance & Accounting (Nepal NFRS)
+
+Double-entry bookkeeping with IRD electronic-billing compliance. NPR currency, VAT 13%, TDS, CBMS, fiscal years.
+
+**Tenant Admin → http://localhost:4006/finance**
+
+| Page | What it does |
+|------|--------------|
+| `/finance/accounts` | **Chart of Accounts** — ledger heads (control accounts) + sub-accounts. Seeded with a 46-account Nepal NFRS template. Add new accounts inline. |
+| `/finance/journal` | **Manual journal entries** — create double-entry postings (debits = credits enforced), draft → post → reverse. |
+| `/finance/invoices` | **Invoices & bills** — list tax invoices, click any to view & **Print / Save-as-PDF**. Reprints are logged and watermarked **"COPY OF ORIGINAL / प्रतिलिपि"**. |
+| `/reports/finance/*` | Trial balance, balance sheet, income statement, cash flow. |
+| `/reports/*` | IRD reports: sales book, purchase book, VAT return, TDS summary, AR/AP aging, cancelled bills, reprint log, audit trail, CBMS sync. |
+
+**GL auto-posting:** every new invoice auto-creates a `JournalEntry` (DR Accounts Receivable / CR Sales Revenue / CR VAT Payable) and every payment auto-creates one (DR Cash/Bank / CR Accounts Receivable), so trial balance & financial statements reflect real activity. Postings are safe no-ops if the chart of accounts isn't seeded.
+
+**Seed the accounting setup** (chart of accounts + monthly periods + tenant-domain link):
+```bash
+npm run db:seed:v5        # includes step 05-accounting
+# or standalone:
+npx ts-node --transpile-only scripts/seed/05-accounting.ts
+```
+
+### Fitness self-signup
+
+Customers and trainers self-register against a fitness tenant:
+
+```bash
+# Register a TRAINER (auto-creates a Trainer + Member profile)
+curl -X POST http://localhost:4000/api/auth/register -H "Content-Type: application/json" -d '{
+  "email":"trainer@vrfitness.com","password":"Trainer123!",
+  "firstName":"Jane","lastName":"Coach","tenantId":"<tenantId>",
+  "signupAs":"TRAINER","specialization":"Strength"
+}'
+
+# After login, a trainer views their assigned trainees:
+#   GET /api/fitness/trainers/me/trainees
+# A member views their own profile:
+#   GET /api/fitness/members/me
+# Per-member payment history:
+#   GET /api/fitness/memberships/member/:memberId/payments
+```
+
+---
+
+## 🏋️ Fitness vertical (FITNESS_CENTER)
+
+The fitness business type is fully wired end-to-end: API (`apps/api/src/modules/fitness/*`),
+staff admin (**:4006**) and the customer mobile app (**:4007**, mobile-first PWA).
+
+### Customer app — http://localhost:4007
+Onboarding → membership → training journey, all self-service:
+- **Onboarding**: register (welcome email is sent automatically), goals & profile setup
+- **Workout journey**: AI/trainer workout plans, logging, streaks, progress charts, body assessments
+- **Calorie tracking**: food logs + daily summary backed by the Nepali food database (`/diet`)
+- **Membership & payments**: browse plans, see payment due, **pay online through the payment
+  gateway** (eSewa / Khalti / ConnectIPS / Fonepay / Stripe / PayPal — whichever the gym has
+  configured; seeded demo tenant has an **eSewa sandbox** provider). Checkout redirects to the
+  gateway and returns to `/payment/return`, which verifies the transaction and activates the
+  membership. Cash-at-counter stays a PENDING reservation.
+- **Coach chat** (`/coach`), **referrals** (`/referrals`), **badges** (`/badges`),
+  **check-in + my attendance** (`/checkin` — QR, manual and biometric punches)
+
+### Tenant admin — http://localhost:4006
+Members, plans, trainers, classes, check-in, **workouts** (AI generate + approve), **diet plans**
+(AI generate + approve), **assessments**, **equipment & maintenance**, **badges**, **referrals**,
+**food DB**, plus finance/accounting.
+
+### AI plan generation
+`POST /api/fitness/workout-plans/generate` and `POST /api/fitness/diet-plans/generate` build
+member-specific plans from the latest body assessment. With `ANTHROPIC_API_KEY` set they use the
+Anthropic API (model via `AI_PLAN_MODEL`); without a key a deterministic rule-based generator is
+used, so the feature always works locally. Plans save as DRAFT → trainer approves.
+
+### Demo data
+`npm run db:seed:v5` (or standalone `npm run db:seed:fitness-full`) idempotently tops up **every
+fitness table to ≥ 10 rows** for the `vrfitness` tenant — members, memberships, trainers, classes,
+bookings, workout/diet plans + logs, assessments, messages, badges, referrals, equipment,
+attendance, invoices. Verify with `npm run db:verify:fitness`.
+
+---
+
+## 📧 Tenant email (SMTP) — onboarding & password reset
+
+Each tenant can configure **its own SMTP server** (Tenant Admin → **Email (SMTP)**, stored in the
+`Setting` table under key `smtp`); tenants without a config fall back to the platform SMTP
+(`SMTP_*` env vars — MailHog at http://localhost:8025 in local dev).
+
+Sent automatically through the tenant's SMTP:
+- **Welcome / onboarding email** when a customer registers (`POST /api/auth/register`)
+- **Password reset** link (`POST /api/auth/forgot-password`)
+- **Test email** from the admin screen (`POST /api/tenant-mail/test`)
+
+API: `GET/PUT /api/tenant-mail/config`, `POST /api/tenant-mail/test`.
+
+---
+
+## 🖐️ Biometric attendance (ZKTeco data puller)
+
+Attendance management modeled after
+[ZKTecoAttendancePuller](https://github.com/sanamsitoula/ZKTecoAttendancePuller) — device
+registry, **data puller**, **attendance logs** and **reports** — available to **every business
+type / tenant**, not just fitness.
+
+- **Protocol**: TCP port **4370** (UDP toggle for older models like iFace302), per-device comm key
+  and timeout — via `node-zklib`. Set `ZK_MOCK=true` (default in `.env.example`) to pull generated
+  sample punches without hardware.
+- **Puller**: `POST /api/attendance-devices/:id/pull` (or *Pull all*); every run writes an
+  `AttendancePullSession` audit row (records pulled, new inserts, error detail). A 30-minute
+  scheduled pull runs when `ATTENDANCE_AUTO_PULL=true`. Pulls are **idempotent** —
+  `UNIQUE(deviceId, deviceUid, checkInTime)` dedupes punches.
+- **Mapping**: device user ids map to members via `Member.deviceUserId` (seeded 1..N for the demo
+  tenant); unmapped punches are kept and flagged.
+- **Screens**:
+  - Tenant admin (:4006): **Devices** (CRUD, pull now, test connection, sessions),
+    **Attendance Logs** (filter by date/device/person, CSV export),
+    **Attendance Reports** (daily present/absent, monthly per-person grid, 14-day trend) —
+    in the sidebar of *every* business type.
+  - Platform admin (:3002 → **Attendance**): all devices & pull sessions across tenants.
+  - Customer app (:4007 → **Check in**): members see their own attendance history
+    (QR + manual + fingerprint punches) via `GET /api/attendance-logs/me`.
 
 ---
 
@@ -243,7 +379,7 @@ DEV_TENANT=spicegarden npm run dev --workspace=@dexo/tenant-website
 |----------|-------------------------|-----------------|-----------------|
 | MinIO    | http://localhost:9001   | `minioadmin`    | `minioadmin`    |
 | MailHog  | http://localhost:8025  | (no auth)       | (no auth)       |
-| Postgres | jdbc:postgresql://localhost:5433/dexo_db | `postgres` | `postgres` |
+| Postgres | jdbc:postgresql://localhost:5433/dexo | `postgres` | `postgres` |
 
 ---
 
@@ -271,6 +407,55 @@ curl -X POST http://localhost:4000/api/domains/tenant/{tenantId}/assign/SALON_AN
   -H "Authorization: Bearer $TOKEN"
 ```
 
+### After signup — how to reach a new tenant's website, admin, staff & dashboard
+
+When a tenant is provisioned (via the signup wizard at `:3001` or the API), Dexo
+creates the `Tenant` + `TenantLifecycle` + `TenantOnboarding` and returns
+`{ tenantId, subdomain, url }`. The `url` is a production-style placeholder
+(`https://<slug>.dexo.com`). **You do NOT get a new port per tenant** — one app
+instance serves every tenant; the tenant is selected by hostname (prod) or
+`DEV_TENANT` (dev).
+
+**Production — subdomain routing (one instance, many tenants):**
+
+| What | URL | Who logs in |
+|------|-----|-------------|
+| Public website | `https://<slug>.dexo.com` | (public, no login) |
+| Owner / admin login + dashboard | `https://admin.<slug>.dexo.com/login` | owner, manager |
+| Staff login + dashboard | `https://admin.<slug>.dexo.com/login` | trainers, waiters, staff (role-routed to `/staff/dashboard`) |
+| Customer app | `https://app.<slug>.dexo.com` | members / customers |
+| Custom domain | `https://customer.com` (DNS TXT verified) | same as above |
+
+The reverse proxy (Traefik/Nginx) reads the hostname, sets the `x-tenant-slug`
+header, and routes to the shared `tenant-website` / `tenant-admin` / `tenant-app`.
+
+**Dev — one tenant per running instance (switch with `DEV_TENANT`):**
+
+You can't use real `*.dexo.com` subdomains on `localhost`, so the tenant apps
+take the active tenant from the `DEV_TENANT` env var (default `vrfitness`).
+
+| What | How to reach it |
+|------|-----------------|
+| Public website | `set DEV_TENANT=<slug>` then (restart) `npm run dev --workspace=@dexo/tenant-website` → http://localhost:4005 |
+| Owner/admin dashboard | http://localhost:4006/login → log in with the owner email → redirects to `/dashboard` |
+| Staff dashboard | http://localhost:4006/login → log in with a staff/trainer email → redirects to `/staff/dashboard` |
+| Customer app | `set DEV_TENANT=<slug>` then `npm run dev --workspace=@dexo/tenant-app` → http://localhost:4007 |
+| Mobile | open the Expo app → pick the tenant from the **searchable dropdown** on the login screen |
+
+Worked example — a brand-new tenant `acme-fitness` whose owner signed up as
+`owner@acme.com`:
+1. Point the dev apps at it: `set DEV_TENANT=acme-fitness` and restart `:4005 / :4006 / :4007`.
+2. http://localhost:4005 → `acme-fitness` public website.
+3. http://localhost:4006/login → `owner@acme.com` / their password → `/dashboard` (owner).
+4. In that dashboard, add staff → a trainer logs in at `:4006/login` → `/staff/dashboard`.
+5. http://localhost:4007 (or mobile with `acme-fitness` selected) → customer/member experience.
+
+> ⚠️ Dev limitation: `apps/tenant-website/app/layout.tsx` maps `DEV_TENANT` →
+> domain template via `slugToDomainType()`, which today only knows `vrfitness`
+> (FITNESS_CENTER) and `spicegarden` (RESTAURANT_AND_CAFE). Any other slug falls
+> back to the FITNESS_CENTER template until you add the mapping (or run the
+> tenant on a real subdomain in production).
+
 ---
 
 ## 📚 Documentation
@@ -296,12 +481,15 @@ curl -X POST http://localhost:4000/api/domains/tenant/{tenantId}/assign/SALON_AN
 ## 🛑 Stop everything
 
 ```bash
-# Windows
-stop-all.bat
-# Or: docker stop dexo_postgres dexo_redis dexo_minio dexo_mailhog
+# Windows — stops all Dexo node apps and frees the locked ports
+#   (Docker services keep running so you don't lose data)
+stop.bat
 
 # Linux/macOS
 ./stop-all.sh    # if present, otherwise stop node + docker manually
+
+# To also stop the Docker infra services:
+docker stop dexo-postgres dexo-redis dexo-minio dexo-mailhog
 ```
 
 ---

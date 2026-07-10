@@ -165,9 +165,6 @@ export class RoleService {
           'Cannot modify permissions of system roles. Create a custom role instead.',
         );
       }
-      if (false) {
-        throw new BadRequestException('Cannot change system role flag');
-      }
 
       // Check name uniqueness if changing
       if (name && name !== existing.name) {

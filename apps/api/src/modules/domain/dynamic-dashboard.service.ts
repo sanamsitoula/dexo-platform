@@ -8,7 +8,7 @@ export class DynamicDashboardService {
 
   async generateDashboardForDomain(domainCode: string, tenantId: string, roleCode: string) {
     const domain = await this.prisma.domain.findUnique({
-      where: { code: domainCode },
+      where: { code: domainCode as any },
       include: {
         domainWidgets: {
           include: {
@@ -21,7 +21,7 @@ export class DynamicDashboardService {
           orderBy: { sortOrder: 'asc' },
         },
       },
-    });
+    } as any) as any;
 
     if (!domain) throw new NotFoundException('Domain not found');
 
@@ -74,7 +74,7 @@ export class DynamicDashboardService {
 
   private async getTenantDashboardData(tenantId: string, domainCode: string) {
     const domain = await this.prisma.domain.findUnique({
-      where: { code: domainCode },
+      where: { code: domainCode as any },
     });
 
     if (!domain) throw new NotFoundException('Domain not found');
@@ -261,7 +261,7 @@ export class DynamicDashboardService {
   async getWidgetByCode(domainCode: string, widgetCode: string, roleCode?: string) {
     const widget = await this.prisma.domainWidget.findFirst({
       where: {
-        domain: { code: domainCode },
+        domain: { code: domainCode as any },
         code: widgetCode,
         ...(roleCode && { role: { code: roleCode } }),
         isVisible: true,

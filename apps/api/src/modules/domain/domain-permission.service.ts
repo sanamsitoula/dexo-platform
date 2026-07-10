@@ -7,7 +7,7 @@ export class DomainPermissionService {
 
   async checkModuleAccess(domainCode: string, roleCode: string, moduleCode: string, action: string): Promise<boolean> {
     const domain = await this.prisma.domain.findUnique({
-      where: { code: domainCode },
+      where: { code: domainCode as any },
     });
 
     if (!domain) return false;
@@ -41,7 +41,7 @@ export class DomainPermissionService {
 
   async checkAllModuleAccess(domainCode: string, roleCode: string): Promise<any> {
     const domain = await this.prisma.domain.findUnique({
-      where: { code: domainCode },
+      where: { code: domainCode as any },
     });
 
     if (!domain) return { hasAccess: false, permissions: [] };
@@ -63,7 +63,7 @@ export class DomainPermissionService {
       include: {
         module: true,
       },
-    });n
+    });
     return {
       hasAccess: permissions.length > 0,
       permissions: permissions.map(p => ({
@@ -84,7 +84,7 @@ export class DomainPermissionService {
 
     const allModules = await this.prisma.domainModule.findMany({
       where: {
-        domain: { code: domainCode },
+        domain: { code: domainCode as any },
       },
       select: {
         id: true,
@@ -97,11 +97,11 @@ export class DomainPermissionService {
     });
 
     const accessibleModules = allModules.filter(module =>
-      hasAccess.permissions.some(perm => perm.moduleCode === module.code)
+      hasAccess.permissions.some((perm: any) => perm.moduleCode === module.code)
     );
 
     const restrictedModules = allModules.filter(module =>
-      !hasAccess.permissions.some(perm => perm.moduleCode === module.code)
+      !hasAccess.permissions.some((perm: any) => perm.moduleCode === module.code)
     );
 
     return {
@@ -122,12 +122,13 @@ export class DomainPermissionService {
     };
   }
 
-  async hasPermission(domainCode: string, roleCode: string, moduleCode: string): Promise<boolean> {
+  async hasPermission(domainCode: string, roleCode: string, moduleCode: string, action?: string): Promise<boolean> {
     const actions = await this.prisma.domainPermission.findMany({
       where: {
-        domain: { code: domainCode },
+        domain: { code: domainCode as any },
         role: { code: roleCode },
         module: { code: moduleCode },
+        ...(action ? { action } : {}),
       },
       select: {
         action: true,

@@ -1,5 +1,5 @@
 import React, { createContext, useContext, useState, useEffect, useCallback } from 'react';
-import * as SecureStore from 'expo-secure-store';
+import { storage } from './storage';
 import { authApi } from './api';
 
 export interface User {
@@ -13,6 +13,7 @@ export interface User {
 
 interface AuthContextType {
   user: User | null;
+  token: string | null;
   isLoading: boolean;
   isAuthenticated: boolean;
   login: (email: string, password: string, tenantSubdomain?: string) => Promise<{ error?: string; data?: any }>;
@@ -31,6 +32,7 @@ const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
 export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [user, setUser] = useState<User | null>(null);
+  const [token, setToken] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
@@ -39,32 +41,34 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   async function checkAuthState() {
     try {
-      const token = await SecureStore.getItemAsync('accessToken');
-      const userData = await SecureStore.getItemAsync('user');
+      const token = await storage.getItem('accessToken');
+      const userData = await storage.getItem('user');
 
       if (token && userData) {
         const parsed = JSON.parse(userData);
         setUser(parsed);
+        setToken(token);
       }
     } catch {
-      await SecureStore.deleteItemAsync('accessToken');
-      await SecureStore.deleteItemAsync('refreshToken');
-      await SecureStore.deleteItemAsync('user');
+      await storage.removeItem('accessToken');
+      await storage.removeItem('refreshToken');
+      await storage.removeItem('user');
     } finally {
       setIsLoading(false);
     }
   }
 
   const login = useCallback(async (email: string, password: string, tenantSubdomain?: string) => {
-    const result = await authApi.login(email, password);
+    const result = await authApi.login(email, password, tenantSubdomain);
     if (result.error) return { error: result.error };
 
     const data = result.data as any;
     if (data && data.accessToken) {
-      await SecureStore.setItemAsync('accessToken', data.accessToken);
-      await SecureStore.setItemAsync('refreshToken', data.refreshToken);
-      await SecureStore.setItemAsync('user', JSON.stringify(data.user));
+      await storage.setItem('accessToken', data.accessToken);
+      await storage.setItem('refreshToken', data.refreshToken);
+      await storage.setItem('user', JSON.stringify(data.user));
       setUser(data.user);
+      setToken(data.accessToken);
       return { data };
     }
     return {};
@@ -77,12 +81,13 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
       const d = result.data as any;
       if (d) {
-        if (d.accessToken) await SecureStore.setItemAsync('accessToken', d.accessToken);
-        if (d.refreshToken) await SecureStore.setItemAsync('refreshToken', d.refreshToken);
+        if (d.accessToken) await storage.setItem('accessToken', d.accessToken);
+        if (d.refreshToken) await storage.setItem('refreshToken', d.refreshToken);
         if (d.user) {
-          await SecureStore.setItemAsync('user', JSON.stringify(d.user));
+          await storage.setItem('user', JSON.stringify(d.user));
           setUser(d.user);
         }
+        if (d.accessToken) setToken(d.accessToken);
       }
       return {};
     },
@@ -93,14 +98,15 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     try {
       await authApi.logout();
     } catch {}
-    await SecureStore.deleteItemAsync('accessToken');
-    await SecureStore.deleteItemAsync('refreshToken');
-    await SecureStore.deleteItemAsync('user');
+    await storage.removeItem('accessToken');
+    await storage.removeItem('refreshToken');
+    await storage.removeItem('user');
     setUser(null);
+    setToken(null);
   }, []);
 
   const refreshUser = useCallback(async () => {
-    const userData = await SecureStore.getItemAsync('user');
+    const userData = await storage.getItem('user');
     if (userData) {
       setUser(JSON.parse(userData));
     }
@@ -110,6 +116,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     <AuthContext.Provider
       value={{
         user,
+        token,
         isLoading,
         isAuthenticated: !!user,
         login,
