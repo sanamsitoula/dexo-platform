@@ -22,9 +22,15 @@ import { NextRequest, NextResponse } from 'next/server';
 // Subdomains that are never a tenant slug.
 const RESERVED = new Set(['www', 'app', 'api', 'admin', 'localhost', 'dexo']);
 
+// Tunnel hosts (ngrok, cloudflared, localtunnel) have random first labels that
+// must NOT be treated as tenant subdomains. On these hosts the tenant comes
+// from ?tenant=<slug>, the dexo_tenant cookie, or DEV_TENANT.
+const TUNNEL_SUFFIXES = ['.ngrok-free.app', '.ngrok.app', '.ngrok.io', '.ngrok.dev', '.trycloudflare.com', '.loca.lt'];
+const isTunnelHost = (hostname: string) => TUNNEL_SUFFIXES.some((s) => hostname.endsWith(s));
+
 function extractSlug(host: string): string | null {
   const hostname = (host || '').split(':')[0].toLowerCase();
-  if (!hostname) return null;
+  if (!hostname || isTunnelHost(hostname)) return null;
   const parts = hostname.split('.');
 
   // sub.localhost -> ["sub", "localhost"]
@@ -40,7 +46,16 @@ function extractSlug(host: string): string | null {
 
 export function middleware(req: NextRequest) {
   const host = req.headers.get('host') || '';
-  const slug = extractSlug(host) || process.env.DEV_TENANT || 'vrfitness';
+  // ?tenant=<slug> pins a tenant for the session (sticky via cookie) — lets a
+  // single ngrok URL demo any tenant: https://<id>.ngrok-free.app/?tenant=bishnufit
+  const queryTenant = req.nextUrl.searchParams.get('tenant')?.toLowerCase() || null;
+  const cookieTenant = req.cookies.get('dexo_tenant')?.value || null;
+  const slug =
+    queryTenant ||
+    extractSlug(host) ||
+    (isTunnelHost((host || '').split(':')[0].toLowerCase()) ? cookieTenant : null) ||
+    process.env.DEV_TENANT ||
+    'vrfitness';
 
   const requestHeaders = new Headers(req.headers);
   requestHeaders.set('x-tenant-slug', slug);

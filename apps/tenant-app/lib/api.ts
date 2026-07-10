@@ -8,13 +8,15 @@ const API_BASE = `${API_HOST}/api`;
  *     `sub.domain.tld` in prod)
  *   - last resort: NEXT_PUBLIC_DEV_TENANT env, then "vrfitness". */
 const RESERVED_SUBDOMAINS = new Set(['www', 'app', 'api', 'admin', 'localhost', 'dexo']);
+// Tunnel hosts (ngrok etc.) — their random first label is never a tenant slug.
+const TUNNEL_SUFFIXES = ['.ngrok-free.app', '.ngrok.app', '.ngrok.io', '.ngrok.dev', '.trycloudflare.com', '.loca.lt'];
 
 export function resolveSubdomain(): string {
   if (typeof document !== 'undefined') {
     const m = document.cookie.match(/(?:^|;\s*)dexo_tenant=([^;]+)/);
     if (m) return decodeURIComponent(m[1]);
   }
-  if (typeof window !== 'undefined') {
+  if (typeof window !== 'undefined' && !TUNNEL_SUFFIXES.some((s) => window.location.hostname.toLowerCase().endsWith(s))) {
     const hostname = window.location.hostname.toLowerCase();
     const parts = hostname.split('.');
     if (hostname.endsWith('.localhost') && parts.length >= 2 && !RESERVED_SUBDOMAINS.has(parts[0])) {

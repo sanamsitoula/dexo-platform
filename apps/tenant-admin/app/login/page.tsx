@@ -82,6 +82,7 @@ export default function LoginPage() {
           >
             {loading ? 'Signing in...' : 'Sign In'}
           </button>
+          <a href="/forgot-password" className="block text-center text-sm text-gray-500 hover:text-gray-700">Forgot password?</a>
         </form>
         <div className="mt-6 text-xs text-gray-400 text-center">
           Demo: admin@vrfitness.com / Admin123!

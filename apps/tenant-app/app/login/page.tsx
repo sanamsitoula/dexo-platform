@@ -48,6 +48,7 @@ export default function LoginPage() {
           className="w-full rounded-lg py-2.5 text-white font-semibold disabled:opacity-60" style={{ background: primary }}>
           {submitting ? 'Signing in…' : 'Sign In'}
         </button>
+        <Link href="/forgot-password" className="block text-center text-sm text-gray-500">Forgot password?</Link>
       </form>
 
       <p className="text-center text-sm text-gray-500 mt-6">
