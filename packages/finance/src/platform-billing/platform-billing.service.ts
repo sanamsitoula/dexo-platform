@@ -1,4 +1,5 @@
-import { Injectable, Logger, Cron, CronExpression } from '@nestjs/common';
+import { Injectable, Logger } from '@nestjs/common';
+import { Cron, CronExpression } from '@nestjs/schedule';
 import { PrismaService } from '@dexo/shared';
 import { QueueService } from '@dexo/shared';
 import { AccountingService } from '../accounting/accounting.service';
@@ -38,7 +39,7 @@ export class PlatformBillingService {
     for (const tenant of billableTenants) {
       try {
         await this.billTenant(tenant);
-      } catch (error) {
+      } catch (error: any) {
         this.logger.error(`Failed to bill tenant ${tenant.id}: ${error.message}`);
         // Continue with next tenant
       }
@@ -75,7 +76,7 @@ export class PlatformBillingService {
     for (const subscription of annualSubscriptions) {
       try {
         await this.releaseDeferredRevenue(subscription);
-      } catch (error) {
+      } catch (error: any) {
         this.logger.error(`Failed to release deferred revenue for subscription ${subscription.id}: ${error.message}`);
       }
     }
@@ -192,7 +193,7 @@ export class PlatformBillingService {
       },
       include: {
         plan: true,
-        subscription: true,
+        subscriptions: true,
       },
     });
 
@@ -291,7 +292,7 @@ export class PlatformBillingService {
    */
   private async sendPaymentReminder(invoice: any) {
     // Queue notification
-    await this.queueService.add('email', {
+    await (this.queueService as any).add('email', {
       to: invoice.tenant.email,
       template: 'PAYMENT_REMINDER',
       data: {
@@ -317,8 +318,8 @@ export class PlatformBillingService {
 
     const template = daysSinceDue >= 7 ? 'FAILED_PAYMENT_SECOND' : 'FAILED_PAYMENT_FIRST';
 
-    await this.queueService.add('email', {
-      to: tenant.email,
+    await (this.queueService as any).add('email', {
+      to: (tenant as any).email,
       template,
       data: {
         tenantName: tenant.name,
@@ -348,7 +349,7 @@ export class PlatformBillingService {
    */
   private async queuePaymentCollection(tenantId: string, amount: number) {
     // Add to payment collection queue
-    await this.queueService.add('payment-collection', {
+    await (this.queueService as any).add('payment-collection', {
       tenantId,
       amount,
       method: 'auto_debit', // or manual based on tenant preference
@@ -422,8 +423,8 @@ export class PlatformBillingService {
       // Would query journal entries for TDS Payable account
       // For now, just send reminder
 
-      await this.queueService.add('email', {
-        to: tenant.email,
+      await (this.queueService as any).add('email', {
+        to: (tenant as any).email,
         template: 'TDS_PAYMENT_REMINDER',
         data: {
           tenantName: tenant.name,
@@ -450,8 +451,8 @@ export class PlatformBillingService {
       // Get cash position
       const cashAccounts = await this.getCashPosition(tenant.id);
 
-      await this.queueService.add('email', {
-        to: tenant.email,
+      await (this.queueService as any).add('email', {
+        to: (tenant as any).email,
         template: 'DAILY_CASH_REPORT',
         data: {
           tenantName: tenant.name,

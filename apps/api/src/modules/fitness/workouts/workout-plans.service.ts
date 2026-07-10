@@ -55,7 +55,7 @@ export class WorkoutPlansService {
         startDate: dto.startDate ? new Date(dto.startDate) : null,
         endDate: dto.endDate ? new Date(dto.endDate) : null,
         workoutDays: dto.workoutDays
-          ? { create: dto.workoutDays.map((d: any, i: number) => ({ dayNumber: d.dayNumber ?? i + 1, dayName: d.dayName, muscleGroup: d.muscleGroup, isRestDay: d.isRestDay ?? false, notes: d.notes, exercises: { create: (d.exercises ?? []).map((e: any, j: number) => ({ name: e.name, description: e.description, videoUrl: e.videoUrl, sets: e.sets, reps: e.reps, weight: e.weight, duration: e.duration, restSeconds: e.restSeconds ?? 60, sortOrder: e.sortOrder ?? j, equipment: e.equipment })) } })) }
+          ? { create: dto.workoutDays.map((d: any, i: number) => ({ tenantId, dayNumber: d.dayNumber ?? i + 1, dayName: d.dayName, muscleGroup: d.muscleGroup, isRestDay: d.isRestDay ?? false, notes: d.notes, exercises: { create: (d.exercises ?? []).map((e: any, j: number) => ({ tenantId, name: e.name, description: e.description, videoUrl: e.videoUrl, sets: e.sets, reps: e.reps, weight: e.weight, duration: e.duration, restSeconds: e.restSeconds ?? 60, sortOrder: e.sortOrder ?? j, equipment: e.equipment })) } })) }
           : undefined,
       },
       include: { workoutDays: { include: { exercises: true } } },

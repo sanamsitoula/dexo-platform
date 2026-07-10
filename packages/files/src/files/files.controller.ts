@@ -16,7 +16,7 @@ import {
   BadRequestException,
 } from '@nestjs/common';
 import { FileInterceptor } from '@nestjs/platform-express';
-import { Response } from 'express';
+import type { Response } from 'express';
 import { ApiTags, ApiOperation } from '@nestjs/swagger';
 import { FilesService } from './files.service';
 import { JwtAuthGuard } from '@dexo/auth';
@@ -32,9 +32,9 @@ export class FilesController {
   @UseInterceptors(FileInterceptor('file'))
   @ApiOperation({ summary: 'Upload file' })
   async uploadFile(
-    @UploadedFile() file: Express.Multer.File,
+    @UploadedFile() file: any,
     @Body() body: { isPublic?: string },
-    @Request() req,
+    @Request() req: any,
   ) {
     if (!file) {
       throw new BadRequestException('No file uploaded');
@@ -57,13 +57,13 @@ export class FilesController {
 
   @Get('download/:id')
   @ApiOperation({ summary: 'Get file download URL' })
-  async getDownloadUrl(@Param('id') id: string, @Request() req) {
+  async getDownloadUrl(@Param('id') id: string, @Request() req: any) {
     return this.filesService.getDownloadUrl(id, req.user.id);
   }
 
   @Get('stream/:id')
   @ApiOperation({ summary: 'Stream file' })
-  async streamFile(@Param('id') id: string, @Request() req, @Res() res: Response) {
+  async streamFile(@Param('id') id: string, @Request() req: any, @Res() res: Response) {
     const { stream, contentType, contentLength, filename } = await this.filesService.streamFile(
       id,
       req.user.id,
@@ -77,13 +77,13 @@ export class FilesController {
 
   @Get()
   @ApiOperation({ summary: 'Get all files' })
-  async findAll(@Request() req) {
+  async findAll(@Request() req: any) {
     return this.filesService.findAll(req.user.tenantId, req.user.id);
   }
 
   @Get('storage')
   @ApiOperation({ summary: 'Get tenant storage stats' })
-  async getStorage(@Request() req) {
+  async getStorage(@Request() req: any) {
     return this.filesService.getTenantStorage(req.user.tenantId);
   }
 
@@ -96,12 +96,12 @@ export class FilesController {
   @Put(':id')
   @ApiOperation({ summary: 'Update file metadata' })
   async update(@Param('id') id: string, @Body() data: any) {
-    return this.filesService.update(id, data);
+    return (this.filesService as any).update(id, data);
   }
 
   @Delete(':id')
   @ApiOperation({ summary: 'Delete file' })
-  async remove(@Param('id') id: string, @Request() req) {
+  async remove(@Param('id') id: string, @Request() req: any) {
     return this.filesService.delete(id, req.user.id);
   }
 

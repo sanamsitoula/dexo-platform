@@ -136,7 +136,7 @@ export class FonepayProvider implements IPaymentProvider {
         rawResponse: data,
         message: data?.message || 'Verification failed',
       };
-    } catch (error) {
+    } catch (error: any) {
       return {
         success: false,
         providerTxnId: request.providerTxnId,

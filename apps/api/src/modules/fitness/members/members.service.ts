@@ -6,7 +6,7 @@ import { randomBytes } from 'crypto';
 export class MembersService {
   constructor(private prisma: PrismaService) {}
 
-  async findAll(tenantId: string, params?: { status?: string; branchId?: string; search?: string; page?: number; limit?: number }) {
+  async findAll(tenantId: string, params?: { status?: string; branchId?: string; search?: string }) {
     const where: any = { tenantId };
     if (params?.status) where.status = params.status;
     if (params?.branchId) where.branchId = params.branchId;
@@ -18,25 +18,16 @@ export class MembersService {
         { user: { email: { contains: params.search, mode: 'insensitive' } } },
       ];
     }
-    const page = params?.page ?? 1;
-    const limit = params?.limit ?? 20;
-    const skip = (page - 1) * limit;
-    const [items, total] = await Promise.all([
-      this.prisma.member.findMany({
-        where,
-        skip,
-        take: limit,
-        orderBy: { createdAt: 'desc' },
-        include: {
-          user: { select: { id: true, firstName: true, lastName: true, email: true, avatarUrl: true, phone: true } },
-          branch: { select: { id: true, code: true, name: true } },
-          trainer: { select: { id: true, name: true, specialization: true } },
-          memberships: { where: { status: 'ACTIVE' }, take: 1, orderBy: { startDate: 'desc' } },
-        },
-      }),
-      this.prisma.member.count({ where }),
-    ]);
-    return { items, total, page, limit, totalPages: Math.ceil(total / limit) };
+    return this.prisma.member.findMany({
+      where,
+      orderBy: { createdAt: 'desc' },
+      include: {
+        user: { select: { id: true, firstName: true, lastName: true, email: true, avatarUrl: true, phone: true } },
+        branch: { select: { id: true, code: true, name: true } },
+        trainer: { select: { id: true, name: true, specialization: true } },
+        memberships: { where: { status: 'ACTIVE' }, take: 1, orderBy: { startDate: 'desc' } },
+      },
+    });
   }
 
   async findOne(tenantId: string, id: string) {
@@ -122,6 +113,21 @@ export class MembersService {
         goals: dto.goals,
         medicalConditions: dto.medicalConditions,
         trainerId: dto.trainerId,
+      },
+    });
+  }
+
+  /** Self-service profile update for the logged-in member (onboarding). */
+  async updateByUserId(tenantId: string, userId: string, dto: any) {
+    const member = await this.prisma.member.findFirst({ where: { tenantId, userId } });
+    if (!member) throw new NotFoundException('Member profile not found');
+    return this.prisma.member.update({
+      where: { id: member.id },
+      data: {
+        height: dto.height !== undefined ? dto.height : undefined,
+        weight: dto.weight !== undefined ? dto.weight : undefined,
+        goals: dto.goals !== undefined ? dto.goals : undefined,
+        medicalConditions: dto.medicalConditions !== undefined ? dto.medicalConditions : undefined,
       },
     });
   }

@@ -17,12 +17,12 @@ export class OnboardingService {
     const flags = this.computeFlags(step, data);
     if (!existing) {
       return this.prisma.tenantOnboarding.create({
-        data: { tenantId, step, totalSteps: 6, ...flags, data },
+        data: { tenantId, step, totalSteps: 6, ...flags },
       });
     }
     return this.prisma.tenantOnboarding.update({
       where: { tenantId },
-      data: { step, ...flags, data: { ...(existing.data as object || {}), ...data } },
+      data: { step, ...flags },
     });
   }
 
@@ -73,7 +73,7 @@ export class OnboardingService {
       where: { id },
       data: {
         step,
-        data: { ...(existing.data as object || {}), ...data },
+        data: { ...(existing.data as object), ...data } as any,
       },
     });
   }

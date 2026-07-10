@@ -28,7 +28,7 @@ interface BuilderSettings {
 }
 
 export default function WebsiteBuilderPage() {
-  const { subdomain } = useParams<{ subdomain: string }>()
+  const subdomain = useParams<{ subdomain: string }>()?.subdomain
   const [tenant, setTenant] = useState<any>(null)
   const [loading, setLoading] = useState(true)
   const [activeTab, setActiveTab] = useState<'theme' | 'pages' | 'blog' | 'media' | 'seo' | 'branding'>('branding')

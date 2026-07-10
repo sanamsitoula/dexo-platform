@@ -19,7 +19,7 @@ export class PermissionService {
         resource_action_tenantId: {
           resource,
           action,
-          tenantId: tenantId || null,
+          tenantId: (tenantId || null) as any,
         },
       },
     });
@@ -75,7 +75,7 @@ export class PermissionService {
         resource_action_tenantId: {
           resource,
           action,
-          tenantId: tenantId || null,
+          tenantId: (tenantId || null) as any,
         },
       },
     });
@@ -273,7 +273,7 @@ export class PermissionService {
           resource_action_tenantId: {
             resource: permData.resource,
             action: permData.action,
-            tenantId: null,
+            tenantId: null as any,
           },
         },
       });

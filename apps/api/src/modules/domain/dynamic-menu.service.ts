@@ -7,7 +7,7 @@ export class DynamicMenuService {
 
   async generateMenusForDomain(domainCode: string, tenantId: string) {
     const domain = await this.prisma.domain.findUnique({
-      where: { code: domainCode },
+      where: { code: domainCode as any },
       include: {
         domainModules: {
           where: { isCore: true },
@@ -19,7 +19,7 @@ export class DynamicMenuService {
           },
         },
       },
-    });
+    } as any) as any;
 
     if (!domain) throw new NotFoundException('Domain not found');
 
@@ -31,11 +31,11 @@ export class DynamicMenuService {
           include: { role: true, user: true },
         },
       },
-    });
+    } as any) as any;
 
     if (!tenant) throw new NotFoundException('Tenant not found');
 
-    const menuStructure = this.buildMenuStructure(domain, tenant);
+    const menuStructure = this.buildMenuTree(domain);
 
     return {
       domain: {
@@ -57,7 +57,7 @@ export class DynamicMenuService {
 
   async generateUserMenus(domainCode: string, tenantId: string, roleCode: string) {
     const domain = await this.prisma.domain.findUnique({
-      where: { code: domainCode },
+      where: { code: domainCode as any },
       include: {
         domainModules: {
           where: { isCore: true },
@@ -69,7 +69,7 @@ export class DynamicMenuService {
           },
         },
       },
-    });
+    } as any) as any;
 
     if (!domain) throw new NotFoundException('Domain not found');
 
@@ -92,7 +92,7 @@ export class DynamicMenuService {
           },
         },
       },
-    });
+    } as any) as any;
 
     if (!tenant) throw new NotFoundException('Tenant not found');
 
@@ -156,7 +156,7 @@ export class DynamicMenuService {
     };
   }
 
-  private buildMenuTree(menuItems) {
+  private buildMenuTree(menuItems: any): any[] {
     const menuMap = new Map();
     const roots = [];
 
@@ -181,15 +181,15 @@ export class DynamicMenuService {
     return roots;
   }
 
-  private getAccessibleModules(allModules, userMenus) {
+  private getAccessibleModules(allModules: any, userMenus: any): any {
     const accessibleModuleCodes = new Set();
-    for (const menuItem of userMenus.flatMap(m => this.getAllChildren(m))) {
+    for (const menuItem of userMenus.flatMap((m: any) => this.getAllChildren(m))) {
       accessibleModuleCodes.add(menuItem.moduleCode);
     }
 
     return allModules
-      .filter(module => accessibleModuleCodes.has(module.code))
-      .map(module => ({
+      .filter((module: any) => accessibleModuleCodes.has(module.code))
+      .map((module: any) => ({
         code: module.code,
         name: module.name,
         description: module.description,
@@ -201,7 +201,7 @@ export class DynamicMenuService {
       }));
   }
 
-  private getAllChildren(menuItem) {
+  private getAllChildren(menuItem: any): any[] {
     const result = [];
 
     if (menuItem.children && menuItem.children.length > 0) {
@@ -218,15 +218,15 @@ export class DynamicMenuService {
     const domain = await this.prisma.domain.findUnique({
       where: { code: domainCode },
       include: { domainMenus: true },
-    });
+    } as any) as any;
 
     if (!domain) throw new NotFoundException('Domain not found');
 
     const dashboardItems = domain.domainMenus.filter(
-      menu => menu.code === 'dashboard' || menu.route?.includes('/dashboard')
+      (menu: any) => menu.code === 'dashboard' || menu.route?.includes('/dashboard')
     );
 
-    return dashboardItems.map(item => this.transformMenuItem(item, roleCode));
+    return dashboardItems.map((item: any) => this.transformMenuItem(item, roleCode));
   }
 
   async getUserMenuPaths(domainCode: string, roleCode: string) {
@@ -235,7 +235,7 @@ export class DynamicMenuService {
     return paths;
   }
 
-  private extractRoutesFromMenu(menuStructure) {
+  private extractRoutesFromMenu(menuStructure: any): any[] {
     const routes = [];
 
     for (const item of menuStructure) {

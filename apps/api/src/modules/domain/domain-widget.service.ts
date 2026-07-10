@@ -27,7 +27,7 @@ export class DomainWidgetService {
   async getWidgetByCode(domainCode: string, widgetCode: string, roleCode?: string) {
     return this.prisma.domainWidget.findFirst({
       where: {
-        domain: { code: domainCode },
+        domain: { code: domainCode as any },
         code: widgetCode,
         ...(roleCode && { role: { code: roleCode } }),
         isVisible: true,

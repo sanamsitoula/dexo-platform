@@ -77,6 +77,7 @@ export class PaymentGatewayController {
           ipAddress: req.ip,
           userAgent: req.headers['user-agent'],
         },
+        currency: request.currency || 'NPR',
       },
     );
   }

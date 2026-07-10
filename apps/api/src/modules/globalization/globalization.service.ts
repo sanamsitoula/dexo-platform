@@ -220,10 +220,11 @@ export class GlobalizationService {
     return this.prisma.voucher.create({
       data: {
         ...data,
+        type: data.type as any,
         value: data.value,
         maxDiscount: data.maxDiscount,
         minPurchase: data.minPurchase,
-      },
+      } as any,
     });
   }
 
@@ -261,9 +262,9 @@ export class GlobalizationService {
     // Calculate discount
     let discountAmount = 0;
     if (voucher.type === 'PERCENTAGE') {
-      discountAmount = voucher.value;
+      discountAmount = Number(voucher.value);
       if (voucher.maxDiscount) {
-        discountAmount = Math.min(discountAmount, voucher.maxDiscount);
+        discountAmount = Math.min(discountAmount, Number(voucher.maxDiscount));
       }
     } else if (voucher.type === 'FIXED_AMOUNT') {
       discountAmount = Number(voucher.value);
@@ -317,10 +318,11 @@ export class GlobalizationService {
       data: {
         tenantId,
         ...data,
+        type: data.type as any,
         value: data.value,
         maxDiscount: data.maxDiscount,
         minPurchase: data.minPurchase,
-      },
+      } as any,
     });
   }
 
@@ -408,8 +410,9 @@ export class GlobalizationService {
       data: {
         tenantId,
         ...data,
+        type: data.type as any,
         budget: data.budget,
-      },
+      } as any,
     });
   }
 
@@ -458,8 +461,9 @@ export class GlobalizationService {
       data: {
         tenantId,
         ...data,
+        source: data.source as any,
         value: data.value,
-      },
+      } as any,
     });
   }
 
@@ -527,7 +531,8 @@ export class GlobalizationService {
       data: {
         tenantId,
         ...data,
-      },
+        type: data.type as any,
+      } as any,
     });
   }
 

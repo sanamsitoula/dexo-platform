@@ -127,7 +127,7 @@ export class EsewaProvider implements IPaymentProvider {
         rawResponse: data,
         message: `Payment status: ${data.status}`,
       };
-    } catch (error) {
+    } catch (error: any) {
       return {
         success: false,
         providerTxnId: request.providerTxnId,

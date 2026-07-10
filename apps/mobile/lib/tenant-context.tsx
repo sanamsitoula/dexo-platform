@@ -1,5 +1,5 @@
 import React, { createContext, useContext, useState, useEffect, useCallback } from 'react';
-import * as SecureStore from 'expo-secure-store';
+import { storage } from './storage';
 
 export interface Tenant {
   id: string;
@@ -35,12 +35,12 @@ export function TenantProvider({ children }: { children: React.ReactNode }) {
 
   async function loadTenant() {
     try {
-      const tenantData = await SecureStore.getItemAsync('currentTenant');
+      const tenantData = await storage.getItem('currentTenant');
       if (tenantData) {
         setTenantState(JSON.parse(tenantData));
       }
     } catch {
-      await SecureStore.deleteItemAsync('currentTenant');
+      await storage.removeItem('currentTenant');
     } finally {
       setIsLoading(false);
     }
@@ -48,16 +48,16 @@ export function TenantProvider({ children }: { children: React.ReactNode }) {
 
   const setTenant = useCallback(async (newTenant: Tenant | null) => {
     if (newTenant) {
-      await SecureStore.setItemAsync('currentTenant', JSON.stringify(newTenant));
+      await storage.setItem('currentTenant', JSON.stringify(newTenant));
       setTenantState(newTenant);
     } else {
-      await SecureStore.deleteItemAsync('currentTenant');
+      await storage.removeItem('currentTenant');
       setTenantState(null);
     }
   }, []);
 
   const clearTenant = useCallback(async () => {
-    await SecureStore.deleteItemAsync('currentTenant');
+    await storage.removeItem('currentTenant');
     setTenantState(null);
   }, []);
 

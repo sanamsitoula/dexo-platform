@@ -1,3 +1,5 @@
+'use client';
+
 import { useState } from 'react';
 import Link from 'next/link';
 
@@ -26,16 +28,21 @@ export default function ContactPage() {
     setError(null);
 
     try {
-      const response = await fetch('/api/contact', {
+      const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000';
+      const response = await fetch(`${API_URL}/api/contact`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
         },
-        body: JSON.stringify(formData),
+        body: JSON.stringify({
+          ...formData,
+          source: 'platform_web_contact_form',
+        }),
       });
 
       if (!response.ok) {
-        throw new Error('Failed to submit message');
+        const errData = await response.json().catch(() => ({}));
+        throw new Error(errData.message || `Failed to submit message (HTTP ${response.status})`);
       }
 
       const result = await response.json();

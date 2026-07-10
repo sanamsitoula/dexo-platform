@@ -1,10 +1,16 @@
 import { Injectable, BadRequestException, NotFoundException } from '@nestjs/common';
 import { PrismaService } from '@dexo/shared';
 import { Decimal } from '@prisma/client/runtime/library';
+import { GlPostingService } from './gl-posting.service';
+import { CbmsSyncService } from './cbms-sync.service';
 
 @Injectable()
 export class InvoicesService {
-  constructor(private prisma: PrismaService) {}
+  constructor(
+    private prisma: PrismaService,
+    private glPosting: GlPostingService,
+    private cbmsSync: CbmsSyncService,
+  ) {}
 
   async findAll(tenantId: string, params?: { status?: string; startDate?: string; endDate?: string; branchId?: string }) {
     const where: any = { tenantId, isActive: true };
@@ -116,6 +122,12 @@ export class InvoicesService {
       await this.createMasterBill(tenantId, invoice.id, userId);
     }
 
+    // Auto-post to the General Ledger (safe no-op if chart of accounts isn't seeded).
+    await this.glPosting.postInvoice(tenantId, invoice, userId).catch((err) => {
+      // Never let a GL posting failure break invoice creation.
+      console.warn(`[GlPosting] invoice ${invoice.invoiceNumber} post failed:`, err?.message);
+    });
+
     return invoice;
   }
 
@@ -126,15 +138,49 @@ export class InvoicesService {
       throw new BadRequestException('Cannot cancel invoice with payments. Issue credit note instead.');
     }
 
-    return this.prisma.invoice.update({
+    if (!reason || !reason.trim()) {
+      throw new BadRequestException('A cancellation reason is required (IRD audit compliance).');
+    }
+
+    const updated = await this.prisma.invoice.update({
       where: { id },
       data: {
         paymentStatus: 'CANCELLED',
+        isActive: false,
         cancelledAt: new Date(),
         cancelledBy: userId,
         cancelReason: reason,
       },
     });
+
+    // Post a reversal journal entry so the GL is restored (safe no-op if unposted).
+    await this.glPosting.reverseInvoice(tenantId, id, userId).catch((err) => {
+      console.warn(`[GlPosting] reversal for ${invoice.invoiceNumber} failed:`, err?.message);
+    });
+
+    // Deactivate any master bills and transmit the cancellation to IRD CBMS.
+    for (const mb of invoice.masterBills ?? []) {
+      await this.prisma.masterBill.update({ where: { id: mb.id }, data: { isBillActive: false } }).catch(() => undefined);
+      await this.cbmsSync.syncBill(tenantId, mb.id, 'CANCEL', userId).catch((err) => {
+        console.warn(`[CBMS] cancel sync for bill ${mb.billNo} failed:`, err?.message);
+      });
+    }
+
+    // Finance audit trail (IRD §17.2).
+    await this.prisma.financeAuditLog
+      .create({
+        data: {
+          tenantId,
+          tableName: 'Invoice',
+          recordId: id,
+          action: 'CANCEL',
+          newData: { reason, invoiceNumber: invoice.invoiceNumber } as any,
+          actionBy: userId,
+        },
+      })
+      .catch(() => undefined);
+
+    return updated;
   }
 
   async pay(tenantId: string, invoiceId: string, method: string, userId: string) {
@@ -154,8 +200,7 @@ export class InvoicesService {
         customerId: invoice.customerId,
         amount: remaining,
         paymentMethod: method.toUpperCase() as any,
-        status: 'COMPLETED',
-        notes: `Auto-allocated to invoice ${invoice.invoiceNo}`,
+        notes: `Auto-allocated to invoice ${invoice.invoiceNumber}`,
         createdBy: userId,
       },
     });
@@ -165,8 +210,7 @@ export class InvoicesService {
         tenantId,
         paymentId: payment.id,
         invoiceId: invoice.id,
-        amount: remaining,
-        allocatedAt: new Date(),
+        allocatedAmount: remaining,
       },
     });
 
@@ -190,7 +234,7 @@ export class InvoicesService {
     const fy = await this.prisma.fiscalYear.findFirst({ where: { tenantId, isActive: true } });
     const billNo = await this.generateBillNo(tenantId, fy?.name || '2082/83');
 
-    return this.prisma.masterBill.create({
+    const masterBill = await this.prisma.masterBill.create({
       data: {
         tenantId,
         fiscalYear: fy?.name || '2082/83',
@@ -203,23 +247,86 @@ export class InvoicesService {
         taxableAmount: invoice.taxableAmount,
         taxAmount: invoice.vatAmount,
         totalAmount: invoice.totalAmount,
-        syncWithIrd: true,
+        // Not yet synced — CBMS sync below flips this to true on success,
+        // or the bill is queued for retry on failure.
+        syncWithIrd: false,
         enteredBy: userId,
         invoiceId,
       },
     });
+
+    // Real-time IRD CBMS sync (stub-mode success when no credentials configured).
+    await this.cbmsSync.syncBill(tenantId, masterBill.id, 'CREATE', userId).catch((err) => {
+      console.warn(`[CBMS] create sync for bill ${masterBill.billNo} failed:`, err?.message);
+    });
+
+    return this.prisma.masterBill.findUnique({ where: { id: masterBill.id } });
+  }
+
+  /**
+   * Records a print/reprint event (ORIGINAL the first time, COPY afterwards)
+   * and returns the invoice plus print metadata so the UI can show the
+   * "COPY OF ORIGINAL / प्रतिलिपि" watermark on reprints (IRD compliance).
+   */
+  async recordPrint(tenantId: string, invoiceId: string, userId: string, reason?: string) {
+    const invoice = await this.findOne(tenantId, invoiceId);
+    const priorPrints = await this.prisma.reprintLog.count({ where: { tenantId, invoiceId } });
+    const printType = priorPrints === 0 ? 'ORIGINAL' : 'COPY';
+    const copyNumber = priorPrints + 1;
+
+    // Use the invoice number as billNo fallback if no MasterBill exists.
+    const masterBill = invoice.masterBills?.[0];
+    const billNo = masterBill?.billNo || invoice.invoiceNumber;
+
+    await this.prisma.reprintLog.create({
+      data: {
+        tenantId,
+        invoiceId,
+        billNo,
+        printType,
+        copyNumber,
+        printedBy: userId,
+        reason: reason || (printType === 'COPY' ? 'Reprint requested' : 'Original print'),
+      },
+    });
+
+    return {
+      invoice,
+      printType,
+      copyNumber,
+      isCopy: printType === 'COPY',
+      watermark: printType === 'COPY' ? 'COPY OF ORIGINAL / प्रतिलिपि' : null,
+    };
+  }
+
+  /**
+   * Atomically reserves the next number for a (tenant, fiscalYear, billType)
+   * series using the BillSequence row as a counter. The unique constraint +
+   * `increment` makes this race-safe, unlike a count()+1 read (which two
+   * concurrent invoice creates could resolve to the same number). Numbering
+   * resets naturally per fiscal year (Shrawan 1) because each fiscal year has
+   * its own BillSequence row.
+   */
+  private async nextSequence(tenantId: string, fiscalYear: string, billType: string): Promise<number> {
+    const seq = await this.prisma.billSequence.upsert({
+      where: { tenantId_fiscalYear_billType: { tenantId, fiscalYear, billType } },
+      create: { tenantId, fiscalYear, billType, lastNumber: 1 },
+      update: { lastNumber: { increment: 1 } },
+    });
+    return seq.lastNumber;
   }
 
   private async generateInvoiceNumber(tenantId: string, type: string): Promise<string> {
     const prefix = type === 'CREDIT_NOTE' ? 'CN' : type === 'DEBIT_NOTE' ? 'DN' : 'INV';
     const fy = await this.prisma.fiscalYear.findFirst({ where: { tenantId, isActive: true } });
-    const fySuffix = fy ? fy.name.replace('/', '') : '208283';
-    const count = await this.prisma.invoice.count({ where: { tenantId } });
-    return `${prefix}-${fySuffix}-${String(count + 1).padStart(4, '0')}`;
+    const fyName = fy?.name || '2082/83';
+    const fySuffix = fyName.replace('/', '');
+    const next = await this.nextSequence(tenantId, fyName, prefix);
+    return `${prefix}-${fySuffix}-${String(next).padStart(4, '0')}`;
   }
 
   private async generateBillNo(tenantId: string, fyName: string): Promise<string> {
-    const count = await this.prisma.masterBill.count({ where: { tenantId, fiscalYear: fyName } });
-    return `BILL-${fyName.replace('/', '')}-${String(count + 1).padStart(4, '0')}`;
+    const next = await this.nextSequence(tenantId, fyName, 'BILL');
+    return `BILL-${fyName.replace('/', '')}-${String(next).padStart(4, '0')}`;
   }
 }

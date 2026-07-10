@@ -60,6 +60,17 @@ export class TenantController {
    * Used by the admin UI to show a "what will be deleted" preview before the
    * actual delete call.
    */
+  /**
+   * GET /tenants/public — unauthenticated search of active tenants for the
+   * mobile login tenant picker. MUST be declared before `:id` so "public"
+   * isn't captured as an id param.
+   */
+  @Get('public')
+  @ApiOperation({ summary: 'Public search of active tenants (login picker)' })
+  async publicSearch(@Query('q') q?: string, @Query('limit') limit?: string) {
+    return this.tenantService.publicSearch(q, limit ? parseInt(limit, 10) : 10);
+  }
+
   @Get(':id/deletion-impact')
   @UseGuards(JwtAuthGuard)
   @ApiBearerAuth()

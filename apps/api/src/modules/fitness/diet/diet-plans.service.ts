@@ -48,7 +48,7 @@ export class DietPlansService {
         startDate: dto.startDate ? new Date(dto.startDate) : null,
         endDate: dto.endDate ? new Date(dto.endDate) : null,
         meals: dto.meals
-          ? { create: dto.meals.map((m: any, i: number) => ({ mealType: m.mealType, dayOfWeek: m.dayOfWeek, name: m.name, description: m.description, foodItems: m.foodItems, totalCalories: m.totalCalories, totalProtein: m.totalProtein, totalCarbs: m.totalCarbs, totalFats: m.totalFats, sortOrder: m.sortOrder ?? i })) }
+          ? { create: dto.meals.map((m: any, i: number) => ({ tenantId, mealType: m.mealType, dayOfWeek: m.dayOfWeek, name: m.name, description: m.description, foodItems: m.foodItems, totalCalories: m.totalCalories, totalProtein: m.totalProtein, totalCarbs: m.totalCarbs, totalFats: m.totalFats, sortOrder: m.sortOrder ?? i })) }
           : undefined,
       },
       include: { meals: true },

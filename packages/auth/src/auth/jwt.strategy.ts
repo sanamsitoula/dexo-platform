@@ -23,7 +23,7 @@ export class JwtStrategy extends PassportStrategy(Strategy) {
       throw new UnauthorizedException('Invalid token');
     }
 
-    const { passwordHash, ...result } = user;
+    const { passwordHash: _ph, ...result } = user;
 
     return {
       id: result.id,

@@ -130,7 +130,7 @@ export class AuditService {
       });
 
       this.logger.debug(`Audit log: ${data.action} by user ${userId} for tenant ${data.tenantId}`);
-    } catch (error) {
+    } catch (error: any) {
       this.logger.error('Failed to create audit log:', error);
     }
   }
@@ -140,8 +140,8 @@ export class AuditService {
     if (!req) return this.log(data);
     return this.log({
       ...data,
-      tenantId: data.tenantId || req.user?.tenantId,
-      userId: data.userId || req.user?.id,
+      tenantId: req.user?.tenantId,
+      userId: req.user?.id,
       ipAddress: req.ip || req.headers?.['x-forwarded-for'] || req.connection?.remoteAddress,
       userAgent: req.headers?.['user-agent'],
     });

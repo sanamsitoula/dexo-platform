@@ -80,7 +80,7 @@ export class StripeProvider implements IPaymentProvider {
         providerTxnId: session.payment_intent,
         rawResponse: session,
       };
-    } catch (error) {
+    } catch (error: any) {
       throw new Error(`Stripe payment init failed: ${error.response?.data?.error?.message || error.message}`);
     }
   }
@@ -117,7 +117,7 @@ export class StripeProvider implements IPaymentProvider {
         rawResponse: session,
         message: `Payment status: ${session.payment_status}`,
       };
-    } catch (error) {
+    } catch (error: any) {
       return {
         success: false,
         providerTxnId: request.providerTxnId,
@@ -158,10 +158,9 @@ export class StripeProvider implements IPaymentProvider {
         status: refund.status,
         rawResponse: refund,
       };
-    } catch (error) {
+    } catch (error: any) {
       return {
         success: false,
-        message: error.message || 'Refund failed',
         rawResponse: error.response?.data,
       };
     }

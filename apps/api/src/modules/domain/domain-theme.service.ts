@@ -8,7 +8,7 @@ export class DomainThemeService {
   async getDomainThemes(domainCode: string) {
     return this.prisma.domainTheme.findMany({
       where: {
-        domain: { code: domainCode },
+        domain: { code: domainCode as any },
         isActive: true,
       },
       orderBy: { sortOrder: 'asc' },
@@ -105,7 +105,7 @@ export class DomainThemeService {
   async getCurrentTheme(domainCode: string) {
     const theme = await this.prisma.domainTheme.findFirst({
       where: {
-        domain: { code: domainCode },
+        domain: { code: domainCode as any },
         isActive: true,
       },
       include: {

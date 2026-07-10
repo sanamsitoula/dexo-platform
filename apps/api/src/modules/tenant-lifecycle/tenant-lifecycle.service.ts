@@ -33,7 +33,7 @@ export class TenantLifecycleService {
       tenantId,
       userId: suspendedBy,
       action: 'tenant.suspended',
-      resource: 'tenant_lifecycle',
+      resourceType: 'tenant_lifecycle',
       resourceId: tenantId,
       metadata: { reason },
     });
@@ -56,7 +56,7 @@ export class TenantLifecycleService {
       tenantId,
       userId: reactivatedBy,
       action: 'tenant.reactivated',
-      resource: 'tenant_lifecycle',
+      resourceType: 'tenant_lifecycle',
       resourceId: tenantId,
     });
     return updated;
@@ -80,7 +80,7 @@ export class TenantLifecycleService {
       tenantId,
       userId: archivedBy,
       action: 'tenant.archived',
-      resource: 'tenant_lifecycle',
+      resourceType: 'tenant_lifecycle',
       resourceId: tenantId,
     });
     return updated;
@@ -100,7 +100,7 @@ export class TenantLifecycleService {
       tenantId,
       userId: requestedBy,
       action: 'tenant.deletion_scheduled',
-      resource: 'tenant_lifecycle',
+      resourceType: 'tenant_lifecycle',
       resourceId: tenantId,
       metadata: { deletionAt: deletionAt.toISOString() },
     });
@@ -123,10 +123,10 @@ export class TenantLifecycleService {
     if (!lc) return;
     await this.prisma.tenant.delete({ where: { id: tenantId } });
     await this.audit.log({
-      tenantId: null,
-      userId: lc.deletedBy,
+      tenantId: undefined,
+      userId: lc.deletedBy || undefined,
       action: 'tenant.hard_deleted',
-      resource: 'tenant',
+      resourceType: 'tenant',
       resourceId: tenantId,
     });
   }

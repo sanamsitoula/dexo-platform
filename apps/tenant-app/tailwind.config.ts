@@ -1,24 +1,16 @@
 import type { Config } from 'tailwindcss'
 
+// Brand foundation comes from the shared DEXO preset (packages/ui) — colors,
+// type stack, radius and shadows. Tenants override the semantic --dx-primary
+// token at runtime only (white-label rule, brand/Design/17-design-system.md).
 const config: Config = {
+  presets: [require('../../packages/ui/tailwind-preset')],
   content: [
     './app/**/*.{js,ts,jsx,tsx,mdx}',
     './components/**/*.{js,ts,jsx,tsx,mdx}',
   ],
   theme: {
-    extend: {
-      colors: {
-        primary: {
-          DEFAULT: '#4f46e5',
-          50: '#eef2ff',
-          100: '#e0e7ff',
-          500: '#6366f1',
-          600: '#4f46e5',
-          700: '#4338ca',
-          900: '#312e81',
-        },
-      },
-    },
+    extend: {},
   },
   plugins: [],
 }

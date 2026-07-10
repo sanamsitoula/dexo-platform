@@ -6,7 +6,8 @@ import { Public } from '@dexo/auth';
 import { PrismaService } from '@dexo/shared';
 import { TenantLifecycleService } from './tenant-lifecycle.service';
 import { SlugService } from './slug.service';
-import { ProvisioningService, CreateTenantInput } from './provisioning.service';
+import { ProvisioningService } from './provisioning.service';
+import type { CreateTenantInput } from './provisioning.service';
 import { CustomDomainService } from './custom-domain.service';
 
 @ApiTags('tenants')
@@ -30,22 +31,30 @@ export class TenantLifecycleController {
 
   @Public()
   @Get('public')
-  @ApiOperation({ summary: 'Public: list ACTIVE tenants (for mobile tenant selector)' })
-  async listPublic() {
-    const tenants = await this.prisma.tenant.findMany({
-      where: {
-        status: 'active',
-        tenantLifecycle: { status: 'ACTIVE' },
-      },
+  @ApiOperation({ summary: 'Public: list ACTIVE tenants (mobile tenant selector, server-side search)' })
+  async listPublic(@Query('q') q?: string, @Query('limit') limit?: string) {
+    const take = Math.min(Math.max(parseInt(limit || '10', 10) || 10, 1), 50);
+    const where: any = {
+      status: 'active',
+      tenantLifecycle: { status: 'ACTIVE' },
+    };
+    if (q && q.trim()) {
+      const term = q.trim();
+      where.OR = [
+        { name: { contains: term, mode: 'insensitive' } },
+        { subdomain: { contains: term, mode: 'insensitive' } },
+      ];
+    }
+    return this.prisma.tenant.findMany({
+      where,
       select: { id: true, name: true, subdomain: true },
       orderBy: { name: 'asc' },
-      take: 100,
+      take,
     });
-    return tenants;
   }
 
   @Public()
-  @Post()
+  @Post('provision')
   @ApiOperation({ summary: 'Create a new tenant (validates + reserves slug + provisions)' })
   async create(@Body() body: CreateTenantInput) {
     return this.provisioning.provisionTenant(body);

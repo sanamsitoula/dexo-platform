@@ -30,11 +30,14 @@ export default function PlatformHeader() {
     <header className="border-b border-gray-200 bg-white sticky top-0 z-30">
       <nav className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between">
         {/* Logo */}
-        <Link href="/" className="flex items-center gap-2">
-          <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-indigo-600 to-purple-600 flex items-center justify-center text-white font-bold text-sm">
-            D
-          </div>
-          <span className="text-lg font-bold text-gray-900">Dexo Platform</span>
+        <Link href="/" className="flex items-center gap-2" aria-label="Dexo home">
+          {/* DEXO Tenant Cube mark (brand/Brand/02-visual-guidelines.md) */}
+          <svg viewBox="0 0 96 96" width={30} height={30} role="img" aria-label="DEXO logo mark">
+            <path d="M16 62 48 46l32 16-32 16z" fill="#09090B" />
+            <path d="M16 48 48 32l32 16-32 16z" fill="#09090B" opacity={0.7} />
+            <path d="M16 34 48 18l32 16-32 16z" fill="#4F46E5" />
+          </svg>
+          <span className="text-lg font-bold text-gray-900" style={{ fontFamily: "var(--font-grotesk), 'Space Grotesk', system-ui, sans-serif", letterSpacing: '0.02em' }}>DEXO</span>
         </Link>
 
         {/* Platform Nav (always visible) */}
@@ -47,6 +50,9 @@ export default function PlatformHeader() {
           </Link>
           <Link href="/#pricing" className="text-sm text-gray-700 hover:text-indigo-600 font-medium">
             Pricing
+          </Link>
+          <Link href="/docs" className="text-sm text-gray-700 hover:text-indigo-600 font-medium">
+            Docs
           </Link>
           <Link href="/contact" className="text-sm text-gray-700 hover:text-indigo-600 font-medium">
             Contact

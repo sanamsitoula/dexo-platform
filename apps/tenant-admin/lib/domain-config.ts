@@ -30,6 +30,14 @@ export const DOMAIN_MENUS: Record<string, DomainMenu[]> = {
     { name: 'Members', href: '/members', icon: 'users', module: 'MEMBERS' },
     { name: 'Trainers', href: '/trainers', icon: 'user', module: 'TRAINERS' },
     { name: 'Classes', href: '/classes', icon: 'calendar', module: 'CLASSES' },
+    { name: 'Check-in', href: '/attendance', icon: 'clipboard', module: 'CHECKIN' },
+    { name: 'Workouts', href: '/workouts', icon: 'document', module: 'WORKOUTS' },
+    { name: 'Diet Plans', href: '/diet', icon: 'document', module: 'DIET' },
+    { name: 'Assessments', href: '/assessments', icon: 'clipboard', module: 'ASSESSMENTS' },
+    { name: 'Equipment', href: '/equipment', icon: 'building', module: 'EQUIPMENT' },
+    { name: 'Badges', href: '/badges', icon: 'document', module: 'BADGES' },
+    { name: 'Referrals', href: '/referrals', icon: 'inbox', module: 'REFERRALS' },
+    { name: 'Food DB', href: '/food-db', icon: 'clipboard', module: 'FOOD_DB' },
     { name: 'CRM', href: '/crm', icon: 'inbox', module: 'CRM' },
     { name: 'Finance', href: '/finance', icon: 'dollar', module: 'FINANCE' },
     { name: 'Users', href: '/users', icon: 'users', module: 'USERS' },
@@ -125,12 +133,29 @@ export const DOMAIN_THEMES: Record<string, { primary: string; secondary: string;
   SME_CORPORATE: { primary: '#475569', secondary: '#1e293b', name: 'Corporate' },
 }
 
+// Cross-vertical modules — available to EVERY business type / tenant:
+// biometric attendance (ZKTeco devices, logs, reports) and tenant SMTP email.
+const COMMON_MENUS: DomainMenu[] = [
+  { name: 'Devices', href: '/devices', icon: 'settings', module: 'ATTENDANCE_DEVICES' },
+  { name: 'Attendance Logs', href: '/attendance-logs', icon: 'clipboard', module: 'ATTENDANCE_LOGS' },
+  { name: 'Attendance Reports', href: '/attendance-reports', icon: 'chart', module: 'ATTENDANCE_REPORTS' },
+  { name: 'Email (SMTP)', href: '/email', icon: 'inbox', module: 'EMAIL' },
+]
+
 export function getDomainMenus(domainCode?: string): DomainMenu[] {
-  if (!domainCode) return DOMAIN_MENUS.DEFAULT
-  return DOMAIN_MENUS[domainCode] || DOMAIN_MENUS.DEFAULT
+  const base = (domainCode && DOMAIN_MENUS[domainCode]) || DOMAIN_MENUS.DEFAULT
+  // Insert the common modules just before Settings (last item by convention).
+  const settingsIdx = base.findIndex((m) => m.href === '/settings')
+  const extra = COMMON_MENUS.filter((c) => !base.some((m) => m.href === c.href))
+  if (settingsIdx === -1) return [...base, ...extra]
+  return [...base.slice(0, settingsIdx), ...extra, ...base.slice(settingsIdx)]
 }
 
+// Brand default (DEXO): Indigo primary on Ink — used when a tenant has no
+// domain-specific theme. Tenants white-label by overriding the primary only.
+const DEXO_DEFAULT_THEME = { primary: '#4F46E5', secondary: '#09090B', name: 'Dexo' }
+
 export function getDomainTheme(domainCode?: string) {
-  if (!domainCode) return DOMAIN_THEMES.SME_CORPORATE
-  return DOMAIN_THEMES[domainCode] || DOMAIN_THEMES.SME_CORPORATE
+  if (!domainCode) return DEXO_DEFAULT_THEME
+  return DOMAIN_THEMES[domainCode] || DEXO_DEFAULT_THEME
 }

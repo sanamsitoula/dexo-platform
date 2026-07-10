@@ -7,6 +7,7 @@
     "esModuleInterop": true,
     "allowSyntheticDefaultImports": true,
     "strict": true,
+    "strictPropertyInitialization": false,
     "forceConsistentCasingInFileNames": true,
     "moduleResolution": "node",
     "resolveJsonModule": true,
@@ -62,8 +63,8 @@
     { "path": "./packages/settings" },
     { "path": "./packages/plugin-system" },
     { "path": "./packages/dashboard" },
-    { "path": "./apps/web" },
-    { "path": "./apps/admin" },
+    { "path": "./apps/platform-web" },
+    { "path": "./apps/platform-admin" },
     { "path": "./apps/mobile" }
   ],
   "include": [

@@ -17,12 +17,17 @@ import { useTenant, Tenant } from '../lib/tenant-context';
 import { tenantsApi } from '../lib/api';
 import { Colors, Spacing, BorderRadius, FontSize } from '../lib/theme';
 
-const DEMO_TENANTS = [
-  { id: 'demo-fitness', name: 'FitZone Pro', subdomain: 'fitnessapp', domainCode: 'FITNESS_CENTER', icon: '💪', primaryColor: '#FF6B35' },
-  { id: 'demo-salon', name: 'Beauty World Salon', subdomain: 'kavrelicafe', domainCode: 'SALON_AND_SPA', icon: '💇', primaryColor: '#A855F7' },
-  { id: 'demo-school', name: 'Edu Smart Academy', subdomain: 'edu-smart-demo', domainCode: 'SCHOOL_AND_EDUCATION', icon: '📚', primaryColor: '#2563EB' },
-  { id: 'demo-restaurant', name: 'Foodie Hub Cafe', subdomain: 'foodie-demo', domainCode: 'RESTAURANT_AND_CAFE', icon: '🍕', primaryColor: '#DC2626' },
-];
+// Demo businesses are ONLY used as a dev-time fallback when the API is
+// unreachable. In production (__DEV__ === false) we never show fake tenants —
+// live users must only ever see real businesses returned by the API.
+const DEMO_TENANTS = __DEV__
+  ? [
+      { id: 'demo-fitness', name: 'FitZone Pro', subdomain: 'fitnessapp', domainCode: 'FITNESS_CENTER', icon: '💪', primaryColor: '#FF6B35' },
+      { id: 'demo-salon', name: 'Beauty World Salon', subdomain: 'kavrelicafe', domainCode: 'SALON_AND_SPA', icon: '💇', primaryColor: '#A855F7' },
+      { id: 'demo-school', name: 'Edu Smart Academy', subdomain: 'edu-smart-demo', domainCode: 'SCHOOL_AND_EDUCATION', icon: '📚', primaryColor: '#2563EB' },
+      { id: 'demo-restaurant', name: 'Foodie Hub Cafe', subdomain: 'foodie-demo', domainCode: 'RESTAURANT_AND_CAFE', icon: '🍕', primaryColor: '#DC2626' },
+    ]
+  : [];
 
 export default function TenantSelectScreen() {
   const router = useRouter();
@@ -53,17 +58,19 @@ export default function TenantSelectScreen() {
         list = Array.isArray(payload) ? payload : (payload?.data ?? []);
         console.log('[tenant-select] myTenants returned', list.length, 'tenants');
       }
-      // If the user has no tenant, fall back to listing all (they may need to pick one)
+      // If the user has no tenant, fall back to the PUBLIC search endpoint.
+      // (tenantsApi.list hits /tenants which is PlatformAdmin-only → 403 for
+      // members, which is why real businesses never appeared before.)
       if (list.length === 0) {
-        const r2 = await tenantsApi.list({ limit: 50 });
+        const r2 = await tenantsApi.publicSearch('', 50);
         if (r2.data) {
           const payload: any = r2.data;
           list = Array.isArray(payload) ? payload : (payload?.data ?? []);
-          console.log('[tenant-select] public list returned', list.length, 'tenants');
+          console.log('[tenant-select] public search returned', list.length, 'tenants');
         }
       }
       if (list.length === 0) {
-        // Last resort: demo tenants
+        // Last resort: demo tenants (only when the API is truly unreachable)
         list = DEMO_TENANTS as any;
       }
       setTenants(list);
@@ -90,6 +97,7 @@ export default function TenantSelectScreen() {
       };
       // Try to load brand from localStorage (saved by builder)
       try {
+        // eslint-disable-next-line @typescript-eslint/no-var-requires
         const AsyncStorage = require('@react-native-async-storage/async-storage').default
         const saved = await AsyncStorage.getItem(`tenant-brand-${tenant.subdomain}`)
         if (saved) {

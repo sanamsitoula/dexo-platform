@@ -1,12 +1,58 @@
+'use client';
+
+import { useEffect, useState } from 'react';
+import { useRouter } from 'next/navigation';
+import { useAuth } from '../../lib/auth';
+import { fitnessApi } from '../../lib/api';
+
 export default function AccountPage() {
+  const router = useRouter();
+  const { user, logout } = useAuth();
+  const [member, setMember] = useState<any>(null);
+
+  useEffect(() => { fitnessApi.me().then((r) => setMember(r.data)); }, []);
+
+  function signOut() {
+    logout();
+    router.replace('/login');
+  }
+
+  const active = member?.memberships?.[0];
+
   return (
     <div className="px-4 py-6">
-      <h1 className="text-xl font-bold">Account</h1>
-      <div className="mt-4 space-y-3">
-        {['Profile', 'Membership', 'Notifications', 'Help & Support', 'Sign out'].map((it) => (
-          <button key={it} className="w-full text-left px-4 py-3 bg-white border border-gray-200 rounded-md text-sm">{it}</button>
-        ))}
+      <h1 className="text-xl font-bold text-gray-900">Account</h1>
+
+      <div className="mt-4 rounded-xl border border-gray-200 p-4">
+        <div className="flex items-center gap-3">
+          <div className="w-12 h-12 rounded-full bg-orange-500 text-white flex items-center justify-center text-lg font-bold">
+            {(user?.firstName || user?.email || 'U').charAt(0).toUpperCase()}
+          </div>
+          <div>
+            <div className="font-semibold text-gray-900">{user?.firstName} {user?.lastName}</div>
+            <div className="text-sm text-gray-500">{user?.email}</div>
+          </div>
+        </div>
+        {member && (
+          <div className="mt-3 grid grid-cols-3 gap-2 text-center text-sm">
+            <div><div className="font-bold text-gray-900">{member.height ?? '—'}</div><div className="text-xs text-gray-500">Height cm</div></div>
+            <div><div className="font-bold text-gray-900">{member.weight ?? '—'}</div><div className="text-xs text-gray-500">Weight kg</div></div>
+            <div><div className="font-bold text-gray-900">{member.status === 'ACTIVE' ? '✓' : '—'}</div><div className="text-xs text-gray-500">Verified</div></div>
+          </div>
+        )}
       </div>
+
+      {active && (
+        <div className="mt-3 rounded-xl border border-gray-200 p-4">
+          <div className="text-sm text-gray-500">Membership</div>
+          <div className="font-semibold text-gray-900">{active.plan?.name} · {active.status}</div>
+          {active.qrCode && <div className="mt-1 text-xs text-gray-400 font-mono">QR: {active.qrCode}</div>}
+        </div>
+      )}
+
+      <button onClick={signOut} className="mt-4 w-full rounded-lg py-2.5 border border-red-200 text-red-600 font-semibold">
+        Sign out
+      </button>
     </div>
   );
 }

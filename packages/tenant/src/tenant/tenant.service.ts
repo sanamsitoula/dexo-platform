@@ -147,11 +147,50 @@ export class TenantService {
     return tenant;
   }
 
+  /**
+   * Public, unauthenticated search of ACTIVE tenants for the mobile login
+   * tenant picker. Returns a lightweight shape (id, name, subdomain, branding).
+   */
+  async publicSearch(q?: string, limit = 10) {
+    const where: any = { status: 'active', subdomain: { not: null } };
+    if (q && q.trim()) {
+      where.OR = [
+        { name: { contains: q.trim(), mode: 'insensitive' } },
+        { subdomain: { contains: q.trim(), mode: 'insensitive' } },
+      ];
+    }
+    const tenants = await this.prisma.tenant.findMany({
+      where,
+      take: Math.min(Math.max(limit, 1), 25),
+      orderBy: { name: 'asc' },
+      select: { id: true, name: true, subdomain: true, settings: true },
+    });
+    return tenants.map((t) => {
+      const s = (t.settings as Record<string, any>) || {};
+      return {
+        id: t.id,
+        name: t.name,
+        subdomain: t.subdomain,
+        primaryColor: s.colorPrimary || s.primaryColor || s.branding?.primaryColor || null,
+        domainCode: s.theme || s.domainCode || null,
+      };
+    });
+  }
+
   async findBySubdomain(subdomain: string) {
     const tenant = await this.prisma.tenant.findUnique({
       where: { subdomain },
       include: {
         plan: true,
+        // Active domain assignment → exposes the business type (FITNESS_CENTER,
+        // RESTAURANT_AND_CAFE, …) so public/customer-facing apps can render the
+        // right experience per tenant without any hardcoding.
+        domains: {
+          where: { isActive: true },
+          orderBy: { assignedAt: 'desc' },
+          take: 1,
+          include: { domain: { select: { code: true, name: true } } },
+        },
       },
     });
 
@@ -159,7 +198,10 @@ export class TenantService {
       throw new NotFoundException('Tenant not found');
     }
 
-    return tenant;
+    const domainCode = tenant.domains?.[0]?.domain?.code ?? null;
+    // Flatten so consumers can read `tenant.domainCode` directly.
+    const { domains, ...rest } = tenant as any;
+    return { ...rest, domainCode };
   }
 
   /**
@@ -262,7 +304,7 @@ export class TenantService {
       },
     });
 
-    await this.audit.logTenantAction('tenant.updated', rest.updatedBy || 'system', tenant.id, {
+    await this.audit.logTenantAction('tenant.updated', (rest as any).updatedBy || rest.createdBy || 'system', tenant.id, {
       changes: updateTenantDto,
       previousStatus: existing.status,
       newStatus: tenant.status,

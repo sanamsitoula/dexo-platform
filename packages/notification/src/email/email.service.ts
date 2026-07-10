@@ -45,7 +45,8 @@ export class EmailService {
 
   private initializeSendGrid() {
     try {
-      // @ts-ignore - Dynamic import for SendGrid
+      // Dynamic import for SendGrid (optional dependency)
+      // eslint-disable-next-line @typescript-eslint/no-var-requires
       const sgMail = require('@sendgrid/mail');
       const apiKey = this.configService.get('SENDGRID_API_KEY');
       if (apiKey) {
@@ -53,14 +54,15 @@ export class EmailService {
         this.sendgridClient = sgMail;
         this.logger.log('SendGrid initialized');
       }
-    } catch (error) {
+    } catch (error: any) {
       this.logger.error('Failed to initialize SendGrid:', error);
     }
   }
 
   private initializeSMTP() {
     try {
-      // @ts-ignore - Dynamic import for Nodemailer
+      // Dynamic import for Nodemailer (optional dependency)
+      // eslint-disable-next-line @typescript-eslint/no-var-requires
       const nodemailer = require('nodemailer');
       const smtpConfig = {
         host: this.configService.get('SMTP_HOST') || 'localhost',
@@ -75,7 +77,7 @@ export class EmailService {
       };
       this.nodemailerTransport = nodemailer.createTransport(smtpConfig);
       this.logger.log('SMTP initialized');
-    } catch (error) {
+    } catch (error: any) {
       this.logger.error('Failed to initialize SMTP:', error);
     }
   }
@@ -89,7 +91,7 @@ export class EmailService {
       } else {
         return await this.sendMock(email);
       }
-    } catch (error) {
+    } catch (error: any) {
       this.logger.error('Failed to send email:', error);
       return {
         success: false,

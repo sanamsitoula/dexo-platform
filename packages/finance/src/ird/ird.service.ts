@@ -70,9 +70,9 @@ export class IrdService {
       this.logger.log(`Successfully synced invoice ${invoice.invoiceNumber} to CBMS`);
 
       return { success: true, syncId: response.syncId };
-    } catch (error) {
+    } catch (error: any) {
       // Queue for retry
-      await this.queueForRetry(invoiceId, operation, payload, error.message);
+      await this.queueForRetry(invoiceId, operation, payload, error.message, invoice.tenantId);
 
       this.logger.error(`Failed to sync invoice ${invoice.invoiceNumber} to CBMS: ${error.message}`);
 
@@ -118,7 +118,7 @@ export class IrdService {
         });
 
         this.logger.log(`Successfully retried sync for invoice ${sync.invoiceId}`);
-      } catch (error) {
+      } catch (error: any) {
         const newAttemptCount = (sync.attemptCount || 0) + 1;
         const delayMs = Math.min(5 * 60 * 1000 * Math.pow(2, newAttemptCount), 24 * 60 * 60 * 1000); // Exponential backoff, max 24 hours
 
@@ -128,7 +128,7 @@ export class IrdService {
             attemptCount: newAttemptCount,
             lastAttemptedAt: new Date(),
             nextRetryAt: new Date(Date.now() + delayMs),
-            error_message: error.message,
+            errorMessage: error.message,
             status: newAttemptCount >= 10 ? 'MAX_RETRY' : 'PENDING',
           },
         });
@@ -183,7 +183,7 @@ export class IrdService {
     const invoice = await this.prisma.invoice.findFirst({
       where: { id: invoiceId, tenantId },
       include: { masterBill: true },
-    });
+    } as any) as any;
 
     if (!invoice) {
       throw new Error('Invoice not found');
@@ -309,13 +309,15 @@ export class IrdService {
     operation: string,
     payload: any,
     errorMessage: string,
+    tenantId: string,
   ) {
     await this.prisma.cbmsSyncQueue.create({
       data: {
+        tenantId,
         invoiceId,
         operation,
         requestPayload: payload,
-        error_message: errorMessage,
+        errorMessage,
         status: 'PENDING',
         attemptCount: 0,
         nextRetryAt: new Date(Date.now() + 5 * 60 * 1000), // 5 minutes

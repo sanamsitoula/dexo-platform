@@ -8,7 +8,7 @@ const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000';
 export default function TenantLifecyclePage() {
   const router = useRouter();
   const params = useParams();
-  const id = params.id as string;
+  const id = params?.id as string;
   const [tenant, setTenant] = useState<any>(null);
   const [lc, setLc] = useState<any>(null);
   const [busy, setBusy] = useState(false);

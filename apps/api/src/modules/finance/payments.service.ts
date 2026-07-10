@@ -1,10 +1,11 @@
 import { Injectable, BadRequestException, NotFoundException } from '@nestjs/common';
 import { PrismaService } from '@dexo/shared';
 import { Decimal } from '@prisma/client/runtime/library';
+import { GlPostingService } from './gl-posting.service';
 
 @Injectable()
 export class PaymentsService {
-  constructor(private prisma: PrismaService) {}
+  constructor(private prisma: PrismaService, private glPosting: GlPostingService) {}
 
   async findAllReceived(tenantId: string, params?: { customerId?: string; startDate?: string; endDate?: string }) {
     const where: any = { tenantId };
@@ -58,6 +59,11 @@ export class PaymentsService {
     if (dto.allocateTo && dto.allocateTo.length > 0) {
       await this.allocatePayment(tenantId, payment.id, dto.allocateTo, userId);
     }
+
+    // Auto-post to the General Ledger (safe no-op if chart of accounts isn't seeded).
+    await this.glPosting.postPaymentReceived(tenantId, payment, userId).catch((err) => {
+      console.warn(`[GlPosting] payment ${payment.paymentNo} post failed:`, err?.message);
+    });
 
     return payment;
   }

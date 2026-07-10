@@ -122,6 +122,9 @@ export class JournalService {
       where: { tenantId, isActive: true },
     });
 
+    if (!activeFiscalYear) throw new BadRequestException('No active fiscal year');
+    if (!activePeriod) throw new BadRequestException('No active accounting period');
+
     const reversal = await this.prisma.journalEntry.create({
       data: {
         tenantId,

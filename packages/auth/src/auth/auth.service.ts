@@ -3,14 +3,21 @@ import {
   UnauthorizedException,
   ConflictException,
   BadRequestException,
-  NotFoundException,
   Logger,
 } from '@nestjs/common';
 import { JwtService } from '@nestjs/jwt';
 import * as bcrypt from 'bcryptjs';
 import { ConfigService } from '@nestjs/config';
-import { PrismaService, AuditService } from '@dexo/shared';
-import { RegisterDto, LoginDto, ForgotPasswordDto, ResetPasswordDto, VerifyEmailDto, ResendVerificationDto, ChangePasswordDto } from './dto';
+import { PrismaService, AuditService, TenantMailService } from '@dexo/shared';
+import {
+  RegisterDto,
+  LoginDto,
+  ForgotPasswordDto,
+  ResetPasswordDto,
+  VerifyEmailDto,
+  ResendVerificationDto,
+  ChangePasswordDto,
+} from './dto';
 
 @Injectable()
 export class AuthService {
@@ -21,6 +28,7 @@ export class AuthService {
     private jwtService: JwtService,
     private configService: ConfigService,
     private audit: AuditService,
+    private tenantMail: TenantMailService,
   ) {}
 
   async validateUser(email: string, password: string): Promise<any> {
@@ -32,18 +40,21 @@ export class AuthService {
       return null;
     }
 
-    const isPasswordValid = await bcrypt.compare(password, user.passwordHash);
+    const isPasswordValid = user.passwordHash
+      ? await bcrypt.compare(password, user.passwordHash)
+      : false;
 
     if (!isPasswordValid) {
       return null;
     }
 
-    const { passwordHash, ...result } = user;
+    const { passwordHash: _, ...result } = user;
     return result;
   }
 
   async login(loginDto: LoginDto) {
-    let { email, password, tenantId } = loginDto;
+    const { email, password } = loginDto;
+    let { tenantId } = loginDto;
 
     // Resolve subdomain → tenantId for the tenant app login flow
     if (!tenantId && loginDto.subdomain) {
@@ -58,7 +69,13 @@ export class AuthService {
 
     if (!user) {
       // Log failed login attempt with the email that was tried
-      await this.audit.logAuthEvent('user.failed_login', undefined, undefined, undefined, undefined);
+      await this.audit.logAuthEvent(
+        'user.failed_login',
+        undefined,
+        undefined,
+        undefined,
+        undefined,
+      );
       throw new UnauthorizedException('Invalid credentials');
     }
 
@@ -90,7 +107,8 @@ export class AuthService {
     });
 
     const refreshToken = this.jwtService.sign(payload, {
-      secret: this.configService.get('REFRESH_TOKEN_SECRET') || this.jwtService.options.secret,
+      secret:
+        this.configService.get('REFRESH_TOKEN_SECRET') || (this.jwtService as any).options.secret,
       expiresIn: this.configService.get('REFRESH_TOKEN_EXPIRATION') || '7d',
     });
 
@@ -117,7 +135,8 @@ export class AuthService {
   }
 
   async register(registerDto: RegisterDto) {
-    const { email, password, firstName, lastName, phone, tenantId } = registerDto;
+    const { email, password, firstName, lastName, phone, tenantId, signupAs, specialization } =
+      registerDto;
 
     const existingUser = await this.prisma.user.findUnique({
       where: { email },
@@ -150,32 +169,55 @@ export class AuthService {
       },
     });
 
-    // If the user was registered with a tenantId, give them the Business Admin / Owner role for that tenant
+    // Assign a tenant role appropriate to how the user signed up. Customers
+    // (MEMBER) and trainers must NOT get the admin/owner role — only true
+    // admin self-registration (no signupAs, i.e. the tenant-admin app) does.
     if (userTenantId) {
       try {
-        // Find the role that best matches "owner/admin" in the tenant, fallback to first role
-        const adminRole = await this.prisma.role.findFirst({
-          where: {
-            tenantId: userTenantId,
-            OR: [
-              { name: { contains: 'admin', mode: 'insensitive' } },
-              { name: { contains: 'owner', mode: 'insensitive' } },
-              { name: { contains: 'manager', mode: 'insensitive' } },
-            ],
-          },
-        }) || await this.prisma.role.findFirst({
-          where: { tenantId: userTenantId },
-          orderBy: { createdAt: 'asc' },
+        const isMemberSignup = signupAs === 'MEMBER' || signupAs === 'TRAINER';
+        const roleNameContains = (needle: string) => ({
+          tenantId: userTenantId,
+          name: { contains: needle, mode: 'insensitive' as const },
         });
 
-        if (adminRole) {
-          await this.prisma.userRoles.create({
-            data: {
-              userId: user.id,
-              roleId: adminRole.id,
-              assignedBy: user.id,
-            },
-          }).catch(() => null); // unique constraint might trip
+        let targetRole = null;
+        if (signupAs === 'TRAINER') {
+          targetRole = await this.prisma.role.findFirst({ where: roleNameContains('trainer') });
+        } else if (signupAs === 'MEMBER') {
+          targetRole =
+            (await this.prisma.role.findFirst({ where: roleNameContains('member') })) ||
+            (await this.prisma.role.findFirst({ where: roleNameContains('customer') }));
+        }
+
+        // Admin path only when this is NOT a member/trainer signup.
+        if (!targetRole && !isMemberSignup) {
+          targetRole =
+            (await this.prisma.role.findFirst({
+              where: {
+                tenantId: userTenantId,
+                OR: [
+                  { name: { contains: 'admin', mode: 'insensitive' } },
+                  { name: { contains: 'owner', mode: 'insensitive' } },
+                  { name: { contains: 'manager', mode: 'insensitive' } },
+                ],
+              },
+            })) ||
+            (await this.prisma.role.findFirst({
+              where: { tenantId: userTenantId },
+              orderBy: { createdAt: 'asc' },
+            }));
+        }
+
+        if (targetRole) {
+          await this.prisma.userRoles
+            .create({
+              data: {
+                userId: user.id,
+                roleId: targetRole.id,
+                assignedById: user.id,
+              },
+            })
+            .catch(() => null); // unique constraint might trip
         }
       } catch (err) {
         this.logger.warn('Failed to assign tenant role to new user', err as Error);
@@ -194,23 +236,32 @@ export class AuthService {
     });
 
     const refreshToken = this.jwtService.sign(payload, {
-      secret: this.configService.get('REFRESH_TOKEN_SECRET') || this.jwtService.options.secret,
+      secret:
+        this.configService.get('REFRESH_TOKEN_SECRET') || (this.jwtService as any).options.secret,
       expiresIn: this.configService.get('REFRESH_TOKEN_EXPIRATION') || '7d',
     });
 
     const { passwordHash: _, ...result } = user;
 
-    await this.audit.logUserAction('user.created', user.id, user.tenantId, user.id, {
+    await this.audit.logUserAction('user.created', user.id, user.tenantId || undefined, user.id, {
       email: user.email,
       method: 'self-registration',
     });
 
     if (userTenantId) {
       await this.autoCreateMemberIfFitnessTenant(user.id, userTenantId);
+      if (signupAs === 'TRAINER') {
+        await this.autoCreateTrainerIfFitnessTenant(user, userTenantId, specialization);
+      }
     }
 
-    // Queue verification email (would be handled by background job)
-    // await this.sendVerificationEmail(user, verificationToken);
+    // Onboarding welcome email via the tenant's SMTP (platform SMTP fallback).
+    // Best-effort: a mail failure must never fail registration.
+    if (userTenantId) {
+      this.tenantMail
+        .sendWelcome(userTenantId, user.email, firstName || 'there')
+        .catch((err) => this.logger.warn(`Welcome email failed: ${err?.message}`));
+    }
 
     return {
       accessToken,
@@ -233,13 +284,13 @@ export class AuthService {
         throw new UnauthorizedException('Invalid token');
       }
 
-      const { passwordHash, ...result } = user;
+      const { passwordHash: _ph, ...result } = user;
 
       return {
         valid: true,
         user: result,
       };
-    } catch (error) {
+    } catch (error: any) {
       throw new UnauthorizedException('Invalid token');
     }
   }
@@ -247,7 +298,8 @@ export class AuthService {
   async refreshToken(refreshToken: string) {
     try {
       const payload = this.jwtService.verify(refreshToken, {
-        secret: this.configService.get('REFRESH_TOKEN_SECRET') || this.jwtService.options.secret,
+        secret:
+          this.configService.get('REFRESH_TOKEN_SECRET') || (this.jwtService as any).options.secret,
       });
 
       const user = await this.prisma.user.findUnique({
@@ -272,7 +324,7 @@ export class AuthService {
       return {
         accessToken,
       };
-    } catch (error) {
+    } catch (error: any) {
       throw new UnauthorizedException('Invalid refresh token');
     }
   }
@@ -294,7 +346,7 @@ export class AuthService {
       throw new BadRequestException('User not found');
     }
 
-    const { passwordHash, ...result } = user;
+    const { passwordHash: _ph2, ...result } = user;
 
     return result;
   }
@@ -330,16 +382,17 @@ export class AuthService {
       },
     );
 
-    // Store token hash in user record (or separate table for production)
-    // For simplicity, we'd send this via email
     const resetLink = `${this.configService.get('FRONTEND_URL') || 'http://localhost:3000'}/reset-password?token=${resetToken}`;
 
-    // Queue password reset email
-    // await this.emailService.sendTemplateEmail('password-reset', user.email, { resetLink });
+    // Send via the user's tenant SMTP (platform SMTP fallback). Best-effort so
+    // the endpoint stays constant-time-ish and never leaks config problems.
+    this.tenantMail
+      .sendPasswordReset(user.tenantId, user.email, user.firstName || 'there', resetLink)
+      .catch((err) => this.logger.warn(`Password reset email failed: ${err?.message}`));
 
     return {
       message: 'If an account exists with this email, a password reset link has been sent.',
-      resetToken, // Only for development
+      ...(process.env.NODE_ENV !== 'production' ? { resetToken } : {}), // dev convenience only
     };
   }
 
@@ -374,7 +427,7 @@ export class AuthService {
       return {
         message: 'Password reset successfully. You can now log in with your new password.',
       };
-    } catch (error) {
+    } catch (error: any) {
       throw new BadRequestException('Invalid or expired token');
     }
   }
@@ -416,7 +469,7 @@ export class AuthService {
       return {
         message: 'Email verified successfully. You can now log in.',
       };
-    } catch (error) {
+    } catch (error: any) {
       throw new BadRequestException('Invalid or expired verification token');
     }
   }
@@ -452,7 +505,7 @@ export class AuthService {
       },
     );
 
-    const verificationLink = `${this.configService.get('FRONTEND_URL') || 'http://localhost:3000'}/verify-email?token=${verificationToken}`;
+    const _verificationLink = `${this.configService.get('FRONTEND_URL') || 'http://localhost:3000'}/verify-email?token=${verificationToken}`;
 
     // Queue verification email
     // await this.emailService.sendTemplateEmail('email-verification', user.email, { verificationLink });
@@ -474,7 +527,9 @@ export class AuthService {
       throw new BadRequestException('User not found');
     }
 
-    const isOldPasswordValid = await bcrypt.compare(oldPassword, user.passwordHash);
+    const isOldPasswordValid = user.passwordHash
+      ? await bcrypt.compare(oldPassword, user.passwordHash)
+      : false;
 
     if (!isOldPasswordValid) {
       throw new BadRequestException('Current password is incorrect');
@@ -494,7 +549,9 @@ export class AuthService {
   }
 
   private generateVerificationToken(): string {
-    return Math.random().toString(36).substring(2, 15) + Math.random().toString(36).substring(2, 15);
+    return (
+      Math.random().toString(36).substring(2, 15) + Math.random().toString(36).substring(2, 15)
+    );
   }
 
   private async autoCreateMemberIfFitnessTenant(userId: string, tenantId: string) {
@@ -523,13 +580,55 @@ export class AuthService {
       });
       this.logger.log(`Auto-created Member for user ${userId} in fitness tenant ${tenantId}`);
     } catch (err) {
-      this.logger.warn(`Failed to auto-create Member for user ${userId}: ${(err as Error).message}`);
+      this.logger.warn(
+        `Failed to auto-create Member for user ${userId}: ${(err as Error).message}`,
+      );
     }
   }
 
-  async checkLoginAttempts(email: string): Promise<{ allowed: boolean; remainingAttempts?: number }> {
-    const maxAttempts = parseInt(this.configService.get('MAX_LOGIN_ATTEMPTS') || '5', 10);
-    const lockoutDuration = parseInt(this.configService.get('LOCKOUT_DURATION') || '900', 10) * 1000;
+  private async autoCreateTrainerIfFitnessTenant(
+    user: any,
+    tenantId: string,
+    specialization?: string,
+  ) {
+    try {
+      const tenantDomain = await this.prisma.tenantDomain.findFirst({
+        where: { tenantId, domain: { code: 'FITNESS_CENTER' } },
+      });
+      if (!tenantDomain) return;
+      const existing = await this.prisma.trainer.findFirst({
+        where: { tenantId, userId: user.id },
+      });
+      if (existing) return;
+      const firstBranch = await this.prisma.branch.findFirst({
+        where: { tenantId, status: 'active' },
+        orderBy: { isHeadquarters: 'desc' },
+      });
+      await this.prisma.trainer.create({
+        data: {
+          tenantId,
+          userId: user.id,
+          branchId: firstBranch?.id,
+          name: [user.firstName, user.lastName].filter(Boolean).join(' ') || user.email,
+          email: user.email,
+          phone: user.phone,
+          specialization: specialization || 'General Fitness',
+        },
+      });
+      this.logger.log(`Auto-created Trainer for user ${user.id} in fitness tenant ${tenantId}`);
+    } catch (err) {
+      this.logger.warn(
+        `Failed to auto-create Trainer for user ${user.id}: ${(err as Error).message}`,
+      );
+    }
+  }
+
+  async checkLoginAttempts(
+    email: string,
+  ): Promise<{ allowed: boolean; remainingAttempts?: number }> {
+    const _maxAttempts = parseInt(this.configService.get('MAX_LOGIN_ATTEMPTS') || '5', 10);
+    const lockoutDuration =
+      parseInt(this.configService.get('LOCKOUT_DURATION') || '900', 10) * 1000;
 
     // This would typically use Redis for rate limiting
     // For now, we'll do a simplified version
@@ -555,11 +654,11 @@ export class AuthService {
     return { allowed: true };
   }
 
-  async recordFailedLogin(email: string): Promise<void> {
-    const maxAttempts = parseInt(this.configService.get('MAX_LOGIN_ATTEMPTS') || '5', 10);
+  async recordFailedLogin(_email: string): Promise<void> {
+    const _maxAttempts = parseInt(this.configService.get('MAX_LOGIN_ATTEMPTS') || '5', 10);
 
     const user = await this.prisma.user.findUnique({
-      where: { email },
+      where: { email: _email },
     });
 
     if (!user) return;
@@ -571,7 +670,7 @@ export class AuthService {
     // In production, use Redis to track attempts with expiration
   }
 
-  async recordSuccessfulLogin(email: string): Promise<void> {
+  async recordSuccessfulLogin(_email: string): Promise<void> {
     // Clear failed login attempts
     // In production, clear from Redis
   }

@@ -7,7 +7,7 @@ import { TenantBrandingConfig } from '@/components/TenantBrandingConfig'
 import { DomainConfig } from '@/components/DomainConfig'
 
 export default function TenantDetailPage() {
-  const { id } = useParams()
+  const { id } = useParams() as { id: string }
   const router = useRouter()
   const [tenant, setTenant] = useState<any>(null)
   const [users, setUsers] = useState<any[]>([])

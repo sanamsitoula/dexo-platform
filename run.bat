@@ -90,7 +90,7 @@ set "DOCKER_LOG=logs\orchestrator\docker-%TIMESTAMP%.log"
 
 docker ps --filter "name=dexo-postgres" --format "{{.Names}}" 2>nul | findstr "dexo-postgres" >nul
 if %ERRORLEVEL% NEQ 0 (
-    docker run -d --name dexo-postgres -e POSTGRES_PASSWORD=postgres -e POSTGRES_DB=dexo_db -p 5433:5432 postgres:16-alpine >> "%DOCKER_LOG%" 2>&1
+    docker run -d --name dexo-postgres -e POSTGRES_PASSWORD=postgres -e POSTGRES_DB=dexo -p 5433:5432 postgres:16-alpine >> "%DOCKER_LOG%" 2>&1
     echo [INFO] PostgreSQL started on port 5433
 ) else (
     docker start dexo-postgres >> "%DOCKER_LOG%" 2>&1
@@ -127,8 +127,20 @@ if %ERRORLEVEL% NEQ 0 (
 echo [INFO] All Docker services started.
 echo.
 
-echo [INFO] Waiting for PostgreSQL to be ready (5s)...
-timeout /t 5 /nobreak >nul
+echo [INFO] Waiting for PostgreSQL to be ready...
+set PG_TRIES=0
+:wait_postgres
+docker exec dexo-postgres pg_isready -U postgres >nul 2>&1
+if %ERRORLEVEL% EQU 0 goto :pg_ready
+set /a PG_TRIES+=1
+if %PG_TRIES% GEQ 30 (
+    echo [WARN] PostgreSQL not ready after ~60s - continuing anyway.
+    goto :pg_ready
+)
+call :sleep 2
+goto :wait_postgres
+:pg_ready
+echo [INFO] PostgreSQL is ready.
 
 REM ============================================
 REM  Install dependencies if needed
@@ -151,7 +163,7 @@ if not exist ".env" (
     echo [INFO] Creating .env file...
     (
         echo # Dexo Platform v5 Environment Variables
-        echo DATABASE_URL=postgresql://postgres:postgres@localhost:5433/dexo_db
+        echo DATABASE_URL=postgresql://postgres:postgres@localhost:5433/dexo
         echo JWT_SECRET=dev-jwt-secret-key-change-in-production
         echo REDIS_URL=redis://localhost:6379
         echo MINIO_ENDPOINT=localhost
@@ -169,15 +181,55 @@ if not exist ".env" (
 )
 
 REM ============================================
-REM  Seed demo users (platform + tenant)
+REM  Ensure 'dexo' database exists (matches .env)
 REM ============================================
-echo [INFO] Seeding demo users (platform + tenant)...
-echo [%date% %time:~0,8%] [INFO] Seeding demo users >> "%ORCHESTRATOR_LOG%"
-call npm run db:seed:demo >> "%ORCHESTRATOR_LOG%" 2>&1
+echo [INFO] Ensuring database 'dexo' exists...
+echo [%date% %time:~0,8%] [INFO] Ensure database 'dexo' >> "%ORCHESTRATOR_LOG%"
+docker exec dexo-postgres psql -U postgres -tAc "SELECT 1 FROM pg_database WHERE datname='dexo'" 2>nul | findstr 1 >nul
+if %ERRORLEVEL% EQU 0 goto :db_ready
+echo [INFO] Database 'dexo' not found - creating...
+docker exec dexo-postgres psql -U postgres -c "CREATE DATABASE dexo" >> "%ORCHESTRATOR_LOG%" 2>&1
 if %ERRORLEVEL% NEQ 0 (
-    echo [WARN] Demo seed failed - continuing. Check logs\orchestrator for details.
+    echo [ERROR] Failed to create database 'dexo'. Postgres may not be ready yet.
+    echo [%date% %time:~0,8%] [ERROR] CREATE DATABASE dexo failed >> "%ORCHESTRATOR_LOG%"
 ) else (
-    echo [INFO] Demo users ready.
+    echo [INFO] Database 'dexo' created.
+)
+:db_ready
+echo.
+
+REM ============================================
+REM  Apply Prisma migrations (creates tables)
+REM ============================================
+echo [INFO] Applying database migrations...
+echo [%date% %time:~0,8%] [INFO] prisma migrate deploy >> "%ORCHESTRATOR_LOG%"
+call npx prisma generate >> "%ORCHESTRATOR_LOG%" 2>&1
+call npx prisma migrate deploy >> "%ORCHESTRATOR_LOG%" 2>&1
+if %ERRORLEVEL% NEQ 0 (
+    echo [ERROR] Migration failed. Last 20 log lines:
+    powershell -NoProfile -Command "Get-Content '%ORCHESTRATOR_LOG%' -Tail 20"
+    echo.
+    echo [WARN] Continuing startup, but DB-dependent apps will fail.
+    echo [INFO] Full log: %ORCHESTRATOR_LOG%
+) else (
+    echo [INFO] Migrations applied.
+)
+echo.
+
+REM ============================================
+REM  Seed v5 demo data (platform admin + tenants + users)
+REM  Creates: admin@test.com, vrfitness, spicegarden + all advertised users
+REM ============================================
+echo [INFO] Seeding v5 demo data (tenants + users)...
+echo [%date% %time:~0,8%] [INFO] Seeding v5 demo data >> "%ORCHESTRATOR_LOG%"
+call npm run db:seed:v5 >> "%ORCHESTRATOR_LOG%" 2>&1
+if %ERRORLEVEL% NEQ 0 (
+    echo [ERROR] Seed failed. Last 20 log lines:
+    powershell -NoProfile -Command "Get-Content '%ORCHESTRATOR_LOG%' -Tail 20"
+    echo.
+    echo [INFO] Full log: %ORCHESTRATOR_LOG%
+) else (
+    echo [INFO] Seed complete: vrfitness + spicegarden tenants ready.
 )
 echo.
 
@@ -185,10 +237,14 @@ REM ============================================
 REM  Kill any existing processes on all v5 ports
 REM ============================================
 echo [INFO] Cleaning up old processes...
+REM Kill stale per-app runner windows first (start-app.ps1 titles them "Dexo <app>")
+taskkill /FI "WINDOWTITLE eq Dexo*" /F >nul 2>nul
 for %%P in (3001 3002 4000 4005 4006 4007 8081) do (
-    for /f "tokens=5" %%a in ('netstat -aon ^| findstr ":%%P " ^| findstr "LISTENING" 2^>nul') do taskkill /PID %%a /F >nul 2>nul
+    for /f "tokens=5" %%a in ('netstat -aon ^| findstr ":%%P " ^| findstr "LISTENING" 2^>nul') do (
+        taskkill /PID %%a /T /F >nul 2>nul
+    )
 )
-timeout /t 2 /nobreak >nul
+call :sleep 3
 echo [INFO] Ports cleared.
 
 if exist "%TEMP%\turbod" (
@@ -210,7 +266,8 @@ set "API_LOG=logs\api\api-%TIMESTAMP%.log"
 echo [INFO] Starting API Server on port 4000...
 echo [INFO] Logs: %API_LOG%
 start "Dexo API" /MIN powershell -NoProfile -ExecutionPolicy Bypass -File "%~dp0scripts\start-app.ps1" -App api
-timeout /t 18 /nobreak >nul
+call :sleep 18
+call :check_app "API Server" 4000 "%API_LOG%" api
 
 REM ============================================
 REM  Start platform-web (port 3001)
@@ -219,7 +276,8 @@ set "PLAT_WEB_LOG=logs\platform-web\platform-web-%TIMESTAMP%.log"
 echo [INFO] Starting Platform Web (port 3001)...
 echo [INFO] Logs: %PLAT_WEB_LOG%
 start "Dexo platform-web" /MIN powershell -NoProfile -ExecutionPolicy Bypass -File "%~dp0scripts\start-app.ps1" -App platform-web
-timeout /t 12 /nobreak >nul
+call :sleep 12
+call :check_app "Platform Web" 3001 "%PLAT_WEB_LOG%" platform-web
 
 REM ============================================
 REM  Start platform-admin (port 3002)
@@ -228,7 +286,8 @@ set "PLAT_ADM_LOG=logs\platform-admin\platform-admin-%TIMESTAMP%.log"
 echo [INFO] Starting Platform Admin (port 3002)...
 echo [INFO] Logs: %PLAT_ADM_LOG%
 start "Dexo platform-admin" /MIN powershell -NoProfile -ExecutionPolicy Bypass -File "%~dp0scripts\start-app.ps1" -App platform-admin
-timeout /t 12 /nobreak >nul
+call :sleep 12
+call :check_app "Platform Admin" 3002 "%PLAT_ADM_LOG%" platform-admin
 
 REM ============================================
 REM  Start tenant-website (port 4005) - DEV_TENANT=vrfitness
@@ -237,7 +296,8 @@ set "TEN_WEB_LOG=logs\tenant-website\tenant-website-%TIMESTAMP%.log"
 echo [INFO] Starting Tenant Website (port 4005)...
 echo [INFO] Logs: %TEN_WEB_LOG%
 start "Dexo tenant-website" /MIN powershell -NoProfile -ExecutionPolicy Bypass -File "%~dp0scripts\start-app.ps1" -App tenant-website
-timeout /t 10 /nobreak >nul
+call :sleep 10
+call :check_app "Tenant Website" 4005 "%TEN_WEB_LOG%" tenant-website
 
 REM ============================================
 REM  Start tenant-admin (port 4006)
@@ -246,7 +306,8 @@ set "TEN_ADM_LOG=logs\tenant-admin\tenant-admin-%TIMESTAMP%.log"
 echo [INFO] Starting Tenant Admin (port 4006)...
 echo [INFO] Logs: %TEN_ADM_LOG%
 start "Dexo tenant-admin" /MIN powershell -NoProfile -ExecutionPolicy Bypass -File "%~dp0scripts\start-app.ps1" -App tenant-admin
-timeout /t 10 /nobreak >nul
+call :sleep 10
+call :check_app "Tenant Admin" 4006 "%TEN_ADM_LOG%" tenant-admin
 
 REM ============================================
 REM  Start tenant-app (port 4007)
@@ -255,7 +316,8 @@ set "TEN_APP_LOG=logs\tenant-app\tenant-app-%TIMESTAMP%.log"
 echo [INFO] Starting Tenant App (port 4007)...
 echo [INFO] Logs: %TEN_APP_LOG%
 start "Dexo tenant-app" /MIN powershell -NoProfile -ExecutionPolicy Bypass -File "%~dp0scripts\start-app.ps1" -App tenant-app
-timeout /t 10 /nobreak >nul
+call :sleep 10
+call :check_app "Tenant App" 4007 "%TEN_APP_LOG%" tenant-app
 
 REM ============================================
 REM  Start Mobile (Expo) - port 8081
@@ -265,7 +327,8 @@ set "EXPO_LOG=logs\expo-go\expo-go-%TIMESTAMP%.log"
 echo [INFO] Starting Mobile (Expo) on port 8081...
 echo [INFO] Logs: %MOBILE_LOG%
 start "Dexo Mobile" /MIN powershell -NoProfile -ExecutionPolicy Bypass -File "%~dp0scripts\start-app.ps1" -App mobile
-timeout /t 25 /nobreak >nul
+call :sleep 25
+call :check_app "Mobile (Expo)" 8081 "%MOBILE_LOG%" mobile
 
 REM ============================================
 REM  Show Status
@@ -306,6 +369,7 @@ echo     mobile\           - Mobile (Expo)
 echo     orchestrator\     - This startup script
 echo.
 echo   Each log file: logs\<service>\<service>-%TIMESTAMP%.log
+echo   Servers run in hidden windows. Stop them with: stop.bat
 echo.
 echo ========================================
 echo.
@@ -329,7 +393,7 @@ echo.
 
 set "MOBILE_LATEST=logs\mobile\mobile-%TIMESTAMP%.log.out"
 if exist "%MOBILE_LATEST%" (
-    timeout /t 3 /nobreak >nul
+    call :sleep 3
     type "%MOBILE_LATEST%"
 ) else (
     echo [WARN] Mobile log not found. Run: scripts\view-log.ps1 mobile
@@ -337,7 +401,11 @@ if exist "%MOBILE_LATEST%" (
 echo.
 echo ========================================
 echo.
-echo Press any key to open browsers. Close server windows to stop.
+echo Press any key to open browsers.
+echo.
+echo IMPORTANT: All app servers run in HIDDEN background windows.
+echo   To STOP everything later, run:  stop.bat
+echo   To view live logs, run:        powershell -ExecutionPolicy Bypass -File scripts\view-log.ps1 api
 echo.
 pause >nul
 
@@ -352,6 +420,63 @@ echo.
 echo Browsers opened. Servers running in separate windows.
 echo.
 echo To view logs in real-time, open a new terminal and run:
-echo   powershell -Command "Get-Content logs\api\api-*.log -Wait"
+echo   powershell -ExecutionPolicy Bypass -File scripts\view-log.ps1 api
+echo   services: api platform-web platform-admin tenant-website tenant-admin tenant-app mobile orchestrator
+echo   add -Err to tail error logs, e.g. scripts\view-log.ps1 api -Err
 echo.
 pause
+exit /b 0
+
+REM ============================================
+REM  Subroutine: check_app <name> <port> <logbase> <service>
+REM  Verifies the app is listening on its port. If not, prints the
+REM  error/stdout log tails inline so failures are visible in this window.
+REM
+REM  NOTE: uses setlocal enabledelayedexpansion + !var! so that app names
+REM  containing parentheses (e.g. "Mobile (Expo)") do NOT prematurely close
+REM  the if-block and abort the whole script with "is was unexpected at this time".
+REM ============================================
+:check_app
+setlocal enabledelayedexpansion
+set "_cname=%~1"
+set "_cport=%~2"
+set "_clog=%~3"
+set "_csvc=%~4"
+echo.
+echo [CHECK] !_cname! on port !_cport! ...
+netstat -aon 2>nul | findstr ":!_cport! " | findstr "LISTENING" >nul
+if !ERRORLEVEL! EQU 0 (
+    echo [OK]    !_cname! is listening on port !_cport!.
+    goto :check_done
+)
+echo [ERROR] !_cname! is NOT responding on port !_cport!.
+if exist "!_clog!.err" (
+    echo --- error log tail ^("!_clog!.err"^) ---
+    powershell -NoProfile -Command "Get-Content -LiteralPath '!_clog!.err' -Tail 15 -ErrorAction SilentlyContinue"
+)
+if exist "!_clog!.out" (
+    echo --- stdout log tail ^("!_clog!.out"^) ---
+    powershell -NoProfile -Command "Get-Content -LiteralPath '!_clog!.out' -Tail 15 -ErrorAction SilentlyContinue"
+)
+if exist "!_clog!" if not exist "!_clog!.out" if not exist "!_clog!.err" (
+    echo --- log tail ^("!_clog!"^) ---
+    powershell -NoProfile -Command "Get-Content -LiteralPath '!_clog!' -Tail 15 -ErrorAction SilentlyContinue"
+)
+echo.
+echo [TIP] Tail live with: powershell -ExecutionPolicy Bypass -File scripts\view-log.ps1 !_csvc! -Err
+:check_done
+endlocal
+goto :eof
+
+REM ============================================
+REM  Subroutine: sleep <seconds>
+REM  Redirect-safe sleep. The built-in `timeout` command fails with
+REM  "Input redirection is not supported" whenever stdin is piped (scheduled
+REM  tasks, some launchers, `run.bat < nul`), which breaks the boot waits and
+REM  cascades into check failures. ping waits ~1s per hop regardless of stdin.
+REM ============================================
+:sleep
+set /a "_sleepN=%~1 + 1" 2>nul
+ping -n %_sleepN% 127.0.0.1 >nul 2>nul
+set "_sleepN="
+goto :eof

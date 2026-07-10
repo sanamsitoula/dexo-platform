@@ -21,8 +21,8 @@ export default function ReportsPage() {
       ])
 
       if (tenantsRes.data) {
-        const tenants = tenantsRes.data.tenants || []
-        setTenantCount(tenantsRes.data.total || tenants.length)
+        const tenants = tenantsRes.data.data || []
+        setTenantCount(tenantsRes.data.meta?.total || tenants.length)
         const byStatus: Record<string, number> = {}
         tenants.forEach((t: any) => {
           byStatus[t.status] = (byStatus[t.status] || 0) + 1
@@ -41,7 +41,7 @@ export default function ReportsPage() {
       }
 
       if (rolesRes.data) {
-        setRoleCount((rolesRes.data.roles || []).length)
+        setRoleCount((rolesRes.data || []).length)
       }
 
       setLoading(false)

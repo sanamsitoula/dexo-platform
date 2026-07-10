@@ -26,6 +26,9 @@
       ],
       "@/lib/*": [
         "./lib/*"
+      ],
+      "@dexo/ui": [
+        "../../packages/ui/src/index.ts"
       ]
     },
     "plugins": [

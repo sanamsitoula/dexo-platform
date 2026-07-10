@@ -31,6 +31,8 @@ export default function LoginPage() {
       const role = data?.user?.role || data?.user?.userRoles?.[0]?.role?.code || 'OWNER';
       const tenantSlug = data?.user?.tenant?.subdomain || 'vrfitness';
       localStorage.setItem('token', data.accessToken);
+      // Subdomain-scoped key that lib/api.ts reads first (multi-tenant safe).
+      localStorage.setItem(`tenant-token-${tenantSlug}`, data.accessToken);
       localStorage.setItem('refreshToken', data.refreshToken);
       localStorage.setItem('user', JSON.stringify(data.user || {}));
       document.cookie = `dexo-tenant-slug=${tenantSlug}; path=/; max-age=86400`;
@@ -80,6 +82,7 @@ export default function LoginPage() {
           >
             {loading ? 'Signing in...' : 'Sign In'}
           </button>
+          <a href="/forgot-password" className="block text-center text-sm text-gray-500 hover:text-gray-700">Forgot password?</a>
         </form>
         <div className="mt-6 text-xs text-gray-400 text-center">
           Demo: admin@vrfitness.com / Admin123!

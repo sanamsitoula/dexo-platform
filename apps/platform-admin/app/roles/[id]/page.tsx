@@ -23,7 +23,7 @@ interface Permission {
 }
 
 export default function RoleDetailPage() {
-  const { id } = useParams<{ id: string }>()
+  const id = useParams<{ id: string }>()?.id
   const router = useRouter()
   const [role, setRole] = useState<Role | null>(null)
   const [loading, setLoading] = useState(true)
@@ -59,7 +59,7 @@ export default function RoleDetailPage() {
   async function fetchAllPermissions() {
     const response = await permissionsApi.list().catch(() => ({ data: [] }))
     if (response.data) {
-      const list = Array.isArray(response.data) ? response.data : response.data.permissions || []
+      const list = Array.isArray(response.data) ? response.data : (response.data as any).permissions || []
       setAllPermissions(list)
     }
   }

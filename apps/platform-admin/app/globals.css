@@ -1,4 +1,26 @@
 @import "tailwindcss";
+@import "../../../packages/ui/src/styles/dexo-brand.css";
+
+/* DEXO brand utilities (Tailwind v4) — brand/Brand/03-color-system.md */
+@theme {
+  --color-dexo: #4F46E5;
+  --color-dexo-hover: #4338CA;
+  --color-dexo-accent: #A3E635;
+  --color-dexo-ink: #09090B;
+  --color-dexo-paper: #FAFAFA;
+  --radius-dexo: 10px;
+}
+@theme inline {
+  --font-sans: var(--font-inter), Inter, -apple-system, 'Segoe UI', sans-serif;
+  --font-display: var(--font-grotesk), 'Space Grotesk', system-ui, sans-serif;
+  --font-mono: var(--font-jbmono), 'JetBrains Mono', ui-monospace, Consolas, monospace;
+}
+
+/* Headlines use Space Grotesk (24px+ display type) */
+h1, h2, .dx-display {
+  font-family: var(--font-grotesk), 'Space Grotesk', system-ui, sans-serif;
+  text-wrap: balance;
+}
 
 @layer base {
   :root {

@@ -31,7 +31,7 @@ export function mergeBranding(
     colorBg: tenant.colorBg || template.colorBg,
     fontHeading: tenant.fontHeading || template.fontHeading,
     fontBody: tenant.fontBody || template.fontBody,
-    logoUrl: tenant.logoUrl || template.logoUrl,
+    logoUrl: tenant.logoUrl || template.logoUrl || '',
   };
 }
 

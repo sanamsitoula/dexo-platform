@@ -1,8 +1,7 @@
 import { Controller, Get, Post, Put, Body, Param, UseGuards, Req, Res, Query } from '@nestjs/common';
-import { Response } from 'express';
+import type { Response } from 'express';
 import { JwtAuthGuard } from '@dexo/auth';
 import { SocialAuthService } from './social-auth.service';
-import { OAuthProvider } from '@prisma/client';
 
 @Controller('auth/platform')
 export class PlatformOAuthController {
@@ -12,7 +11,7 @@ export class PlatformOAuthController {
 
   @Get(':provider/url')
   async getPlatformAuthUrl(
-    @Param('provider') provider: OAuthProvider,
+    @Param('provider') provider: any,
     @Query('redirectUri') redirectUri?: string,
   ) {
     const url = await this.socialAuthService.getPlatformAuthUrl(provider, redirectUri);
@@ -21,7 +20,7 @@ export class PlatformOAuthController {
 
   @Get(':provider/callback')
   async handlePlatformCallback(
-    @Param('provider') provider: OAuthProvider,
+    @Param('provider') provider: any,
     @Query('code') code: string,
     @Query('state') state: string,
     @Res() res: Response,
@@ -46,7 +45,7 @@ export class PlatformOAuthController {
   @UseGuards(JwtAuthGuard)
   async updatePlatformConfig(
     @Req() req: any,
-    @Param('provider') provider: OAuthProvider,
+    @Param('provider') provider: any,
     @Body() data: any,
   ) {
     if (!req.user.isPlatformAdmin) {

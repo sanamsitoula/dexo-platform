@@ -1,13 +1,37 @@
-import * as SecureStore from 'expo-secure-store';
 import { Platform } from 'react-native';
+import Constants from 'expo-constants';
+import { storage } from './storage';
 
-// Use your computer's local IP when running on a physical device
-// (Expo Go on phone needs to reach your dev machine over WiFi)
-const DEV_HOST = '10.10.10.3'; // <-- Update this to your computer's IP
+/**
+ * Resolve the dev machine's LAN IP automatically.
+ *
+ * Expo/Metro serves the bundle from your computer, and exposes that host as
+ * `hostUri` (e.g. "192.168.1.42:8081"). A phone in Expo Go or an emulator can
+ * always reach the API at that same IP on port 4000 — so we derive it instead of
+ * hardcoding an IP that goes stale every time the network changes.
+ *
+ * Override with EXPO_PUBLIC_API_URL if you need a fixed endpoint.
+ */
+function resolveDevApiBase(): string {
+  const override = process.env.EXPO_PUBLIC_API_URL;
+  if (override) return override.replace(/\/$/, '') + (override.endsWith('/api') ? '' : '/api');
+
+  const c = Constants as any;
+  const hostUri: string =
+    Constants.expoConfig?.hostUri ||
+    c.manifest?.debuggerHost ||
+    c.manifest2?.extra?.expoGo?.debuggerHost ||
+    '';
+  const host = String(hostUri).split(':')[0];
+  // Android emulator maps the host machine to 10.0.2.2; localhost won't work there.
+  const fallback = Platform.OS === 'android' ? '10.0.2.2' : 'localhost';
+  return `http://${host || fallback}:4000/api`;
+}
+
 const API_BASE_URL = __DEV__
   ? Platform.OS === 'web'
     ? 'http://localhost:4000/api'
-    : `http://${DEV_HOST}:4000/api`
+    : resolveDevApiBase()
   : 'https://api.dexo.app/api';
 
 interface ApiResponse<T> {
@@ -16,7 +40,7 @@ interface ApiResponse<T> {
 }
 
 async function getToken(): Promise<string | null> {
-  return SecureStore.getItemAsync('accessToken');
+  return storage.getItem('accessToken');
 }
 
 async function fetchApi<T>(
@@ -28,17 +52,17 @@ async function fetchApi<T>(
     'Content-Type': 'application/json',
   };
 
-  const token = await getToken();
-  if (token) {
-    defaultHeaders['Authorization'] = `Bearer ${token}`;
-  }
-
-  const config: RequestInit = {
-    ...options,
-    headers: { ...defaultHeaders, ...options.headers },
-  };
-
   try {
+    const token = await getToken();
+    if (token) {
+      defaultHeaders['Authorization'] = `Bearer ${token}`;
+    }
+
+    const config: RequestInit = {
+      ...options,
+      headers: { ...defaultHeaders, ...options.headers },
+    };
+
     const response = await fetch(url, config);
     if (!response.ok) {
       const errorData = await response.json().catch(() => ({}));
@@ -55,16 +79,35 @@ async function fetchApi<T>(
 }
 
 export const authApi = {
-  login: (email: string, password: string) =>
+  login: (email: string, password: string, subdomain?: string) =>
     fetchApi<{ accessToken: string; refreshToken: string; user: any }>('/auth/login', {
       method: 'POST',
-      body: JSON.stringify({ email, password }),
+      body: JSON.stringify(subdomain ? { email, password, subdomain } : { email, password }),
     }),
-  register: (data: { email: string; password: string; firstName: string; lastName: string }) =>
-    fetchApi<{ user: any }>('/auth/register', {
+  register: async (data: {
+    email: string;
+    password: string;
+    firstName: string;
+    lastName: string;
+    phone?: string;
+    tenantSubdomain?: string;
+  }) => {
+    // Resolve the tenantId from the selected business subdomain, then self-signup
+    // as a MEMBER (mirrors the customer web app's register flow).
+    let tenantId: string | undefined;
+    if (data.tenantSubdomain) {
+      const t = await tenantsApi.getBySubdomain(data.tenantSubdomain);
+      if (t.error || !t.data?.id) {
+        return { error: 'Could not resolve the selected business. Please try again.' };
+      }
+      tenantId = t.data.id;
+    }
+    const { tenantSubdomain, ...rest } = data;
+    return fetchApi<{ accessToken?: string; refreshToken?: string; user: any }>('/auth/register', {
       method: 'POST',
-      body: JSON.stringify(data),
-    }),
+      body: JSON.stringify({ ...rest, tenantId, signupAs: 'MEMBER' }),
+    });
+  },
   getProfile: () => fetchApi<any>('/auth/profile'),
   logout: () => fetchApi<void>('/auth/logout', { method: 'POST' }),
   refresh: (refreshToken: string) =>
@@ -149,6 +192,13 @@ export const tenantsApi = {
     if (params?.limit) searchParams.append('limit', params.limit.toString());
     if (params?.status) searchParams.append('status', params.status);
     return fetchApi<{ data: any[] }>(`/tenants?${searchParams.toString()}`);
+  },
+  /** Public: server-side search of ACTIVE tenants (for the login tenant selector). Returns up to `limit` (default 10). */
+  publicSearch: (q?: string, limit = 10) => {
+    const params = new URLSearchParams();
+    if (q && q.trim()) params.append('q', q.trim());
+    params.append('limit', String(limit));
+    return fetchApi<any[]>(`/tenants/public?${params.toString()}`);
   },
   /** Returns the tenant(s) the current authenticated user belongs to */
   myTenants: () => fetchApi<{ data: any[] }>('/tenants/me'),
@@ -258,6 +308,7 @@ export const fitnessApi = {
     },
     get: (id: string) => fetchApi<any>(`/fitness/members/${id}`),
     me: () => fetchApi<any>('/fitness/members/me'),
+    updateMe: (data: any) => fetchApi<any>('/fitness/members/me', { method: 'PUT', body: JSON.stringify(data) }),
     create: (data: any) => fetchApi<any>('/fitness/members', { method: 'POST', body: JSON.stringify(data) }),
     verify: (id: string) => fetchApi<any>(`/fitness/members/${id}/verify`, { method: 'POST' }),
     stats: (branchId?: string) => fetchApi<any>(`/fitness/members/stats${branchId ? `?branchId=${branchId}` : ''}`),

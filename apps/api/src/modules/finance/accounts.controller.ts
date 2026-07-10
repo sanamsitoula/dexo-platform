@@ -17,6 +17,28 @@ export class AccountsController {
     return this.accountsService.getTrialBalance(req.user.tenantId, startDate, endDate);
   }
 
+  // ----- Setup & fiscal years (declared before :id so they aren't captured as an id) -----
+
+  @Post('setup-defaults')
+  setupDefaults(@Req() req: any) {
+    return this.accountsService.setupDefaults(req.user.tenantId, req.user.id);
+  }
+
+  @Get('fiscal-years')
+  listFiscalYears(@Req() req: any) {
+    return this.accountsService.listFiscalYears(req.user.tenantId);
+  }
+
+  @Post('fiscal-years')
+  createFiscalYear(@Req() req: any, @Body() dto: any) {
+    return this.accountsService.createFiscalYear(req.user.tenantId, dto);
+  }
+
+  @Post('fiscal-years/:id/activate')
+  activateFiscalYear(@Req() req: any, @Param('id') id: string) {
+    return this.accountsService.activateFiscalYear(req.user.tenantId, id);
+  }
+
   @Get(':id')
   findOne(@Req() req: any, @Param('id') id: string) {
     return this.accountsService.findOne(req.user.tenantId, id);

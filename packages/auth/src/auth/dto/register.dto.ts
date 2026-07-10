@@ -1,4 +1,12 @@
-import { IsEmail, IsString, MinLength, MaxLength, IsOptional, Matches } from 'class-validator';
+import {
+  IsEmail,
+  IsString,
+  MinLength,
+  MaxLength,
+  IsOptional,
+  Matches,
+  IsIn,
+} from 'class-validator';
 
 export class RegisterDto {
   @IsEmail({}, { message: 'Invalid email format' })
@@ -8,7 +16,8 @@ export class RegisterDto {
   @MinLength(8, { message: 'Password must be at least 8 characters' })
   @MaxLength(100, { message: 'Password must not exceed 100 characters' })
   @Matches(/^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)/, {
-    message: 'Password must contain at least one uppercase letter, one lowercase letter, and one number',
+    message:
+      'Password must contain at least one uppercase letter, one lowercase letter, and one number',
   })
   password: string;
 
@@ -29,4 +38,14 @@ export class RegisterDto {
   @IsOptional()
   @IsString()
   tenantId?: string;
+
+  // Fitness self-signup role. Defaults to MEMBER. When 'TRAINER', a Trainer
+  // profile is auto-created for fitness tenants so they can manage their trainees.
+  @IsOptional()
+  @IsIn(['MEMBER', 'TRAINER'])
+  signupAs?: string;
+
+  @IsOptional()
+  @IsString()
+  specialization?: string;
 }

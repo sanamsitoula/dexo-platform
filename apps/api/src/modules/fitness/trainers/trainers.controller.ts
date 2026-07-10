@@ -17,6 +17,11 @@ export class TrainersController {
     return this.service.findByUserId(req.user.tenantId, req.user.id);
   }
 
+  @Get('me/trainees')
+  getMyTrainees(@Req() req: any) {
+    return this.service.findMyTrainees(req.user.tenantId, req.user.id);
+  }
+
   @Get(':id')
   findOne(@Req() req: any, @Param('id') id: string) {
     return this.service.findOne(req.user.tenantId, id);

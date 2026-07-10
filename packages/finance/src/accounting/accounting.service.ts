@@ -522,9 +522,9 @@ export class AccountingService {
       return reversal;
     });
 
-    this.logger.log(`Reversed journal entry ${originalEntry.entryNo} with ${reversal.entryNo}`);
+    this.logger.log(`Reversed journal entry ${originalEntry.entryNo} with ${reversalEntry.entryNo}`);
 
-    return reversal;
+    return reversalEntry;
   }
 
   async getTrialBalance(tenantId: string, fiscalYearId: string, periodId?: string) {
@@ -637,7 +637,7 @@ export class AccountingService {
 
   private async validateJournalBalance(entryId: string) {
     const entry = await this.prisma.journalEntry.findUnique({
-      where: { id },
+      where: { id: entryId },
       include: { lines: true },
     });
 

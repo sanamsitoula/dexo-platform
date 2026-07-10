@@ -1,9 +1,5 @@
 import { AuthService } from './auth.service';
-import {
-  UnauthorizedException,
-  ConflictException,
-  BadRequestException,
-} from '@nestjs/common';
+import { UnauthorizedException, ConflictException, BadRequestException } from '@nestjs/common';
 import * as bcrypt from 'bcryptjs';
 
 jest.mock('bcryptjs', () => ({
@@ -126,9 +122,9 @@ describe('AuthService', () => {
   describe('login', () => {
     it('throws UnauthorizedException when user not found', async () => {
       prisma.user.findUnique.mockResolvedValue(null);
-      await expect(
-        service.login({ email: 'none@example.com', password: 'pw' }),
-      ).rejects.toThrow(UnauthorizedException);
+      await expect(service.login({ email: 'none@example.com', password: 'pw' })).rejects.toThrow(
+        UnauthorizedException,
+      );
       expect(audit.logAuthEvent).toHaveBeenCalledWith(
         'user.failed_login',
         undefined,
@@ -141,17 +137,17 @@ describe('AuthService', () => {
     it('throws BadRequestException when account is locked', async () => {
       prisma.user.findUnique.mockResolvedValue(makeUser({ status: 'locked' }));
       (bcrypt.compare as jest.Mock).mockResolvedValue(true);
-      await expect(
-        service.login({ email: 'test@example.com', password: 'pw' }),
-      ).rejects.toThrow(BadRequestException);
+      await expect(service.login({ email: 'test@example.com', password: 'pw' })).rejects.toThrow(
+        BadRequestException,
+      );
     });
 
     it('throws BadRequestException when status is not active/pending_verification', async () => {
       prisma.user.findUnique.mockResolvedValue(makeUser({ status: 'disabled' }));
       (bcrypt.compare as jest.Mock).mockResolvedValue(true);
-      await expect(
-        service.login({ email: 'test@example.com', password: 'pw' }),
-      ).rejects.toThrow(BadRequestException);
+      await expect(service.login({ email: 'test@example.com', password: 'pw' })).rejects.toThrow(
+        BadRequestException,
+      );
     });
 
     it('throws UnauthorizedException when tenantId does not match', async () => {
@@ -259,7 +255,9 @@ describe('AuthService', () => {
     it('assigns tenant admin role and auto-creates member for fitness tenant', async () => {
       prisma.user.findUnique.mockResolvedValue(null);
       (bcrypt.hash as jest.Mock).mockResolvedValue('new-hash');
-      prisma.user.create.mockResolvedValue(makeUser({ tenantId: 'tenant-1', passwordHash: 'new-hash' }));
+      prisma.user.create.mockResolvedValue(
+        makeUser({ tenantId: 'tenant-1', passwordHash: 'new-hash' }),
+      );
       prisma.role.findFirst.mockResolvedValue({ id: 'role-admin' });
       prisma.userRoles.create.mockResolvedValue({});
       prisma.tenantDomain.findFirst.mockResolvedValue({
@@ -371,9 +369,9 @@ describe('AuthService', () => {
 
     it('throws BadRequestException when account is locked', async () => {
       prisma.user.findUnique.mockResolvedValue(makeUser({ status: 'locked' }));
-      await expect(
-        service.requestPasswordReset({ email: 'test@example.com' }),
-      ).rejects.toThrow(BadRequestException);
+      await expect(service.requestPasswordReset({ email: 'test@example.com' })).rejects.toThrow(
+        BadRequestException,
+      );
     });
 
     it('returns message and resetToken when ok', async () => {
@@ -478,9 +476,9 @@ describe('AuthService', () => {
 
     it('throws BadRequestException when email already verified', async () => {
       prisma.user.findUnique.mockResolvedValue(makeUser({ emailVerified: true }));
-      await expect(
-        service.resendVerificationEmail({ email: 'test@example.com' }),
-      ).rejects.toThrow(BadRequestException);
+      await expect(service.resendVerificationEmail({ email: 'test@example.com' })).rejects.toThrow(
+        BadRequestException,
+      );
     });
 
     it('returns message and verificationToken on success', async () => {
@@ -536,9 +534,7 @@ describe('AuthService', () => {
 
     it('returns allowed=false when locked and lockout not expired', async () => {
       const justNow = new Date();
-      prisma.user.findUnique.mockResolvedValue(
-        makeUser({ status: 'locked', updatedAt: justNow }),
-      );
+      prisma.user.findUnique.mockResolvedValue(makeUser({ status: 'locked', updatedAt: justNow }));
       const result = await service.checkLoginAttempts('test@example.com');
       expect(result.allowed).toBe(false);
       expect(prisma.user.update).not.toHaveBeenCalled();
@@ -546,9 +542,7 @@ describe('AuthService', () => {
 
     it('unlocks and returns allowed=true when lockout expired', async () => {
       const old = new Date(Date.now() - 2 * 60 * 60 * 1000);
-      prisma.user.findUnique.mockResolvedValue(
-        makeUser({ status: 'locked', updatedAt: old }),
-      );
+      prisma.user.findUnique.mockResolvedValue(makeUser({ status: 'locked', updatedAt: old }));
       prisma.user.update.mockResolvedValue(makeUser());
       const result = await service.checkLoginAttempts('test@example.com');
       expect(result.allowed).toBe(true);

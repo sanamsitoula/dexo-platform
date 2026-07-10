@@ -1,0 +1,93 @@
+/**
+ * DEXO brand tokens — generated from brand/Brand/03-color-system.md,
+ * 02-visual-guidelines.md and 04-typography.md.
+ *
+ * Three-layer token architecture (brand/Design/17-design-system.md):
+ *   primitive → semantic (--dx-*) → component.
+ * White-label rule: tenant apps override ONLY the semantic layer
+ * (e.g. --dx-primary) at runtime; everything else stays Dexo.
+ */
+
+:root {
+  /* Core palette */
+  --dx-primary: #4F46E5;        /* Dexo Indigo */
+  --dx-primary-hover: #4338CA;  /* Indigo 700 */
+  --dx-accent: #A3E635;         /* Volt Lime — highlights/glows only, never text on white */
+  --dx-ink: #09090B;
+  --dx-paper: #FAFAFA;
+
+  /* Semantic status */
+  --dx-success: #10B981;
+  --dx-warning: #F59E0B;
+  --dx-danger: #EF4444;
+  --dx-info: #0EA5E9;
+
+  /* Surfaces (light) */
+  --dx-surface-0: #FAFAFA;
+  --dx-surface-1: #FFFFFF;
+  --dx-surface-2: #F4F4F5;
+  --dx-border: #E4E4E7;
+  --dx-text: #18181B;
+  --dx-text-muted: #52525B;
+
+  /* Shape — 10px is the signature card radius */
+  --dx-radius: 10px;
+  --dx-radius-sm: 4px;
+  --dx-radius-input: 8px;
+  --dx-radius-modal: 16px;
+
+  /* Elevation */
+  --dx-shadow-sm: 0 1px 2px rgb(9 9 11 / 0.06);
+  --dx-shadow-md: 0 4px 12px rgb(9 9 11 / 0.08);
+  --dx-shadow-lg: 0 12px 32px rgb(9 9 11 / 0.12);
+  --dx-glow: 0 0 48px rgb(79 70 229 / 0.25);
+
+  /* Gradients */
+  --dx-gradient-hero: linear-gradient(135deg, #4F46E5 0%, #7C3AED 60%, #A3E635 130%);
+
+  /* Motion — fast & purposeful */
+  --dx-ease: cubic-bezier(0.2, 0, 0, 1);
+  --dx-duration-micro: 150ms;
+  --dx-duration-component: 250ms;
+  --dx-duration-page: 400ms;
+}
+
+[data-theme='dark'] {
+  --dx-surface-0: #09090B;
+  --dx-surface-1: #18181B;
+  --dx-surface-2: #27272A;
+  --dx-border: #27272A;
+  --dx-text: #FAFAFA;
+  --dx-text-muted: #A1A1AA;
+  /* On-dark semantic variants */
+  --dx-success: #34D399;
+  --dx-warning: #FBBF24;
+  --dx-danger: #F87171;
+  --dx-info: #38BDF8;
+}
+
+/* Focus rings: 2px Indigo offset 2px (Lime on dark) — WCAG 2.2 AA */
+:where(a, button, input, select, textarea, [tabindex]):focus-visible {
+  outline: 2px solid var(--dx-primary);
+  outline-offset: 2px;
+}
+[data-theme='dark'] :where(a, button, input, select, textarea, [tabindex]):focus-visible {
+  outline-color: var(--dx-accent);
+}
+
+/* Respect user motion preferences at the token level */
+@media (prefers-reduced-motion: reduce) {
+  :root {
+    --dx-duration-micro: 0ms;
+    --dx-duration-component: 0ms;
+    --dx-duration-page: 0ms;
+  }
+  *, *::before, *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
+}
+
+/* Numeric data uses tabular figures (tables, stats) */
+.dx-tabular { font-variant-numeric: tabular-nums; }

@@ -211,7 +211,7 @@ export class ReportsService {
         where: {
           tenantId,
           accountId: account.id,
-          journal: {
+          journalEntry: {
             entryDate: { gte: startDate, lte: endDate },
             isPosted: true,
             isReversed: false,
@@ -289,7 +289,7 @@ export class ReportsService {
     const customerAging = new Map<string, any>();
 
     for (const invoice of invoices) {
-      const daysOverdue = Math.floor((asAtDate.getTime() - new Date(invoice.dueDate).getTime()) / (1000 * 60 * 60 * 24));
+      const daysOverdue = Math.floor((asAtDate.getTime() - new Date(invoice.dueDate as Date).getTime()) / (1000 * 60 * 60 * 24));
       const balanceDue = Number(invoice.totalAmount) - Number(invoice.paidAmount);
 
       if (balanceDue <= 0) continue;
@@ -362,7 +362,7 @@ export class ReportsService {
     const supplierAging = new Map<string, any>();
 
     for (const bill of bills) {
-      const daysOverdue = Math.floor((asAtDate.getTime() - new Date(bill.dueDate).getTime()) / (1000 * 60 * 60 * 24));
+      const daysOverdue = Math.floor((asAtDate.getTime() - new Date(bill.dueDate as Date).getTime()) / (1000 * 60 * 60 * 24));
       const balanceDue = Number(bill.totalAmount) - Number(bill.paidAmount);
 
       if (balanceDue <= 0) continue;

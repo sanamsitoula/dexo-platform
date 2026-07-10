@@ -64,7 +64,9 @@ export default function SignupWizard() {
     setSubmitting(true);
     setError(null);
     try {
-      const res = await fetch(`${API_URL}/api/tenants`, {
+      // Public self-service signup endpoint (validates slug + provisions tenant +
+      // owner). NOTE: POST /api/tenants is PlatformAdmin-only and 401s here.
+      const res = await fetch(`${API_URL}/api/tenants/provision`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({

@@ -63,7 +63,7 @@ export class S3Service {
         key,
         url: await this.getSignedUrl(key, 3600),
       };
-    } catch (error) {
+    } catch (error: any) {
       this.logger.error('Failed to upload file:', error);
       throw new BadRequestException('Failed to upload file');
     }
@@ -78,7 +78,7 @@ export class S3Service {
 
       const url = await getSignedUrl(this.s3Client, command, { expiresIn });
       return url;
-    } catch (error) {
+    } catch (error: any) {
       this.logger.error('Failed to generate signed URL:', error);
       throw new BadRequestException('Failed to generate download URL');
     }
@@ -102,7 +102,7 @@ export class S3Service {
         contentType: response.ContentType || 'application/octet-stream',
         contentLength: response.ContentLength || 0,
       };
-    } catch (error) {
+    } catch (error: any) {
       this.logger.error('Failed to download file:', error);
       throw new NotFoundException('File not found');
     }
@@ -117,7 +117,7 @@ export class S3Service {
 
       await this.s3Client.send(command);
       this.logger.log(`File deleted successfully: ${key}`);
-    } catch (error) {
+    } catch (error: any) {
       this.logger.error('Failed to delete file:', error);
       throw new BadRequestException('Failed to delete file');
     }
@@ -132,8 +132,8 @@ export class S3Service {
 
       const response = await this.s3Client.send(command);
 
-      return response.Contents?.map(obj => obj.Key || []) || [];
-    } catch (error) {
+      return (response.Contents?.map(obj => obj.Key).filter((k): k is string => !!k)) || [];
+    } catch (error: any) {
       this.logger.error('Failed to list files:', error);
       throw new BadRequestException('Failed to list files');
     }
@@ -148,7 +148,7 @@ export class S3Service {
 
       await this.s3Client.send(command);
       return true;
-    } catch (error) {
+    } catch (error: any) {
       if (error.name === 'NoSuchKey' || error.$metadata?.httpStatusCode === 404) {
         return false;
       }
@@ -161,7 +161,7 @@ export class S3Service {
       // In production with AWS S3, ensure bucket exists via AWS SDK
       // For MinIO, buckets are auto-created
       this.logger.log(`Using bucket: ${this.bucketName}`);
-    } catch (error) {
+    } catch (error: any) {
       this.logger.error('Failed to ensure bucket exists:', error);
     }
   }
