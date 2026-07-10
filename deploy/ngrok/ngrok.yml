@@ -1,0 +1,30 @@
+# ngrok agent config for Dexo (v3 agent).
+# Usage:  ngrok start --config deploy/ngrok/ngrok.yml <tunnel-name>
+# Free plan: ONE tunnel may use the reserved static domain at a time.
+version: "3"
+
+tunnels:
+  # API — for webhooks, payment-gateway callbacks and mobile apps.
+  # Frontends then need: NEXT_PUBLIC_API_URL=https://vendetta-oppose-wise.ngrok-free.dev
+  api:
+    proto: http
+    addr: 4000
+    domain: vendetta-oppose-wise.ngrok-free.dev
+
+  # Customer app — open https://vendetta-oppose-wise.ngrok-free.dev/?tenant=<slug>
+  app:
+    proto: http
+    addr: 4007
+    domain: vendetta-oppose-wise.ngrok-free.dev
+
+  # Tenant public website — /?tenant=<slug>
+  website:
+    proto: http
+    addr: 4005
+    domain: vendetta-oppose-wise.ngrok-free.dev
+
+  # Everything behind nginx (deploy/nginx/dexo.conf)
+  all:
+    proto: http
+    addr: 80
+    domain: vendetta-oppose-wise.ngrok-free.dev

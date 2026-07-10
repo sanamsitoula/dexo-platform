@@ -19,7 +19,7 @@ const RESERVED = new Set(['www', 'app', 'api', 'admin', 'localhost', 'dexo']);
 // Tunnel hosts (ngrok, cloudflared, localtunnel) have random first labels that
 // must NOT be treated as tenant subdomains. On these hosts the tenant comes
 // from ?tenant=<slug>, the dexo_tenant cookie, or DEV_TENANT.
-const TUNNEL_SUFFIXES = ['.ngrok-free.app', '.ngrok.app', '.ngrok.io', '.ngrok.dev', '.trycloudflare.com', '.loca.lt'];
+const TUNNEL_SUFFIXES = ['.ngrok-free.app', '.ngrok-free.dev', '.ngrok.app', '.ngrok.io', '.ngrok.dev', '.trycloudflare.com', '.loca.lt'];
 const isTunnelHost = (hostname: string) => TUNNEL_SUFFIXES.some((s) => hostname.endsWith(s));
 
 function extractSlug(host: string): string | null {
