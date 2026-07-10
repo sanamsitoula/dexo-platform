@@ -1,7 +1,16 @@
 import Link from 'next/link';
 import { notFound } from 'next/navigation';
 import { marked } from 'marked';
-import { DOCS, readDoc } from '../docs-registry';
+import { DOCS, FILE_TO_SLUG, readDoc } from '../docs-registry';
+
+/** Rewrite repo-relative .md links to their published /docs/<slug> pages. */
+function rewriteDocLinks(html: string): string {
+  return html.replace(/href="([^"]+\.md)(#[^"]*)?"/g, (match, href, hash) => {
+    const filename = String(href).split('/').pop() as string;
+    const slug = FILE_TO_SLUG[filename];
+    return slug ? `href="/docs/${slug}${hash ?? ''}"` : match;
+  });
+}
 
 export function generateStaticParams() {
   return Object.keys(DOCS).map((slug) => ({ slug }));
@@ -19,7 +28,7 @@ export default function DocPage({ params }: { params: { slug: string } }) {
   const md = readDoc(params.slug);
   if (!doc || !md) notFound();
 
-  const html = marked.parse(md, { async: false }) as string;
+  const html = rewriteDocLinks(marked.parse(md, { async: false }) as string);
 
   return (
     <div className="max-w-3xl mx-auto px-6 py-12">
