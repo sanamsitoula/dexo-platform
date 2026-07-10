@@ -458,10 +458,29 @@ Worked example — a brand-new tenant `acme-fitness` whose owner signed up as
 
 ---
 
+## 🎨 Brand & design system
+
+The full DEXO brand lives in [`brand/`](./brand) (strategy, color, typography, logo, motion,
+launch kits). In code it ships as:
+
+- **Tokens** — `packages/ui/src/styles/dexo-brand.css` (`--dx-*` variables, light + dark)
+- **Tailwind preset** — `packages/ui/tailwind-preset.js` (v3 apps) / `@theme` blocks (v4 apps)
+- **Type stack** — Space Grotesk (display 24px+) · Inter (UI/body) · JetBrains Mono (code/data), via `next/font`
+- **Logo** — `DexoLogo` / `DexoMark` from `@dexo/ui`; favicon = `app/icon.svg` in every app
+
+White-labeling: platform apps are always Dexo-branded; tenant apps inherit the foundation and
+override **only** the semantic `--dx-primary` token with the tenant's color ("Powered by DEXO"
+attribution stays). Rules: [docs/BRAND-GUIDE-FOR-DEVELOPERS.md](./docs/BRAND-GUIDE-FOR-DEVELOPERS.md).
+Both guides are also published on the platform site at **http://localhost:3001/docs**.
+
+---
+
 ## 📚 Documentation
 
 | Document | Description |
 |----------|-------------|
+| [docs/BRAND-GUIDE-FOR-DEVELOPERS.md](./docs/BRAND-GUIDE-FOR-DEVELOPERS.md) | Brand rules in code — tokens, platform vs tenant boundary (also at :3001/docs) |
+| [docs/DEVELOPER-GUIDE.md](./docs/DEVELOPER-GUIDE.md) | Architecture map, auth, module anatomy, extension recipes (integrations, OTP, new apps, HR module) |
 | [DEXO_MASTER_PROMPT_v5.md](./DEXO_MASTER_PROMPT_v5.md) | Master v5 architecture document |
 | [RUN_GUIDE_v5.md](./RUN_GUIDE_v5.md) | Full setup + run guide (v5 ports) |
 | [CREDENTIALS.md](./CREDENTIALS.md) | Test credentials for every portal |

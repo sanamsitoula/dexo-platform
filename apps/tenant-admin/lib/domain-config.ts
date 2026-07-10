@@ -151,7 +151,11 @@ export function getDomainMenus(domainCode?: string): DomainMenu[] {
   return [...base.slice(0, settingsIdx), ...extra, ...base.slice(settingsIdx)]
 }
 
+// Brand default (DEXO): Indigo primary on Ink — used when a tenant has no
+// domain-specific theme. Tenants white-label by overriding the primary only.
+const DEXO_DEFAULT_THEME = { primary: '#4F46E5', secondary: '#09090B', name: 'Dexo' }
+
 export function getDomainTheme(domainCode?: string) {
-  if (!domainCode) return DOMAIN_THEMES.SME_CORPORATE
-  return DOMAIN_THEMES[domainCode] || DOMAIN_THEMES.SME_CORPORATE
+  if (!domainCode) return DEXO_DEFAULT_THEME
+  return DOMAIN_THEMES[domainCode] || DEXO_DEFAULT_THEME
 }

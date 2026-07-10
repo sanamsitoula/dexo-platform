@@ -3,6 +3,7 @@
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
 import { useAuth } from '@/contexts/AuthContext'
+import { DexoLogo } from '@dexo/ui'
 
 const navItems = [
   { name: 'Home', href: '/', icon: 'Home', platformOnly: false },
@@ -101,9 +102,12 @@ export default function AdminSidebar() {
   })
 
   return (
-    <aside className="w-64 bg-gray-900 text-white flex-shrink-0">
+    <aside className="w-64 flex-shrink-0 text-white" style={{ backgroundColor: '#09090B' }}>
       <div className="p-6">
-        <h1 className="text-2xl font-bold">Platform Dashboard</h1>
+        <Link href="/" aria-label="Dexo home">
+          <DexoLogo size={28} variant="dark" />
+        </Link>
+        <p className="text-xs mt-2" style={{ color: '#A1A1AA' }}>Platform administration</p>
       </div>
       <nav className="mt-6">
         <ul className="space-y-1 px-3">
@@ -115,8 +119,8 @@ export default function AdminSidebar() {
                   href={item.href}
                   className={`flex items-center px-4 py-3 rounded-lg transition-colors ${
                     isActive
-                      ? 'bg-blue-600 text-white'
-                      : 'text-gray-300 hover:bg-gray-800 hover:text-white'
+                      ? 'text-white bg-[#4F46E5]'
+                      : 'text-gray-300 hover:bg-white/10 hover:text-white'
                   }`}
                 >
                   <span className="h-5 w-5">{icons[item.icon]}</span>

@@ -1,5 +1,9 @@
 @import "tailwindcss";
+@import "../../../packages/ui/src/styles/dexo-brand.css";
 
+/* The public tenant website is fully tenant-branded (colors/fonts come from
+   the tenant's BusinessTypeTemplate); the Dexo tokens above only provide the
+   neutral/semantic foundation so components can be shared. */
 body {
   font-family: 'Inter', system-ui, -apple-system, sans-serif;
   -webkit-font-smoothing: antialiased;

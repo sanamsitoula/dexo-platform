@@ -1,9 +1,17 @@
+@import "../../../packages/ui/src/styles/dexo-brand.css";
+
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
 
 :root {
   --app-bg: #f6f7f9;
+}
+
+/* Big display type (page titles, stat numbers) uses Space Grotesk */
+h1, .dx-display {
+  font-family: var(--font-grotesk), 'Space Grotesk', system-ui, sans-serif;
+  text-wrap: balance;
 }
 
 html,

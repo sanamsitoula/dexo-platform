@@ -75,9 +75,14 @@ export default function TenantSidebar() {
   }
 
   return (
-    <aside className="w-64 flex-shrink-0 flex flex-col" style={{ backgroundColor: theme.secondary }}>
+    <aside
+      className="w-64 flex-shrink-0 flex flex-col"
+      // White-label semantic override: tenant theme becomes --dx-primary for
+      // any token-driven component beneath the sidebar's app shell.
+      style={{ backgroundColor: theme.secondary, ['--dx-primary' as any]: theme.primary }}
+    >
       <div className="p-6">
-        <h1 className="text-xl font-bold text-white">{tenant?.name || subdomain}</h1>
+        <h1 className="text-xl font-bold text-white" style={{ fontFamily: "var(--font-grotesk), 'Space Grotesk', system-ui, sans-serif" }}>{tenant?.name || subdomain}</h1>
         <p className="text-xs text-gray-400 mt-1">{theme.name}</p>
       </div>
       
@@ -124,6 +129,15 @@ export default function TenantSidebar() {
               <path strokeLinecap="round" strokeLinejoin="round" d="M15.75 9V5.25A2.25 2.25 0 0013.5 3h-6a2.25 2.25 0 00-2.25 2.25v13.5A2.25 2.25 0 007.5 21h6a2.25 2.25 0 002.25-2.25V15m3 0l3-3m0 0l-3-3m3 3H9" />
             </svg>
           </button>
+        </div>
+        {/* Platform attribution — Paper mark + Volt Lime accent plane on dark */}
+        <div className="flex items-center gap-1.5 mt-3 opacity-60">
+          <svg viewBox="0 0 96 96" width={14} height={14} role="img" aria-label="Dexo">
+            <path d="M16 62 48 46l32 16-32 16z" fill="#FAFAFA" />
+            <path d="M16 48 48 32l32 16-32 16z" fill="#FAFAFA" opacity={0.7} />
+            <path d="M16 34 48 18l32 16-32 16z" fill="#A3E635" />
+          </svg>
+          <span className="text-[10px] text-gray-400 font-semibold tracking-wide">Powered by DEXO</span>
         </div>
       </div>
     </aside>
