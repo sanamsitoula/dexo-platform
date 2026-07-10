@@ -1,5 +1,6 @@
-import { Controller, Get, Post, Put, Delete, Body, Param } from '@nestjs/common';
-import { ApiTags, ApiOperation } from '@nestjs/swagger';
+import { Controller, Get, Post, Put, Delete, Body, Param, UseGuards, Req } from '@nestjs/common';
+import { ApiTags, ApiOperation, ApiBearerAuth } from '@nestjs/swagger';
+import { JwtAuthGuard } from '@dexo/auth';
 import { NotificationService } from './notification.service';
 
 @ApiTags('notifications')
@@ -38,8 +39,11 @@ export class NotificationController {
   }
 
   @Post('send')
-  @ApiOperation({ summary: 'Send notification' })
-  async sendNotification(@Body() data: any) {
-    return this.notificationService.sendNotification(data);
+  @UseGuards(JwtAuthGuard)
+  @ApiBearerAuth()
+  @ApiOperation({ summary: 'Send notification / announcement broadcast' })
+  async sendNotification(@Req() req: any, @Body() data: any) {
+    // Tenant scope always comes from the JWT — never from the request body.
+    return this.notificationService.sendNotification({ ...data, tenantId: req.user.tenantId });
   }
 }

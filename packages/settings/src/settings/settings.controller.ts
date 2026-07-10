@@ -9,15 +9,23 @@ export class SettingsController {
   constructor(private readonly settingsService: SettingsService) {}
 
   @Post()
-  @ApiOperation({ summary: 'Set setting value' })
-  async set(@Body() data: { key: string; value: any; tenantId?: string; isPublic?: boolean }) {
-    return this.settingsService.set(data);
+  @UseGuards(JwtAuthGuard)
+  @ApiBearerAuth()
+  @ApiOperation({ summary: 'Set setting value (tenant scoped from JWT)' })
+  async set(@Req() req: any, @Body() data: { key: string; value: any; tenantId?: string; isPublic?: boolean }) {
+    // Tenant users always write their own settings; only platform admins may
+    // target another tenant (or platform-level with tenantId null).
+    const tenantId = req.user.isPlatformAdmin ? (data.tenantId ?? undefined) : req.user.tenantId;
+    return this.settingsService.set({ ...data, tenantId });
   }
 
   @Get()
+  @UseGuards(JwtAuthGuard)
+  @ApiBearerAuth()
   @ApiOperation({ summary: 'Get all settings' })
-  async getAll(@Query('tenantId') tenantId?: string) {
-    return this.settingsService.getAll(tenantId);
+  async getAll(@Req() req: any, @Query('tenantId') tenantId?: string) {
+    const scoped = req.user.isPlatformAdmin ? tenantId : req.user.tenantId;
+    return this.settingsService.getAll(scoped);
   }
 
   @Get('branding')
@@ -35,14 +43,20 @@ export class SettingsController {
   }
 
   @Get(':key')
+  @UseGuards(JwtAuthGuard)
+  @ApiBearerAuth()
   @ApiOperation({ summary: 'Get setting by key' })
-  async get(@Param('key') key: string, @Query('tenantId') tenantId?: string) {
-    return this.settingsService.get(key, tenantId);
+  async get(@Req() req: any, @Param('key') key: string, @Query('tenantId') tenantId?: string) {
+    const scoped = req.user.isPlatformAdmin ? tenantId : req.user.tenantId;
+    return this.settingsService.get(key, scoped);
   }
 
   @Delete(':key')
+  @UseGuards(JwtAuthGuard)
+  @ApiBearerAuth()
   @ApiOperation({ summary: 'Delete setting' })
-  async remove(@Param('key') key: string, @Query('tenantId') tenantId?: string) {
-    return this.settingsService.remove(key, tenantId);
+  async remove(@Req() req: any, @Param('key') key: string, @Query('tenantId') tenantId?: string) {
+    const scoped = req.user.isPlatformAdmin ? tenantId : req.user.tenantId;
+    return this.settingsService.remove(key, scoped);
   }
 }

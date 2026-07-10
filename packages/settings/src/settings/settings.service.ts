@@ -6,26 +6,26 @@ export class SettingsService {
   constructor(private prisma: PrismaTenantService) {}
 
   async set(data: { key: string; value: any; tenantId?: string; isPublic?: boolean }) {
-    return this.prisma.setting.upsert({
-      where: {
-        tenantId_key: {
-          tenantId: (data.tenantId || null) as any,
-          key: data.key,
-        },
-      },
-      create: data,
-      update: { value: data.value, isPublic: data.isPublic },
+    const tenantId = data.tenantId || null;
+    // Prisma compound uniques reject null members, so platform-level settings
+    // (tenantId = null) can't use upsert on tenantId_key — find + create/update.
+    const existing = await this.prisma.setting.findFirst({
+      where: { tenantId, key: data.key },
+    });
+    if (existing) {
+      return this.prisma.setting.update({
+        where: { id: existing.id },
+        data: { value: data.value, ...(data.isPublic !== undefined ? { isPublic: data.isPublic } : {}) },
+      });
+    }
+    return this.prisma.setting.create({
+      data: { tenantId, key: data.key, value: data.value, isPublic: data.isPublic ?? false },
     });
   }
 
   async get(key: string, tenantId?: string) {
-    const setting = await this.prisma.setting.findUnique({
-      where: {
-        tenantId_key: {
-          tenantId: (tenantId || null) as any,
-          key,
-        },
-      },
+    const setting = await this.prisma.setting.findFirst({
+      where: { tenantId: tenantId || null, key },
     });
     if (!setting) throw new NotFoundException('Setting not found');
     return setting.value;
@@ -47,14 +47,11 @@ export class SettingsService {
   }
 
   async remove(key: string, tenantId?: string) {
-    await this.prisma.setting.delete({
-      where: {
-        tenantId_key: {
-          tenantId: (tenantId || null) as any,
-          key,
-        },
-      },
+    const existing = await this.prisma.setting.findFirst({
+      where: { tenantId: tenantId || null, key },
     });
+    if (!existing) throw new NotFoundException('Setting not found');
+    await this.prisma.setting.delete({ where: { id: existing.id } });
     return { message: 'Setting deleted' };
   }
 
