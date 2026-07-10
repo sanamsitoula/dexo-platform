@@ -191,7 +191,7 @@ export class AttendanceDevicesService {
     });
   }
 
-  logs(tenantId: string, q: { from?: string; to?: string; deviceId?: string; memberId?: string; search?: string; take?: number }) {
+  async logs(tenantId: string, q: { from?: string; to?: string; deviceId?: string; memberId?: string; search?: string; take?: number; page?: number; pageSize?: number }) {
     const where: any = { tenantId };
     if (q.deviceId) where.deviceId = q.deviceId;
     if (q.memberId) where.memberId = q.memberId;

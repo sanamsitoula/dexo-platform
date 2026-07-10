@@ -1680,6 +1680,10 @@ model ContactMessage {
   message      String                 @db.Text
   screenshot   String?                @db.Text // Base64-encoded image
   source       String? // Where the message came from (web, app, etc.)
+  // Omni-channel inbox: WHATSAPP | TIKTOK | INSTAGRAM | FACEBOOK | EMAIL |
+  // WEBSITE | VIBER | SMS | OTHER  (string, not enum — channels grow often)
+  channel      String                 @default("WEBSITE")
+  externalId   String? // message/thread id on the source platform
   status       ContactMessageStatus   @default(NEW)
   priority     ContactMessagePriority @default(NORMAL)
   assignedTo   User?                  @relation(fields: [assignedToId], references: [id])
@@ -1696,6 +1700,7 @@ model ContactMessage {
   tenantId String?
 
   @@index([status])
+  @@index([channel])
   @@index([email])
   @@index([createdAt])
   @@index([tenantId])

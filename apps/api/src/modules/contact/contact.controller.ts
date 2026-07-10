@@ -70,6 +70,7 @@ export class ContactController {
         message: dto.message,
         screenshot: dto.screenshot,
         source: dto.source || 'web_contact_form',
+        channel: (dto as any).channel ? String((dto as any).channel).toUpperCase() : 'WEBSITE',
         status: ContactMessageStatus.NEW,
         priority: ContactMessagePriority.NORMAL,
         ipAddress: req.ip,
@@ -83,6 +84,52 @@ export class ContactController {
       message: 'Message sent successfully. We will get back to you within 24 hours.',
       id: message.id,
     };
+  }
+
+  /**
+   * Omni-channel inbound webhook. Point each platform's webhook here:
+   *   POST /api/contact/inbound/whatsapp?tenant=<subdomain>
+   *   POST /api/contact/inbound/{tiktok|instagram|facebook|email|viber|sms|website}
+   * Body is normalized loosely: { name?, email?, phone?, message, externalId?, subject? }.
+   * Platforms that don't provide an email get a synthesized channel address so
+   * the CRM inbox still threads by sender.
+   */
+  @Post('inbound/:channel')
+  @ApiOperation({ summary: 'Inbound message webhook (whatsapp/tiktok/instagram/facebook/email/website/viber/sms)' })
+  async inbound(
+    @Param('channel') channelParam: string,
+    @Body() dto: any,
+    @Req() req: any,
+    @Query('tenant') subdomain?: string,
+  ) {
+    const CHANNELS = ['WHATSAPP', 'TIKTOK', 'INSTAGRAM', 'FACEBOOK', 'EMAIL', 'WEBSITE', 'VIBER', 'SMS'];
+    const channel = String(channelParam || '').toUpperCase();
+    if (!CHANNELS.includes(channel)) throw new BadRequestException(`Unknown channel: ${channelParam}`);
+    const text = dto?.message || dto?.text || dto?.body;
+    if (!text) throw new BadRequestException('message is required');
+
+    const tenantId = await this.resolveTenantId(subdomain || dto?.subdomain, dto?.tenantId);
+    const externalId = dto?.externalId || dto?.from || dto?.sender_id || null;
+    const email = dto?.email || (externalId ? `${externalId}@${channel.toLowerCase()}.channel` : `unknown@${channel.toLowerCase()}.channel`);
+
+    const message = await this.prisma.contactMessage.create({
+      data: {
+        name: dto?.name || dto?.sender_name || externalId || `${channel} user`,
+        email: String(email).toLowerCase(),
+        phone: dto?.phone || (channel === 'WHATSAPP' || channel === 'VIBER' || channel === 'SMS' ? externalId : null),
+        subject: dto?.subject || `${channel} message`,
+        message: text,
+        source: `${channel.toLowerCase()}_webhook`,
+        channel,
+        externalId,
+        status: ContactMessageStatus.NEW,
+        priority: ContactMessagePriority.NORMAL,
+        ipAddress: req.ip,
+        userAgent: req.headers?.['user-agent']?.substring(0, 500),
+        tenantId,
+      },
+    });
+    return { success: true, id: message.id, channel };
   }
 
   @Get()
@@ -99,6 +146,7 @@ export class ContactController {
     @Query('limit') limit = '20',
     @Query('status') status?: string,
     @Query('search') search?: string,
+    @Query('channel') channel?: string,
   ) {
     const user = req.user;
     const isPlatformAdmin = user.isPlatformAdmin;
@@ -119,6 +167,7 @@ export class ContactController {
     }
 
     if (status && status !== 'all') where.status = status;
+    if (channel && channel !== 'all') where.channel = channel.toUpperCase();
     if (search) {
       where.OR = [
         { name: { contains: search, mode: 'insensitive' } },

@@ -30,6 +30,23 @@ interface Stats {
   spam: number
 }
 
+const CHANNEL_META: Record<string, { icon: string; cls: string }> = {
+  WEBSITE: { icon: '🌐', cls: 'bg-gray-100 text-gray-700' },
+  EMAIL: { icon: '✉️', cls: 'bg-blue-50 text-blue-700' },
+  WHATSAPP: { icon: '🟢', cls: 'bg-green-50 text-green-700' },
+  VIBER: { icon: '🟣', cls: 'bg-purple-50 text-purple-700' },
+  FACEBOOK: { icon: '📘', cls: 'bg-blue-50 text-blue-800' },
+  INSTAGRAM: { icon: '📸', cls: 'bg-pink-50 text-pink-700' },
+  TIKTOK: { icon: '🎵', cls: 'bg-gray-900 text-white' },
+  SMS: { icon: '💬', cls: 'bg-amber-50 text-amber-700' },
+}
+
+function ChannelBadge({ channel }: { channel?: string }) {
+  const c = (channel || 'WEBSITE').toUpperCase()
+  const meta = CHANNEL_META[c] ?? CHANNEL_META.WEBSITE
+  return <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-semibold ${meta.cls}`}>{meta.icon} {c.charAt(0) + c.slice(1).toLowerCase()}</span>
+}
+
 export default function CRMPage() {
   const router = useRouter()
   const [messages, setMessages] = useState<ContactMessage[]>([])
@@ -40,6 +57,7 @@ export default function CRMPage() {
   const [totalPages, setTotalPages] = useState(1)
   const [total, setTotal] = useState(0)
   const [statusFilter, setStatusFilter] = useState<string>('all')
+  const [channelFilter, setChannelFilter] = useState<string>('all')
   const [search, setSearch] = useState('')
   const [selectedMessage, setSelectedMessage] = useState<ContactMessage | null>(null)
   const [showScreenshot, setShowScreenshot] = useState<string | null>(null)
@@ -50,7 +68,7 @@ export default function CRMPage() {
   useEffect(() => {
     fetchMessages()
     fetchStats()
-  }, [page, statusFilter, search])
+  }, [page, statusFilter, channelFilter, search])
 
   async function fetchMessages() {
     setLoading(true)
@@ -62,6 +80,7 @@ export default function CRMPage() {
         limit: limit.toString(),
       })
       if (statusFilter !== 'all') params.append('status', statusFilter)
+      if (channelFilter !== 'all') params.append('channel', channelFilter)
       if (search) params.append('search', search)
 
       const res = await fetch(`http://localhost:4000/api/contact?${params.toString()}`, {
@@ -191,6 +210,16 @@ export default function CRMPage() {
             <option value="ARCHIVED">Archived</option>
             <option value="SPAM">Spam</option>
           </select>
+          <select
+            value={channelFilter}
+            onChange={(e) => { setChannelFilter(e.target.value); setPage(1) }}
+            className="border border-gray-300 rounded-md px-3 py-2 text-sm"
+          >
+            <option value="all">All Channels</option>
+            {['WEBSITE', 'EMAIL', 'WHATSAPP', 'VIBER', 'FACEBOOK', 'INSTAGRAM', 'TIKTOK', 'SMS'].map((c) => (
+              <option key={c} value={c}>{CHANNEL_META[c]?.icon} {c.charAt(0) + c.slice(1).toLowerCase()}</option>
+            ))}
+          </select>
         </div>
       </div>
 
@@ -211,6 +240,7 @@ export default function CRMPage() {
           <table className="min-w-full divide-y divide-gray-200">
             <thead className="bg-gray-50">
               <tr>
+                <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Channel</th>
                 <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">From</th>
                 <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Subject</th>
                 <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Message</th>
@@ -223,6 +253,7 @@ export default function CRMPage() {
             <tbody className="divide-y divide-gray-200">
               {messages.map((m) => (
                 <tr key={m.id} className={`hover:bg-gray-50 ${m.status === 'NEW' ? 'bg-blue-50/30' : ''}`}>
+                  <td className="px-4 py-3"><ChannelBadge channel={(m as any).channel} /></td>
                   <td className="px-4 py-3">
                     <div className="text-sm font-medium text-gray-900">{m.name}</div>
                     <div className="text-xs text-gray-500">{m.email}</div>
