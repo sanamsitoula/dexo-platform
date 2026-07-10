@@ -222,9 +222,6 @@ export default function HomePage() {
         </div>
       </section>
 
-      <footer className="py-8 bg-gray-900 text-gray-400 text-sm text-center">
-        © 2026 Dexo Platform · <Link href="/pricing" className="hover:text-white">Pricing</Link> · <Link href="/domains" className="hover:text-white">Industries</Link>
-      </footer>
     </div>
   );
 }

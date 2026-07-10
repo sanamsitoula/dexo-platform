@@ -485,12 +485,14 @@ export const attendanceApi = {
     test: (s: string, id: string) => fetchApi<any>(`/attendance-devices/${id}/test`, s, { method: 'POST' }),
     sessions: (s: string, deviceId?: string) => fetchApi<any>(`/attendance-devices/sessions${deviceId ? `?deviceId=${deviceId}` : ''}`, s),
   },
-  logs: (s: string, q?: { from?: string; to?: string; deviceId?: string; search?: string }) => {
+  logs: (s: string, q?: { from?: string; to?: string; deviceId?: string; search?: string; page?: number; pageSize?: number }) => {
     const p = new URLSearchParams()
     if (q?.from) p.append('from', q.from)
     if (q?.to) p.append('to', q.to)
     if (q?.deviceId) p.append('deviceId', q.deviceId)
     if (q?.search) p.append('search', q.search)
+    if (q?.page) p.append('page', String(q.page))
+    if (q?.pageSize) p.append('pageSize', String(q.pageSize))
     const qs = p.toString() ? `?${p.toString()}` : ''
     return fetchApi<any>(`/attendance-logs${qs}`, s)
   },

@@ -700,6 +700,6 @@ export const brandingApi = {
 
 // Biometric attendance (ZKTeco) — platform-wide overview
 export const attendanceAdminApi = {
-  devices: () => fetchApi<any[]>('/attendance-devices/admin/all'),
-  sessions: () => fetchApi<any[]>('/attendance-devices/admin/sessions'),
+  devices: (page = 1, pageSize = 25) => fetchApi<any>(`/attendance-devices/admin/all?page=${page}&pageSize=${pageSize}`),
+  sessions: (page = 1, pageSize = 25) => fetchApi<any>(`/attendance-devices/admin/sessions?page=${page}&pageSize=${pageSize}`),
 }

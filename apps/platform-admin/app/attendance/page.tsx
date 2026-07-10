@@ -12,21 +12,32 @@ const badge = (s?: string | null) => {
   return `inline-flex px-2 py-0.5 rounded-full text-xs font-semibold ${map[s ?? 'NEVER'] ?? 'bg-gray-100 text-gray-500'}`
 }
 
+const PAGE_SIZE = 25
+
 export default function PlatformAttendancePage() {
   const [devices, setDevices] = useState<any[]>([])
   const [sessions, setSessions] = useState<any[]>([])
+  const [devTotal, setDevTotal] = useState(0)
+  const [sesTotal, setSesTotal] = useState(0)
+  const [devPage, setDevPage] = useState(1)
+  const [sesPage, setSesPage] = useState(1)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
 
   useEffect(() => {
     ;(async () => {
-      const [d, s] = await Promise.all([attendanceAdminApi.devices(), attendanceAdminApi.sessions()])
+      const [d, s] = await Promise.all([
+        attendanceAdminApi.devices(devPage, PAGE_SIZE),
+        attendanceAdminApi.sessions(sesPage, PAGE_SIZE),
+      ])
       if (d.error || s.error) setError(d.error || s.error || null)
-      setDevices(Array.isArray(d.data) ? d.data : [])
-      setSessions(Array.isArray(s.data) ? s.data : [])
+      setDevices(d.data?.items ?? (Array.isArray(d.data) ? d.data : []))
+      setDevTotal(d.data?.total ?? 0)
+      setSessions(s.data?.items ?? (Array.isArray(s.data) ? s.data : []))
+      setSesTotal(s.data?.total ?? 0)
       setLoading(false)
     })()
-  }, [])
+  }, [devPage, sesPage])
 
   return (
     <div className="p-6">
@@ -38,7 +49,7 @@ export default function PlatformAttendancePage() {
       ) : (
         <>
           <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mt-6">
-            <Kpi label="Devices" value={devices.length} />
+            <Kpi label="Devices" value={devTotal} />
             <Kpi label="Active" value={devices.filter((d) => d.isActive).length} />
             <Kpi label="Failing" value={devices.filter((d) => d.lastStatus === 'FAILED').length} />
             <Kpi label="Total punches" value={devices.reduce((s, d) => s + (d._count?.attendances ?? 0), 0)} />
@@ -70,6 +81,8 @@ export default function PlatformAttendancePage() {
             </table>
           </div>
 
+          <Pager page={devPage} total={devTotal} pageSize={PAGE_SIZE} onPage={setDevPage} />
+
           <h2 className="font-semibold text-gray-900 dark:text-white mt-8 mb-3">Recent pull sessions</h2>
           <div className="overflow-x-auto rounded-xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800">
             <table className="w-full text-sm">
@@ -94,8 +107,24 @@ export default function PlatformAttendancePage() {
               </tbody>
             </table>
           </div>
+          <Pager page={sesPage} total={sesTotal} pageSize={PAGE_SIZE} onPage={setSesPage} />
         </>
       )}
+    </div>
+  )
+}
+
+function Pager({ page, total, pageSize, onPage }: { page: number; total: number; pageSize: number; onPage: (p: number) => void }) {
+  const pages = Math.max(1, Math.ceil(total / pageSize))
+  const from = total === 0 ? 0 : (page - 1) * pageSize + 1
+  const to = Math.min(total, page * pageSize)
+  return (
+    <div className="flex items-center justify-between mt-2 text-sm text-gray-500">
+      <span>{from}–{to} of {total}</span>
+      <span className="space-x-2">
+        <button disabled={page <= 1} onClick={() => onPage(page - 1)} className="px-3 py-1 rounded border border-gray-200 dark:border-gray-700 disabled:opacity-40">‹ Prev</button>
+        <button disabled={page >= pages} onClick={() => onPage(page + 1)} className="px-3 py-1 rounded border border-gray-200 dark:border-gray-700 disabled:opacity-40">Next ›</button>
+      </span>
     </div>
   )
 }

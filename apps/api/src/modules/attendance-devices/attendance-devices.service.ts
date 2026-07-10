@@ -211,16 +211,24 @@ export class AttendanceDevicesService {
         ] } } },
       ];
     }
-    return this.prisma.attendance.findMany({
-      where,
-      orderBy: { checkInTime: 'desc' },
-      take: Math.min(Number(q.take) || 200, 500),
-      include: {
-        member: { include: { user: { select: { firstName: true, lastName: true, email: true } } } },
-        device: { select: { id: true, name: true } },
-        branch: { select: { id: true, name: true } },
-      },
-    });
+    // Server-side pagination — page/pageSize with total count.
+    const pageSize = Math.min(Math.max(1, Number((q as any).pageSize) || Number(q.take) || 25), 100);
+    const page = Math.max(1, Number((q as any).page) || 1);
+    const [items, total] = await Promise.all([
+      this.prisma.attendance.findMany({
+        where,
+        orderBy: { checkInTime: 'desc' },
+        skip: (page - 1) * pageSize,
+        take: pageSize,
+        include: {
+          member: { include: { user: { select: { firstName: true, lastName: true, email: true } } } },
+          device: { select: { id: true, name: true } },
+          branch: { select: { id: true, name: true } },
+        },
+      }),
+      this.prisma.attendance.count({ where }),
+    ]);
+    return { items, total, page, pageSize };
   }
 
   /** A member's own attendance (customer app). */
@@ -240,25 +248,41 @@ export class AttendanceDevicesService {
 
   // ------------------------------ platform admin ------------------------------
 
-  adminOverview() {
-    return this.prisma.attendanceDevice.findMany({
-      orderBy: { createdAt: 'desc' },
-      include: {
-        tenant: { select: { id: true, name: true, subdomain: true } },
-        _count: { select: { attendances: true, pullSessions: true } },
-        pullSessions: { orderBy: { startedAt: 'desc' }, take: 1 },
-      },
-    });
+  /** Server-side pagination: returns { items, total, page, pageSize }. */
+  async adminOverview(page = 1, pageSize = 25) {
+    const take = Math.min(Math.max(1, pageSize), 100);
+    const skip = Math.max(0, (page - 1) * take);
+    const [items, total] = await Promise.all([
+      this.prisma.attendanceDevice.findMany({
+        orderBy: { createdAt: 'desc' },
+        skip,
+        take,
+        include: {
+          tenant: { select: { id: true, name: true, subdomain: true } },
+          _count: { select: { attendances: true, pullSessions: true } },
+          pullSessions: { orderBy: { startedAt: 'desc' }, take: 1 },
+        },
+      }),
+      this.prisma.attendanceDevice.count(),
+    ]);
+    return { items, total, page, pageSize: take };
   }
 
-  adminSessions() {
-    return this.prisma.attendancePullSession.findMany({
-      orderBy: { startedAt: 'desc' },
-      take: 100,
-      include: {
-        tenant: { select: { name: true, subdomain: true } },
-        device: { select: { name: true, ip: true } },
-      },
-    });
+  async adminSessions(page = 1, pageSize = 25) {
+    const take = Math.min(Math.max(1, pageSize), 100);
+    const skip = Math.max(0, (page - 1) * take);
+    const [items, total] = await Promise.all([
+      this.prisma.attendancePullSession.findMany({
+        orderBy: { startedAt: 'desc' },
+        skip,
+        take,
+        include: {
+          tenant: { select: { name: true, subdomain: true } },
+          device: { select: { name: true, ip: true } },
+        },
+      }),
+      this.prisma.attendancePullSession.count(),
+    ]);
+    return { items, total, page, pageSize: take };
   }
 }

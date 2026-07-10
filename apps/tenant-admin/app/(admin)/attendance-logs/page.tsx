@@ -14,18 +14,23 @@ export default function AttendanceLogsPage() {
   const [to, setTo] = useState('');
   const [deviceId, setDeviceId] = useState('');
   const [search, setSearch] = useState('');
+  const [page, setPage] = useState(1);
+  const [total, setTotal] = useState(0);
+  const PAGE_SIZE = 25;
 
   const load = useCallback(async () => {
     setLoading(true);
     const [l, d] = await Promise.all([
-      attendanceApi.logs(subdomain, { from: from || undefined, to: to || undefined, deviceId: deviceId || undefined, search: search || undefined }),
+      attendanceApi.logs(subdomain, { from: from || undefined, to: to || undefined, deviceId: deviceId || undefined, search: search || undefined, page, pageSize: PAGE_SIZE }),
       attendanceApi.devices.list(subdomain),
     ]);
-    setRows(Array.isArray(l.data) ? l.data : []);
+    setRows(l.data?.items ?? (Array.isArray(l.data) ? l.data : []));
+    setTotal(l.data?.total ?? 0);
     setDevices(Array.isArray(d.data) ? d.data : []);
     setLoading(false);
-  }, [subdomain, from, to, deviceId, search]);
+  }, [subdomain, from, to, deviceId, search, page]);
   useEffect(() => { load(); }, [load]);
+  useEffect(() => { setPage(1); }, [from, to, deviceId, search]);
 
   function exportCsv() {
     const header = 'Name,Device UID,Check-in,Check-out,Minutes,Method,Device,Branch';
@@ -85,6 +90,13 @@ export default function AttendanceLogsPage() {
           </table>
         </Card>
       )}
+      <div className="flex items-center justify-between mt-3 text-sm text-gray-500">
+        <span>{total === 0 ? 0 : (page - 1) * PAGE_SIZE + 1}–{Math.min(total, page * PAGE_SIZE)} of {total}</span>
+        <span className="space-x-2">
+          <button disabled={page <= 1} onClick={() => setPage(page - 1)} className="px-3 py-1 rounded border border-gray-200 disabled:opacity-40">‹ Prev</button>
+          <button disabled={page * PAGE_SIZE >= total} onClick={() => setPage(page + 1)} className="px-3 py-1 rounded border border-gray-200 disabled:opacity-40">Next ›</button>
+        </span>
+      </div>
     </div>
   );
 }

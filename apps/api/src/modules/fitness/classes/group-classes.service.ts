@@ -32,18 +32,27 @@ export class GroupClassesService {
   }
 
   async create(tenantId: string, dto: any) {
+    if (!dto?.name) throw new BadRequestException('name is required');
+    const start = new Date(dto.startTime);
+    if (isNaN(start.getTime())) throw new BadRequestException('startTime must be a valid date/time');
+    const duration = Number(dto.duration) || 60;
+    // endTime is derivable — most callers only know start + duration.
+    const end = dto.endTime ? new Date(dto.endTime) : new Date(start.getTime() + duration * 60000);
+    if (isNaN(end.getTime())) throw new BadRequestException('endTime must be a valid date/time');
+    const CLASS_TYPES = ['YOGA', 'ZUMBA', 'CROSSFIT', 'SPINNING', 'PILATES', 'AEROBICS', 'BOXING', 'HIIT', 'STRENGTH', 'CARDIO', 'FUNCTIONAL', 'OTHER'];
+    const classType = CLASS_TYPES.includes(String(dto.classType).toUpperCase()) ? String(dto.classType).toUpperCase() : 'OTHER';
     return this.prisma.groupClass.create({
       data: {
         tenantId,
         name: dto.name,
         description: dto.description,
-        classType: dto.classType ?? 'OTHER',
+        classType: classType as any,
         trainerId: dto.trainerId,
         branchId: dto.branchId,
-        dayOfWeek: dto.dayOfWeek,
-        startTime: new Date(dto.startTime),
-        endTime: new Date(dto.endTime),
-        duration: dto.duration ?? 60,
+        dayOfWeek: Number(dto.dayOfWeek) || 0,
+        startTime: start,
+        endTime: end,
+        duration,
         maxCapacity: dto.maxCapacity ?? 20,
         isFree: dto.isFree ?? true,
         priceNpr: dto.priceNpr,

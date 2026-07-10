@@ -11,14 +11,14 @@ export class AttendanceDevicesController {
   // Platform admin (cross-tenant) — must precede :id routes.
   @Get('admin/all')
   @UseGuards(PlatformAdminGuard)
-  adminOverview() {
-    return this.devices.adminOverview();
+  adminOverview(@Query('page') page?: string, @Query('pageSize') pageSize?: string) {
+    return this.devices.adminOverview(Number(page) || 1, Number(pageSize) || 25);
   }
 
   @Get('admin/sessions')
   @UseGuards(PlatformAdminGuard)
-  adminSessions() {
-    return this.devices.adminSessions();
+  adminSessions(@Query('page') page?: string, @Query('pageSize') pageSize?: string) {
+    return this.devices.adminSessions(Number(page) || 1, Number(pageSize) || 25);
   }
 
   @Get('sessions')

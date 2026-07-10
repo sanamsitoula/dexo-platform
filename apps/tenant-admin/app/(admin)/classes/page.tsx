@@ -15,7 +15,7 @@ export default function ClassesPage() {
   const [open, setOpen] = useState(false);
   const [saving, setSaving] = useState(false);
   const [err, setErr] = useState<string | null>(null);
-  const [form, setForm] = useState({ name: '', classType: 'GROUP', dayOfWeek: 1, startTime: '18:00', maxCapacity: 20, trainerId: '', description: '' });
+  const [form, setForm] = useState({ name: '', classType: 'YOGA', dayOfWeek: 1, startTime: '18:00', duration: 60, maxCapacity: 20, trainerId: '', description: '' });
 
   const load = useCallback(async () => {
     const [c, t] = await Promise.all([gymApi.classes.list(subdomain), gymApi.trainers.list(subdomain)]);
@@ -31,7 +31,7 @@ export default function ClassesPage() {
     const start = new Date(); start.setHours(h, min, 0, 0);
     const r = await gymApi.classes.create(subdomain, {
       name: form.name, classType: form.classType, dayOfWeek: Number(form.dayOfWeek),
-      startTime: start.toISOString(), maxCapacity: Number(form.maxCapacity),
+      startTime: start.toISOString(), duration: Number(form.duration) || 60, maxCapacity: Number(form.maxCapacity),
       trainerId: form.trainerId || undefined, description: form.description,
     });
     setSaving(false);
@@ -76,6 +76,14 @@ export default function ClassesPage() {
             </select>
           </Field>
           <Field label="Start time"><Input type="time" value={form.startTime} onChange={(e: any) => setForm({ ...form, startTime: e.target.value })} /></Field>
+        </div>
+        <div className="grid grid-cols-2 gap-3">
+          <Field label="Class type">
+            <select value={form.classType} onChange={(e) => setForm({ ...form, classType: e.target.value })} className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm">
+              {['YOGA', 'ZUMBA', 'CROSSFIT', 'SPINNING', 'PILATES', 'AEROBICS', 'BOXING', 'HIIT', 'STRENGTH', 'CARDIO', 'FUNCTIONAL', 'OTHER'].map((t) => <option key={t} value={t}>{t}</option>)}
+            </select>
+          </Field>
+          <Field label="Duration (min)"><Input type="number" min={15} value={form.duration} onChange={(e: any) => setForm({ ...form, duration: e.target.value })} /></Field>
         </div>
         <div className="grid grid-cols-2 gap-3">
           <Field label="Capacity"><Input type="number" value={form.maxCapacity} onChange={(e: any) => setForm({ ...form, maxCapacity: e.target.value })} /></Field>
