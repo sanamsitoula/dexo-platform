@@ -130,6 +130,7 @@ const MODULE_DEFS: { key: string; label: string }[] = [
   { key: 'payments_online', label: 'Online Payments' },
   { key: 'reports_nfrs', label: 'NFRS Reports' },
   { key: 'announcements', label: 'Announcements' },
+  { key: 'ecommerce', label: 'Ecommerce (catalog, cart, orders)' },
 ]
 
 /** Enabled when the plan has no modules config (backward compatible) or the key is truthy. */

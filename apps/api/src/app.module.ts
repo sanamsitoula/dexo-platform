@@ -28,6 +28,8 @@ import { MarketplaceModule } from './modules/marketplace/marketplace.module';
 import { PlatformBillingModule, IrdModule } from '@dexo/finance';
 import { SalonModule } from './modules/salon/salon.module';
 import { SchoolModule } from './modules/school/school.module';
+import { EcommerceModule } from './modules/ecommerce/ecommerce.module';
+import { WebhooksModule } from './modules/webhooks/webhooks.module';
 import { BlogModule } from '@dexo/blog';
 import { FitnessModule } from './modules/fitness/fitness.module';
 import { BusinessTemplateModule } from './modules/business-template/business-template.module';
@@ -83,6 +85,8 @@ import { TenantStatusMiddleware } from './common/middleware/tenant-status.middle
     FitnessModule,
     SalonModule,
     SchoolModule,
+    EcommerceModule,
+    WebhooksModule,
     TenantMailApiModule,
     AttendanceDevicesModule,
     BusinessTemplateModule,

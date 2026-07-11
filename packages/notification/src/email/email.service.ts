@@ -16,7 +16,7 @@ interface EmailTemplate {
   }>;
 }
 
-interface EmailResult {
+export interface EmailResult {
   success: boolean;
   messageId?: string;
   error?: string;

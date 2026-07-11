@@ -1135,6 +1135,62 @@ CBMS runs in **stub mode** (simulated success + console log) until platform env 
 
 ---
 
+## 🏷️ Asset Management Module (Version 1) — requested 2026-07-11, NOT started
+
+Lightweight fixed-asset register, scoped to evolve into a full Enterprise
+Fixed Asset Management solution in v2 without a schema redesign. Depends on
+Finance (NFRS), Users, Branch Management, File Manager, Audit Logs.
+
+**v1 scope:**
+- **Asset Categories**: name, code, description, active status (Computers,
+  Laptops, Printers, Furniture, Vehicles, Machinery, Office Equipment,
+  Network Devices, Gym Equipment, Medical Equipment, Other).
+- **Asset Register**: auto-generated code (configurable prefix, e.g.
+  `AST-000001` / `COMP-000145`), name, category, brand, model, serial
+  number, branch, department (optional), assigned employee (optional),
+  purchase date/cost, vendor, status (Available/Assigned/Under
+  Maintenance/Lost/Damaged/Disposed), location, warranty expiry, notes,
+  attachments (invoice/image).
+- **Assignment**: to Employee/Department/Branch/Room/Warehouse, with history.
+- **Transfer**: between branches/employees/departments/locations, every
+  transfer recorded in asset history.
+- **History timeline**: Created/Updated/Assigned/Returned/Transferred/
+  Status Changed.
+- **Documents**: purchase invoice, warranty card, images, manual, other —
+  via the existing File Manager module.
+- **Basic Finance link (optional, no depreciation in v1)**: reference an
+  existing Invoice / JournalEntry / fixed-asset GL account; just store
+  acquisition cost + the reference, no calculation.
+- **Reports**: Asset Register, Asset by Category, Asset by Branch, Assigned
+  Assets, Warranty Expiry (expired / 30 / 60 / 90-day buckets), Asset
+  Status.
+- **Dashboard**: total/available/assigned/maintenance/lost/damaged/
+  warranty-expiring-soon summary cards; charts by category/branch/status.
+- **Roles**: Asset Administrator, Asset Manager, Branch Manager, Department
+  Manager, Viewer — permissions: view/create/edit/delete/assign/transfer/
+  upload documents/view reports (use the `resource:action` grammar already
+  established elsewhere, e.g. `assets:view`, `assets:assign`).
+- **Menu**: Assets → Dashboard / Asset Register / Categories / Assignments /
+  Transfers / Reports / Settings.
+- Standard platform requirements apply: multi-tenant, multi-branch, RBAC,
+  audit logging, REST API, responsive + mobile-friendly UI, soft delete,
+  search/filter/sort/pagination, PDF/Excel export.
+
+**v2 (explicitly deferred, schema must accommodate without redesign):**
+Fixed Asset Register upgrade, Depreciation Engine, Asset Revaluation,
+Disposal, Verification/Audit, QR/Barcode scanning, Preventive Maintenance,
+Insurance Management, Net Book Value, Depreciation Schedule, Asset Aging
+Report, automatic Finance journal posting.
+
+**Design note for whoever builds this**: model the v1 `Asset` table with the
+v2 fields already present but nullable/unused (e.g. `depreciationMethod`,
+`usefulLifeMonths`, `salvageValue`, `accumulatedDepreciation`) rather than
+adding them later — mirrors how `TrainingSession`/depreciation were flagged
+as schema-blocked in `REMAINING_WORK.md` item 16b; don't repeat that gap
+here.
+
+---
+
 ## 📚 New Documentation Files
 
 - **[RUN_GUIDE.md](./RUN_GUIDE.md)** - Complete setup and run guide with credentials

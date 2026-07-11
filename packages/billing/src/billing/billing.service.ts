@@ -3,14 +3,14 @@ import { PrismaService as PrismaTenantService } from '@dexo/tenant';
 import { CreatePaymentMethodDto, ProcessPaymentDto } from './dto';
 
 // Stripe mock (replace with actual Stripe SDK in production)
-interface StripeCustomer {
+export interface StripeCustomer {
   id: string;
   email: string;
   name?: string;
   paymentMethods?: StripePaymentMethod[];
 }
 
-interface StripePaymentMethod {
+export interface StripePaymentMethod {
   id: string;
   type: string;
   last4: string;
@@ -20,7 +20,7 @@ interface StripePaymentMethod {
   isDefault: boolean;
 }
 
-interface StripeInvoice {
+export interface StripeInvoice {
   id: string;
   number: string;
   amountDue: number;

@@ -517,6 +517,11 @@ Both guides are also published on the platform site at **http://localhost:3001/d
 | [08_MVP_Roadmap.md](./08_MVP_Roadmap.md) | MVP roadmap |
 | [09_Phase_2_Expansion_Roadmap.md](./09_Phase_2_Expansion_Roadmap.md) | Phase 2 status |
 | [FINANCE_MODULE.md](./FINANCE_MODULE.md) | Finance module specification |
+| [docs/ECOMMERCE_MODULE.md](./docs/ECOMMERCE_MODULE.md) | Ecommerce vertical — catalog/inventory/cart/checkout/shipments, what's built vs roadmap |
+| [docs/RBAC_ARCHITECTURE.md](./docs/RBAC_ARCHITECTURE.md) | Access-control hierarchy (Platform Admin → Tenant Module Override → Plan → Role), gaps and plan |
+| [docs/CUSTOM_DOMAINS.md](./docs/CUSTOM_DOMAINS.md) | Custom domain DNS setup (Namecheap/Hostinger/Mercantile/own VM) + nginx automation |
+| [REMAINING_WORK.md](./REMAINING_WORK.md) | Session-by-session audit of what's done vs open across the whole platform |
+| [todo.md](./todo.md) | Longer-horizon feature backlog (incl. planned Asset Management module) |
 
 ---
 

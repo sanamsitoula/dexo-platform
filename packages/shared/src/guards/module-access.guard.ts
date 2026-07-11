@@ -13,12 +13,18 @@ import { PrismaService } from '../prisma';
 export const REQUIRED_MODULE_KEY = 'required_module';
 
 /**
- * Guard that enforces plan-based module access (`plan.features.modules`).
+ * Guard that enforces module access with a two-tier hierarchy:
  *
- * - Platform admins (or users without a tenantId) bypass the check.
- * - Tenants without an active subscription, or on a plan without a
- *   `features.modules` config, are allowed (backward compatible).
- * - Only an explicit `modules[<module>] === false` denies access.
+ *  1. TenantModuleOverride — an explicit, platform-admin-set grant/restriction
+ *     for THIS tenant. Always wins when present, in either direction (can
+ *     grant a module the plan excludes, or revoke one the plan includes).
+ *  2. Subscription plan (`plan.features.modules`) — the tenant-wide default
+ *     when no override exists for this module.
+ *
+ * - Platform admins (or users without a tenantId) bypass the check entirely.
+ * - No override + no plan config (or a plan without `features.modules`) =
+ *   allowed (backward compatible).
+ * - Only an explicit `false` (override or plan) denies access.
  *
  * Use via the `@RequireModule('crm')` decorator below, always alongside
  * JwtAuthGuard (this guard trusts `req.user` set by authentication).
@@ -46,6 +52,18 @@ export class ModuleAccessGuard implements CanActivate {
     // Platform admins (no tenant scope) bypass module gating.
     if (user.isPlatformAdmin || !user.tenantId) return true;
 
+    // Tier 1: explicit platform-admin override for this tenant+module.
+    const override = await this.prisma.tenantModuleOverride.findUnique({
+      where: { tenantId_moduleKey: { tenantId: user.tenantId, moduleKey: requiredModule } },
+    });
+    if (override) {
+      if (!override.enabled) {
+        throw new ForbiddenException(`The ${requiredModule} module has been disabled for your account`);
+      }
+      return true;
+    }
+
+    // Tier 2: subscription plan default.
     const subscription = await this.prisma.subscription.findFirst({
       where: {
         tenantId: user.tenantId,
