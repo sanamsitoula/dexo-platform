@@ -70,12 +70,17 @@ export default function BlogsPage() {
           <h1 className="text-3xl font-bold text-gray-900">Blogs</h1>
           <p className="mt-2 text-gray-600">Manage platform and tenant blogs</p>
         </div>
-        <Link
-          href="/blogs/new"
-          className="btn-primary"
-        >
-          Create Blog
-        </Link>
+        <div className="flex items-center gap-3">
+          <Link href="/blogs/categories" className="btn-secondary">
+            Categories
+          </Link>
+          <Link
+            href="/blogs/new"
+            className="btn-primary"
+          >
+            Create Blog
+          </Link>
+        </div>
       </div>
 
       <div className="bg-white rounded-lg shadow p-4">

@@ -5,17 +5,32 @@ import { PrismaService } from '@dexo/shared';
 export class BranchService {
   constructor(private prisma: PrismaService) {}
 
-  async findAll(tenantId: string, params?: { status?: string; type?: string }) {
+  async findAll(tenantId: string, params?: { status?: string; type?: string; page?: number; limit?: number }) {
     const where: any = { tenantId };
     if (params?.status) where.status = params.status;
     if (params?.type) where.type = params.type;
-    return this.prisma.branch.findMany({
+
+    const query = {
       where,
-      orderBy: [{ isHeadquarters: 'desc' }, { name: 'asc' }],
+      orderBy: [{ isHeadquarters: 'desc' as const }, { name: 'asc' as const }],
       include: {
         _count: { select: { branchUsers: true, invoices: true, customers: true } },
       },
-    });
+    };
+
+    const paginated = !!(params?.page || params?.limit);
+    if (!paginated) {
+      // Backward-compatible: no pagination params → plain array
+      return this.prisma.branch.findMany(query);
+    }
+
+    const page = params?.page && params.page > 0 ? params.page : 1;
+    const limit = params?.limit && params.limit > 0 ? params.limit : 25;
+    const [items, total] = await Promise.all([
+      this.prisma.branch.findMany({ ...query, skip: (page - 1) * limit, take: limit }),
+      this.prisma.branch.count({ where }),
+    ]);
+    return { items, total };
   }
 
   async findOne(tenantId: string, id: string) {

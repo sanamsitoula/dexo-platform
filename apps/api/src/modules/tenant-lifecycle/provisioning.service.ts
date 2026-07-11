@@ -41,6 +41,11 @@ export class ProvisioningService {
 
     await this.slugService.reserveSlug(tenant.id, input.slug);
 
+    // Seed default tenant roles (admin/staff/customer). Mirrors
+    // RoleService.seedTenantDefaultRoles in @dexo/role (kept prisma-only here
+    // to avoid a cross-package module dependency in provisioning).
+    await this.seedDefaultRoles(tenant.id);
+
     await this.prisma.tenantOnboarding.create({
       data: {
         tenantId: tenant.id,
@@ -65,5 +70,45 @@ export class ProvisioningService {
       subdomain: input.slug,
       url: `http://admin.${input.slug}.dexo.com:4006`,
     };
+  }
+
+  private async seedDefaultRoles(tenantId: string): Promise<void> {
+    const allModules = [
+      'crm', 'blog', 'billing', 'attendance', 'subscriptions',
+      'website_builder', 'roles', 'users', 'settings', 'reports',
+    ];
+    const staffModules = ['crm', 'blog', 'billing', 'attendance', 'website_builder', 'reports'];
+
+    const tenantRoles = [
+      {
+        name: 'admin',
+        description: 'Full access to all modules for this tenant',
+        permissions: allModules.map((m) => `${m}:*`),
+      },
+      {
+        name: 'staff',
+        description: 'View/create/edit on operational modules (no roles, settings or subscriptions)',
+        permissions: [
+          ...staffModules.flatMap((m) => [`${m}:view`, `${m}:create`, `${m}:edit`]),
+          'users:view',
+        ],
+      },
+      {
+        name: 'customer',
+        description: 'Minimal member access',
+        permissions: ['blog:view', 'attendance:view'],
+      },
+    ];
+
+    for (const roleData of tenantRoles) {
+      const existing = await this.prisma.role.findFirst({
+        where: { name: roleData.name, tenantId },
+      });
+      if (!existing) {
+        await this.prisma.role.create({
+          data: { ...roleData, isSystem: true, tenantId },
+        });
+      }
+    }
   }
 }

@@ -1,4 +1,4 @@
-import { Controller, Get, Post, Put, Delete, Body, Param, UseGuards, Req } from '@nestjs/common';
+import { Controller, Get, Post, Put, Delete, Body, Param, Query, UseGuards, Req } from '@nestjs/common';
 import { ApiTags, ApiOperation, ApiBearerAuth } from '@nestjs/swagger';
 import { JwtAuthGuard } from '@dexo/auth';
 import { NotificationService } from './notification.service';
@@ -16,8 +16,11 @@ export class NotificationController {
 
   @Get('templates')
   @ApiOperation({ summary: 'Get all notification templates' })
-  async findAllTemplates() {
-    return this.notificationService.findAllTemplates();
+  async findAllTemplates(@Query('page') page?: string, @Query('limit') limit?: string) {
+    return this.notificationService.findAllTemplates(undefined, {
+      page: page ? parseInt(page, 10) : undefined,
+      limit: limit ? parseInt(limit, 10) : undefined,
+    });
   }
 
   @Get('templates/:id')

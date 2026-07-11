@@ -10,8 +10,19 @@ export class BranchController {
   // ===================== BRANCH CRUD =====================
 
   @Get()
-  findAll(@Req() req: any, @Query('status') status?: string, @Query('type') type?: string) {
-    return this.branchService.findAll(req.user.tenantId, { status, type });
+  findAll(
+    @Req() req: any,
+    @Query('status') status?: string,
+    @Query('type') type?: string,
+    @Query('page') page?: string,
+    @Query('limit') limit?: string,
+  ) {
+    return this.branchService.findAll(req.user.tenantId, {
+      status,
+      type,
+      page: page ? parseInt(page, 10) : undefined,
+      limit: limit ? parseInt(limit, 10) : undefined,
+    });
   }
 
   @Get(':id')

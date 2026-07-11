@@ -26,21 +26,9 @@ export class RoleService {
       throw new ConflictException('Role with this name already exists');
     }
 
-    // Validate permissions if provided
-    let validatedPermissions = permissions || [];
-    if (permissions && permissions.length > 0) {
-      // Check if permissions exist
-      const permissionRecords = await this.prisma.permission.findMany({
-        where: {
-          OR: [
-            { id: { in: permissions } },
-            { resource: { in: permissions.map(p => p.split(':')[0]) } },
-          ],
-        },
-      });
-
-      validatedPermissions = permissionRecords.map(p => p.id);
-    }
+    // Store permission strings ('resource:action' / 'resource:*' / '*') as-is,
+    // normalized and de-duplicated. Wildcard globs are resolved at check time.
+    const validatedPermissions = this.normalizePermissions(permissions || []);
 
     const role = await this.prisma.role.create({
       data: {
@@ -54,7 +42,7 @@ export class RoleService {
     return role;
   }
 
-  async findAll(tenantId?: string) {
+  async findAll(tenantId?: string, page?: number, limit?: number) {
     const where: any = {};
     if (tenantId) {
       where.OR = [
@@ -65,7 +53,7 @@ export class RoleService {
       where.tenantId = null;
     }
 
-    const roles = await this.prisma.role.findMany({
+    const query: any = {
       where,
       include: {
         _count: {
@@ -75,11 +63,33 @@ export class RoleService {
         },
       },
       orderBy: {
-        isSystem: 'desc',
+        isSystem: 'desc' as const,
       },
-    });
+    };
 
-    return roles;
+    // Backward compat: without a page param, return a plain array as before.
+    if (!page) {
+      return this.prisma.role.findMany(query);
+    }
+
+    const take = Math.min(Math.max(limit || 20, 1), 100);
+    const skip = (Math.max(page, 1) - 1) * take;
+    const [items, total] = await Promise.all([
+      this.prisma.role.findMany({ ...query, skip, take }),
+      this.prisma.role.count({ where }),
+    ]);
+
+    return { items, total, page: Math.max(page, 1), limit: take };
+  }
+
+  private normalizePermissions(permissions: string[]): string[] {
+    return Array.from(
+      new Set(
+        permissions
+          .map(p => String(p).trim())
+          .filter(p => p === '*' || /^[\w*-]+:[\w*-]+$/.test(p)),
+      ),
+    );
   }
 
   async findOne(id: string) {
@@ -202,22 +212,10 @@ export class RoleService {
       }
     }
 
-    // Validate permissions if provided
+    // Store permission strings as-is (normalized/deduped); wildcards allowed.
     let validatedPermissions = existing.permissions;
     if (permissions !== undefined) {
-      if (permissions.length > 0) {
-        const permissionRecords = await this.prisma.permission.findMany({
-          where: {
-            OR: [
-              { id: { in: permissions } },
-              { resource: { in: permissions.map(p => p.split(':')[0]) } },
-            ],
-          },
-        });
-        validatedPermissions = permissionRecords.map(p => p.id);
-      } else {
-        validatedPermissions = [];
-      }
+      validatedPermissions = this.normalizePermissions(permissions);
     }
 
     const role = await this.prisma.role.update({
@@ -408,6 +406,73 @@ export class RoleService {
 
     return {
       message: 'System roles seeded successfully',
+      created,
+    };
+  }
+
+  /**
+   * Seed the default tenant-scoped system roles (admin / staff / customer).
+   * Idempotent: existing roles (by name + tenantId) are left untouched.
+   */
+  async seedTenantDefaultRoles(tenantId: string) {
+    const allModules = [
+      'crm',
+      'blog',
+      'billing',
+      'attendance',
+      'subscriptions',
+      'website_builder',
+      'roles',
+      'users',
+      'settings',
+      'reports',
+    ];
+    const staffModules = ['crm', 'blog', 'billing', 'attendance', 'website_builder', 'reports'];
+
+    const tenantRoles = [
+      {
+        name: 'admin',
+        description: 'Full access to all modules for this tenant',
+        isSystem: true,
+        permissions: allModules.map(m => `${m}:*`),
+      },
+      {
+        name: 'staff',
+        description: 'View/create/edit on operational modules (no roles, settings or subscriptions)',
+        isSystem: true,
+        permissions: [
+          ...staffModules.flatMap(m => [`${m}:view`, `${m}:create`, `${m}:edit`]),
+          'users:view',
+        ],
+      },
+      {
+        name: 'customer',
+        description: 'Minimal member access',
+        isSystem: true,
+        permissions: ['blog:view', 'attendance:view'],
+      },
+    ];
+
+    const created = [];
+    for (const roleData of tenantRoles) {
+      const existing = await this.prisma.role.findFirst({
+        where: {
+          name: roleData.name,
+          tenantId,
+        },
+      });
+
+      if (!existing) {
+        const role = await this.prisma.role.create({
+          data: { ...roleData, tenantId },
+        });
+        created.push(role);
+      }
+    }
+
+    return {
+      message: 'Tenant default roles seeded successfully',
+      tenantId,
       created,
     };
   }

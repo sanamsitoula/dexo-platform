@@ -2,6 +2,9 @@
 
 import { useEffect, useState } from 'react'
 import { usersApi } from '@/lib/api'
+import Pager from '@/components/Pager'
+
+const PAGE_SIZE = 25
 
 interface User {
   id: string
@@ -14,20 +17,23 @@ interface User {
 
 export default function UsersPage() {
   const [users, setUsers] = useState<User[]>([])
+  const [total, setTotal] = useState(0)
+  const [page, setPage] = useState(1)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
 
   useEffect(() => {
     fetchUsers()
-  }, [])
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [page])
 
   async function fetchUsers() {
     setLoading(true)
-    const response = await usersApi.list()
+    const response = await usersApi.list({ page, limit: PAGE_SIZE })
     if (response.data) {
-      // API returns a plain array of users
-      const usersList = Array.isArray(response.data) ? response.data : (response.data.users || [])
+      const usersList = response.data.items ?? (Array.isArray(response.data) ? response.data : response.data.users || [])
       setUsers(usersList)
+      setTotal(response.data.total ?? usersList.length)
     } else if (response.error) {
       setError(response.error)
     }
@@ -182,6 +188,8 @@ export default function UsersPage() {
           </tbody>
         </table>
       </div>
+
+      <Pager page={page} total={total} pageSize={PAGE_SIZE} onPage={setPage} />
     </div>
   )
 }

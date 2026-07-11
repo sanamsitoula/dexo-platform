@@ -39,6 +39,7 @@ const NAV_SECTIONS: { heading: string; items: { href: string; label: string }[] 
     heading: 'Settings',
     items: [
       { href: '/users', label: 'Users' },
+      { href: '/roles', label: 'Roles' },
       { href: '/settings', label: 'Gym Settings' },
       { href: '/website', label: 'Website Builder' },
       { href: '/domain', label: 'Domain' },

@@ -3,12 +3,14 @@
 import { useState, useEffect } from 'react'
 import { useRouter, useParams } from 'next/navigation'
 import { blogApi, blogCategoryApi, blogCommentApi } from '@/lib/api'
+import RichTextEditor from '@/components/RichTextEditor'
+import { TemplatePicker, TagsInput, SeoPanel } from '@/components/BlogFormParts'
 
 export default function EditBlogPage() {
   const router = useRouter()
   const params = useParams()
   const id = params?.id as string
-  
+
   const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)
   const [categories, setCategories] = useState<any[]>([])
@@ -18,9 +20,14 @@ export default function EditBlogPage() {
   const [excerpt, setExcerpt] = useState('')
   const [featuredImage, setFeaturedImage] = useState('')
   const [categoryId, setCategoryId] = useState('')
+  const [template, setTemplate] = useState('standard')
+  const [tags, setTags] = useState<string[]>([])
   const [metaTitle, setMetaTitle] = useState('')
   const [metaDescription, setMetaDescription] = useState('')
   const [status, setStatus] = useState('draft')
+  const [slug, setSlug] = useState('')
+  const [suggesting, setSuggesting] = useState(false)
+  const [stats, setStats] = useState<{ viewCount: number; likeCount: number; commentCount: number } | null>(null)
   const [error, setError] = useState('')
   const [success, setSuccess] = useState('')
   const [activeTab, setActiveTab] = useState<'content' | 'seo' | 'comments'>('content')
@@ -28,11 +35,12 @@ export default function EditBlogPage() {
   useEffect(() => {
     fetchBlog()
     fetchCategories()
+    fetchStats()
   }, [id])
 
   async function fetchBlog() {
     setLoading(true)
-    const response = await blogApi.getBySlug(id)
+    const response = await blogApi.getById(id)
     if (response.data) {
       const blog = response.data
       setTitle(blog.title || '')
@@ -40,10 +48,13 @@ export default function EditBlogPage() {
       setExcerpt(blog.excerpt || '')
       setFeaturedImage(blog.featuredImage || '')
       setCategoryId(blog.categoryId || '')
+      setTemplate(blog.template || 'standard')
+      setTags(Array.isArray(blog.tags) ? blog.tags.map((t: any) => t.name) : [])
       setMetaTitle(blog.metaTitle || '')
       setMetaDescription(blog.metaDescription || '')
       setStatus(blog.status || 'draft')
-      
+      setSlug(blog.slug || '')
+
       if (blog.comments) {
         setComments(blog.comments)
       } else {
@@ -53,6 +64,11 @@ export default function EditBlogPage() {
       setError(response.error)
     }
     setLoading(false)
+  }
+
+  async function fetchStats() {
+    const response = await blogApi.stats(id)
+    if (response.data) setStats(response.data)
   }
 
   async function fetchComments() {
@@ -69,6 +85,14 @@ export default function EditBlogPage() {
     }
   }
 
+  async function handleSuggestSlug() {
+    if (!title) return
+    setSuggesting(true)
+    const response = await blogApi.suggestSlug(title)
+    if (response.data?.slug) setSlug(response.data.slug)
+    setSuggesting(false)
+  }
+
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault()
     setSaving(true)
@@ -81,6 +105,8 @@ export default function EditBlogPage() {
       excerpt: excerpt || undefined,
       featuredImage: featuredImage || undefined,
       categoryId: categoryId || undefined,
+      template,
+      tagNames: tags,
       metaTitle: metaTitle || undefined,
       metaDescription: metaDescription || undefined,
       status,
@@ -137,7 +163,14 @@ export default function EditBlogPage() {
           <h1 className="text-3xl font-bold text-gray-900">Edit Blog</h1>
           <p className="mt-2 text-gray-600">Update blog post</p>
         </div>
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-3">
+          {stats && (
+            <div className="flex items-center gap-3 text-sm text-gray-500">
+              <span title="Views">👁 {stats.viewCount}</span>
+              <span title="Likes">♥ {stats.likeCount}</span>
+              <span title="Comments">💬 {stats.commentCount}</span>
+            </div>
+          )}
           <span className={`px-3 py-1 text-sm font-medium rounded-full ${
             status === 'published' ? 'bg-green-100 text-green-800' :
             status === 'draft' ? 'bg-gray-100 text-gray-800' :
@@ -162,36 +195,19 @@ export default function EditBlogPage() {
 
       <div className="border-b border-gray-200">
         <nav className="flex gap-6">
-          <button
-            onClick={() => setActiveTab('content')}
-            className={`py-2 px-1 border-b-2 text-sm font-medium ${
-              activeTab === 'content'
-                ? 'border-blue-500 text-blue-600'
-                : 'border-transparent text-gray-500 hover:text-gray-700'
-            }`}
-          >
-            Content
-          </button>
-          <button
-            onClick={() => setActiveTab('seo')}
-            className={`py-2 px-1 border-b-2 text-sm font-medium ${
-              activeTab === 'seo'
-                ? 'border-blue-500 text-blue-600'
-                : 'border-transparent text-gray-500 hover:text-gray-700'
-            }`}
-          >
-            SEO
-          </button>
-          <button
-            onClick={() => setActiveTab('comments')}
-            className={`py-2 px-1 border-b-2 text-sm font-medium ${
-              activeTab === 'comments'
-                ? 'border-blue-500 text-blue-600'
-                : 'border-transparent text-gray-500 hover:text-gray-700'
-            }`}
-          >
-            Comments ({comments.length})
-          </button>
+          {(['content', 'seo', 'comments'] as const).map((tab) => (
+            <button
+              key={tab}
+              onClick={() => setActiveTab(tab)}
+              className={`py-2 px-1 border-b-2 text-sm font-medium capitalize ${
+                activeTab === tab
+                  ? 'border-blue-500 text-blue-600'
+                  : 'border-transparent text-gray-500 hover:text-gray-700'
+              }`}
+            >
+              {tab === 'comments' ? `Comments (${comments.length})` : tab === 'seo' ? 'SEO' : 'Content'}
+            </button>
+          ))}
         </nav>
       </div>
 
@@ -221,14 +237,10 @@ export default function EditBlogPage() {
 
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">Content *</label>
-              <textarea
-                value={content}
-                onChange={(e) => setContent(e.target.value)}
-                required
-                rows={15}
-                className="input-primary font-mono text-sm"
-              />
+              <RichTextEditor value={content} onChange={setContent} />
             </div>
+
+            <TemplatePicker value={template} onChange={setTemplate} />
 
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">Featured Image URL</label>
@@ -242,6 +254,8 @@ export default function EditBlogPage() {
                 <img src={featuredImage} alt="Preview" className="mt-2 h-32 object-cover rounded" />
               )}
             </div>
+
+            <TagsInput tags={tags} onChange={setTags} />
 
             <div className="grid grid-cols-2 gap-4">
               <div>
@@ -304,33 +318,17 @@ export default function EditBlogPage() {
 
       {activeTab === 'seo' && (
         <div className="bg-white rounded-lg shadow p-6 space-y-4">
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">Meta Title</label>
-            <input
-              type="text"
-              value={metaTitle}
-              onChange={(e) => setMetaTitle(e.target.value)}
-              className="input-primary"
-            />
-          </div>
-
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">Meta Description</label>
-            <textarea
-              value={metaDescription}
-              onChange={(e) => setMetaDescription(e.target.value)}
-              rows={3}
-              className="input-primary"
-            />
-          </div>
-
-          <div className="bg-gray-50 p-4 rounded-lg">
-            <p className="text-sm text-gray-600 mb-2">Preview:</p>
-            <p className="text-blue-600 text-lg">{metaTitle || title}</p>
-            <p className="text-green-700 text-sm">dexo.com/blogs/{title?.toLowerCase().replace(/[^a-z0-9]+/g, '-') || '...'}</p>
-            <p className="text-gray-600 text-sm">{metaDescription || excerpt || 'No description'}</p>
-          </div>
-
+          <SeoPanel
+            title={title}
+            metaTitle={metaTitle}
+            setMetaTitle={setMetaTitle}
+            metaDescription={metaDescription}
+            setMetaDescription={setMetaDescription}
+            excerpt={excerpt}
+            slug={slug}
+            onSuggestSlug={handleSuggestSlug}
+            suggesting={suggesting}
+          />
           <button
             onClick={handleSubmit as any}
             disabled={saving}

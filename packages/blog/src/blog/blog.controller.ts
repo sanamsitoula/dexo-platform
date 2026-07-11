@@ -57,10 +57,33 @@ export class BlogController {
     return this.blogService.findMyBlogs(req.user.id, query);
   }
 
+  @Get('admin/:id')
+  @UseGuards(JwtAuthGuard)
+  @ApiBearerAuth()
+  @ApiOperation({ summary: 'Get blog by ID (admin)' })
+  async findOne(@Param('id') id: string) {
+    return this.blogService.findOne(id);
+  }
+
+  @Get(':id/stats')
+  @ApiOperation({ summary: 'Get blog stats (views, likes, comments)' })
+  async getStats(@Param('id') id: string) {
+    return this.blogService.getStats(id);
+  }
+
   @Get(':slug')
   @ApiOperation({ summary: 'Get blog by slug (public)' })
   async findBySlug(@Param('slug') slug: string) {
     return this.blogService.findBySlug(slug);
+  }
+
+  @Post('slug-suggest')
+  @UseGuards(JwtAuthGuard)
+  @ApiBearerAuth()
+  @HttpCode(HttpStatus.OK)
+  @ApiOperation({ summary: 'Suggest an SEO-friendly slug from a title' })
+  async suggestSlug(@Body('title') title: string) {
+    return this.blogService.suggestSlug(title || '');
   }
 
   @Post()

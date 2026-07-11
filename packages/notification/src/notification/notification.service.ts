@@ -28,17 +28,35 @@ export class NotificationService {
     });
   }
 
-  async findAllTemplates(tenantId?: string) {
+  async findAllTemplates(tenantId?: string, pagination?: { page?: number; limit?: number }) {
     const where: any = {};
     if (tenantId) {
       where.OR = [{ tenantId }, { tenantId: null }];
     } else {
       where.tenantId = null;
     }
-    return this.prisma.notificationTemplate.findMany({
-      where,
-      orderBy: { name: 'asc' },
-    });
+
+    const paginated = !!(pagination?.page || pagination?.limit);
+    if (!paginated) {
+      // Backward-compatible: no pagination params → plain array
+      return this.prisma.notificationTemplate.findMany({
+        where,
+        orderBy: { name: 'asc' },
+      });
+    }
+
+    const page = pagination?.page && pagination.page > 0 ? pagination.page : 1;
+    const limit = pagination?.limit && pagination.limit > 0 ? pagination.limit : 25;
+    const [items, total] = await Promise.all([
+      this.prisma.notificationTemplate.findMany({
+        where,
+        orderBy: { name: 'asc' },
+        skip: (page - 1) * limit,
+        take: limit,
+      }),
+      this.prisma.notificationTemplate.count({ where }),
+    ]);
+    return { items, total };
   }
 
   async findTemplate(id: string) {

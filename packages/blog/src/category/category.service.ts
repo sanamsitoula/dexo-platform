@@ -17,6 +17,7 @@ export class CategoryService {
         description: createCategoryDto.description,
         color: createCategoryDto.color,
         icon: createCategoryDto.icon,
+        thumbnail: createCategoryDto.thumbnail,
         parentId: createCategoryDto.parentId,
         tenantId: finalTenantId,
       },
@@ -112,6 +113,7 @@ export class CategoryService {
     if (updateCategoryDto.description !== undefined) data.description = updateCategoryDto.description;
     if (updateCategoryDto.color !== undefined) data.color = updateCategoryDto.color;
     if (updateCategoryDto.icon !== undefined) data.icon = updateCategoryDto.icon;
+    if (updateCategoryDto.thumbnail !== undefined) data.thumbnail = updateCategoryDto.thumbnail;
     if (updateCategoryDto.parentId !== undefined) data.parentId = updateCategoryDto.parentId;
 
     return this.prisma.blogCategory.update({

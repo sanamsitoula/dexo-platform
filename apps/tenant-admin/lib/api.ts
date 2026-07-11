@@ -81,12 +81,49 @@ export const tenantDashboardApi = {
 }
 
 export const tenantCrmApi = {
-  list: (subdomain: string, params?: { page?: number; limit?: number }) => {
+  list: (subdomain: string, params?: { page?: number; limit?: number; channel?: string; status?: string; search?: string }) => {
     const searchParams = new URLSearchParams()
     if (params?.page) searchParams.append('page', params.page.toString())
     if (params?.limit) searchParams.append('limit', params.limit.toString())
+    if (params?.channel && params.channel !== 'all') searchParams.append('channel', params.channel)
+    if (params?.status && params.status !== 'all') searchParams.append('status', params.status)
+    if (params?.search) searchParams.append('search', params.search)
     return fetchApi<any>(`/contact?${searchParams.toString()}`, subdomain)
   },
+
+  // Channel setup (omni-channel inbox config, tenant-scoped)
+  listChannels: (subdomain: string) =>
+    fetchApi<any[]>('/contact/channels', subdomain),
+  upsertChannel: (subdomain: string, channel: string, data: { enabled?: boolean; displayName?: string | null; credentials?: Record<string, any> | null }) =>
+    fetchApi<any>(`/contact/channels/${channel.toLowerCase()}`, subdomain, { method: 'PUT', body: JSON.stringify(data) }),
+  rotateChannelSecret: (subdomain: string, channel: string) =>
+    fetchApi<any>(`/contact/channels/${channel.toLowerCase()}/rotate-secret`, subdomain, { method: 'POST' }),
+}
+
+// Roles & permissions (tenant-scoped via JWT on the API side)
+export const tenantRolesApi = {
+  list: (subdomain: string, params?: { page?: number; limit?: number }) => {
+    const searchParams = new URLSearchParams()
+    if (params?.page) searchParams.append('page', String(params.page))
+    if (params?.limit) searchParams.append('limit', String(params.limit))
+    const qs = searchParams.toString()
+    return fetchApi<any>(`/roles${qs ? `?${qs}` : ''}`, subdomain)
+  },
+  getById: (subdomain: string, id: string) =>
+    fetchApi<any>(`/roles/${id}`, subdomain),
+  create: (subdomain: string, data: { name: string; description?: string; permissions?: string[] }) =>
+    fetchApi<any>('/roles', subdomain, { method: 'POST', body: JSON.stringify(data) }),
+  update: (subdomain: string, id: string, data: { name?: string; description?: string; permissions?: string[] }) =>
+    fetchApi<any>(`/roles/${id}`, subdomain, { method: 'PUT', body: JSON.stringify(data) }),
+  delete: (subdomain: string, id: string) =>
+    fetchApi<any>(`/roles/${id}`, subdomain, { method: 'DELETE' }),
+  seedDefaults: (subdomain: string, tenantId: string) =>
+    fetchApi<any>(`/roles/seed-tenant/${tenantId}`, subdomain, { method: 'POST' }),
+}
+
+export const tenantPermissionsApi = {
+  list: (subdomain: string) =>
+    fetchApi<any[]>('/permissions', subdomain),
 }
 
 export const tenantFinanceApi = {
@@ -521,4 +558,36 @@ export const schoolApi = {
     fetchApi<any[]>('/school/teachers', subdomain),
   listClasses: (subdomain: string) =>
     fetchApi<any[]>('/school/classes', subdomain),
+}
+
+// Blog API (tenant-scoped)
+export const blogApi = {
+  list: (s: string, params?: { status?: string; categoryId?: string; search?: string; page?: number; limit?: number }) => {
+    const p = new URLSearchParams()
+    if (params?.status) p.append('status', params.status)
+    if (params?.categoryId) p.append('categoryId', params.categoryId)
+    if (params?.search) p.append('search', params.search)
+    if (params?.page) p.append('page', String(params.page))
+    if (params?.limit) p.append('limit', String(params.limit))
+    return fetchApi<{ data: any[]; meta: { total: number; page: number; limit: number; totalPages: number } }>(`/blogs/admin?${p.toString()}`, s)
+  },
+  getById: (s: string, id: string) => fetchApi<any>(`/blogs/admin/${id}`, s),
+  create: (s: string, data: any) => fetchApi<any>('/blogs', s, { method: 'POST', body: JSON.stringify(data) }),
+  update: (s: string, id: string, data: any) => fetchApi<any>(`/blogs/${id}`, s, { method: 'PUT', body: JSON.stringify(data) }),
+  remove: (s: string, id: string) => fetchApi<{ message: string }>(`/blogs/${id}`, s, { method: 'DELETE' }),
+  publish: (s: string, id: string) => fetchApi<any>(`/blogs/${id}/publish`, s, { method: 'POST' }),
+  suggestSlug: (s: string, title: string) =>
+    fetchApi<{ slug: string; alternatives: string[] }>('/blogs/slug-suggest', s, { method: 'POST', body: JSON.stringify({ title }) }),
+  stats: (s: string, id: string) =>
+    fetchApi<{ viewCount: number; likeCount: number; commentCount: number }>(`/blogs/${id}/stats`, s),
+}
+
+// Blog Categories API (tenant-scoped)
+export const blogCategoryApi = {
+  list: (s: string) => fetchApi<any[]>('/blog-categories', s),
+  create: (s: string, data: { name: string; description?: string; color?: string; thumbnail?: string }) =>
+    fetchApi<any>('/blog-categories', s, { method: 'POST', body: JSON.stringify(data) }),
+  update: (s: string, id: string, data: { name?: string; description?: string; color?: string; thumbnail?: string }) =>
+    fetchApi<any>(`/blog-categories/${id}`, s, { method: 'PUT', body: JSON.stringify(data) }),
+  remove: (s: string, id: string) => fetchApi<{ message: string }>(`/blog-categories/${id}`, s, { method: 'DELETE' }),
 }

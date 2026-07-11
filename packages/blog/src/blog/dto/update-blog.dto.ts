@@ -1,4 +1,4 @@
-import { IsString, IsOptional, IsEnum, IsArray } from 'class-validator';
+import { IsString, IsOptional, IsEnum, IsArray, IsIn } from 'class-validator';
 import { ApiPropertyOptional } from '@nestjs/swagger';
 import { BlogStatusDto } from './create-blog.dto';
 
@@ -38,6 +38,17 @@ export class UpdateBlogDto {
   @IsArray()
   @IsString({ each: true })
   tagIds?: string[];
+
+  @ApiPropertyOptional({ description: 'Tag names (created on the fly if missing)', type: [String] })
+  @IsOptional()
+  @IsArray()
+  @IsString({ each: true })
+  tagNames?: string[];
+
+  @ApiPropertyOptional({ description: 'Render template', enum: ['standard', 'feature', 'minimal'] })
+  @IsOptional()
+  @IsIn(['standard', 'feature', 'minimal'])
+  template?: string;
 
   @ApiPropertyOptional({ description: 'SEO meta title' })
   @IsOptional()

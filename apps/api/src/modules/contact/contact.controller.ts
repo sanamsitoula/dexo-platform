@@ -11,11 +11,13 @@ import {
   BadRequestException,
   NotFoundException,
   ForbiddenException,
+  UnauthorizedException,
 } from '@nestjs/common';
 import { ApiTags, ApiOperation, ApiBearerAuth, ApiQuery } from '@nestjs/swagger';
 import { PrismaService, AuditService } from '@dexo/shared';
 import { JwtAuthGuard } from '@dexo/auth';
 import { ContactMessageStatus, ContactMessagePriority } from '@prisma/client';
+import { ChannelConfigService } from './channel-config.service';
 
 interface CreateContactDto {
   name: string;
@@ -33,7 +35,11 @@ interface CreateContactDto {
 @ApiTags('contact')
 @Controller('contact')
 export class ContactController {
-  constructor(private prisma: PrismaService, private audit: AuditService) {}
+  constructor(
+    private prisma: PrismaService,
+    private audit: AuditService,
+    private channelConfig: ChannelConfigService,
+  ) {}
 
   private async resolveTenantId(subdomain?: string, tenantId?: string): Promise<string | null> {
     if (tenantId) return tenantId;
@@ -101,14 +107,27 @@ export class ContactController {
     @Body() dto: any,
     @Req() req: any,
     @Query('tenant') subdomain?: string,
+    @Query('secret') secret?: string,
   ) {
-    const CHANNELS = ['WHATSAPP', 'TIKTOK', 'INSTAGRAM', 'FACEBOOK', 'EMAIL', 'WEBSITE', 'VIBER', 'SMS'];
-    const channel = String(channelParam || '').toUpperCase();
-    if (!CHANNELS.includes(channel)) throw new BadRequestException(`Unknown channel: ${channelParam}`);
+    const channel = this.channelConfig.normalizeChannel(channelParam);
     const text = dto?.message || dto?.text || dto?.body;
     if (!text) throw new BadRequestException('message is required');
 
     const tenantId = await this.resolveTenantId(subdomain || dto?.subdomain, dto?.tenantId);
+
+    // If this channel has a persisted config, enforce it. No config = open (backward compatible).
+    const config = await this.channelConfig.findConfig(tenantId, channel);
+    if (config) {
+      if (!config.enabled) {
+        throw new ForbiddenException(`Channel ${channel} is disabled`);
+      }
+      if (config.webhookSecret) {
+        const provided = secret || req.headers?.['x-webhook-secret'];
+        if (!provided || provided !== config.webhookSecret) {
+          throw new UnauthorizedException('Invalid or missing webhook secret');
+        }
+      }
+    }
     const externalId = dto?.externalId || dto?.from || dto?.sender_id || null;
     const email = dto?.email || (externalId ? `${externalId}@${channel.toLowerCase()}.channel` : `unknown@${channel.toLowerCase()}.channel`);
 

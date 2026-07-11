@@ -2,8 +2,10 @@
 
 import { useEffect, useState } from 'react';
 import Link from 'next/link';
+import { tenantsApi } from '@/lib/api';
+import Pager from '@/components/Pager';
 
-const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000';
+const PAGE_SIZE = 25;
 
 interface Tenant {
   id: string;
@@ -14,20 +16,23 @@ interface Tenant {
 
 export default function TenantsPage() {
   const [tenants, setTenants] = useState<Tenant[]>([]);
+  const [total, setTotal] = useState(0);
+  const [page, setPage] = useState(1);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    fetch(`${API_URL}/api/tenants`, {
-      headers: { Authorization: `Bearer ${localStorage.getItem('accessToken') || ''}` },
-    })
-      .then((r) => r.json())
-      .then((d) => {
-        const list = Array.isArray(d) ? d : d.data || d.items || [];
+    setLoading(true);
+    tenantsApi
+      .list({ page, limit: PAGE_SIZE })
+      .then((res) => {
+        const d: any = res.data;
+        const list = Array.isArray(d) ? d : d?.data || d?.items || [];
         setTenants(list);
+        setTotal(d?.meta?.total ?? d?.total ?? list.length);
       })
       .catch(() => setTenants([]))
       .finally(() => setLoading(false));
-  }, []);
+  }, [page]);
 
   return (
     <div className="p-6">
@@ -66,6 +71,8 @@ export default function TenantsPage() {
           </table>
         </div>
       )}
+
+      {!loading && <Pager page={page} total={total} pageSize={PAGE_SIZE} onPage={setPage} />}
     </div>
   );
 }

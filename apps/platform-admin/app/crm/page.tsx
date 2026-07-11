@@ -166,14 +166,22 @@ export default function CRMPage() {
       <div className="flex justify-between items-center">
         <div>
           <h1 className="text-3xl font-bold text-gray-900">CRM · Contact Messages</h1>
-          <p className="mt-1 text-gray-600">Customer inquiries from the platform contact form</p>
+          <p className="mt-1 text-gray-600">Omni-channel inbox — website, WhatsApp, socials, email &amp; SMS in one place</p>
         </div>
-        <button
-          onClick={() => { fetchMessages(); fetchStats() }}
-          className="px-4 py-2 bg-white border border-gray-300 rounded-md text-sm hover:bg-gray-50"
-        >
-          🔄 Refresh
-        </button>
+        <div className="flex gap-2">
+          <a
+            href="/crm/channels"
+            className="px-4 py-2 bg-indigo-600 text-white rounded-md text-sm hover:bg-indigo-700"
+          >
+            ⚙ Channel Setup
+          </a>
+          <button
+            onClick={() => { fetchMessages(); fetchStats() }}
+            className="px-4 py-2 bg-white border border-gray-300 rounded-md text-sm hover:bg-gray-50"
+          >
+            🔄 Refresh
+          </button>
+        </div>
       </div>
 
       {/* Stats Cards */}

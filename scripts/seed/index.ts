@@ -20,6 +20,7 @@ import { seed04FitnessData } from './04-demo-data/fitness-data';
 import { seed04RestaurantData } from './04-demo-data/restaurant-data';
 import { seed05Accounting } from './05-accounting';
 import { seed06FitnessFullDemo } from './06-fitness-full-demo';
+import { seed07BillingDemo } from './07-billing-demo';
 
 async function main() {
   console.log('🌱 Dexo v5 seed starting...');
@@ -32,6 +33,7 @@ async function main() {
   await seed04RestaurantData();
   await seed05Accounting();
   await seed06FitnessFullDemo();
+  await seed07BillingDemo();
   console.log('✅ Seed complete');
 }
 

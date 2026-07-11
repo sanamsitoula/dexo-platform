@@ -321,8 +321,12 @@ export class UserService {
   /**
    * Get users in a tenant
    */
-  async getTenantUsers(tenantId: string) {
-    const users = await this.prisma.user.findMany({
+  async getTenantUsers(tenantId: string, pagination?: { page?: number; limit?: number }) {
+    const paginated = !!(pagination?.page || pagination?.limit);
+    const page = pagination?.page && pagination.page > 0 ? pagination.page : 1;
+    const limit = pagination?.limit && pagination.limit > 0 ? pagination.limit : 25;
+
+    const query = {
       where: { tenantId },
       include: {
         userRoles: {
@@ -331,9 +335,20 @@ export class UserService {
           },
         },
       },
-      orderBy: { createdAt: 'asc' },
-    });
-    return users.map(({ passwordHash, ...u }) => u);
+      orderBy: { createdAt: 'asc' as const },
+    };
+
+    if (!paginated) {
+      // Backward-compatible: no pagination params → plain array
+      const users = await this.prisma.user.findMany(query);
+      return users.map(({ passwordHash, ...u }: any) => u);
+    }
+
+    const [users, total] = await Promise.all([
+      this.prisma.user.findMany({ ...query, skip: (page - 1) * limit, take: limit }),
+      this.prisma.user.count({ where: { tenantId } }),
+    ]);
+    return { items: users.map(({ passwordHash, ...u }: any) => u), total };
   }
 
   /**

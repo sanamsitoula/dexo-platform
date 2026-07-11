@@ -12,11 +12,14 @@ export class BlogService {
 
   async create(createBlogDto: CreateBlogDto, userId: string, tenantId?: string) {
     const slug = await this.generateSlug(createBlogDto.title);
+    const finalTenantId = tenantId || createBlogDto.tenantId || null;
+    const tagIds = await this.resolveTagIds(createBlogDto.tagIds, createBlogDto.tagNames, finalTenantId);
 
     const blog = await this.prisma.blog.create({
       data: {
         title: createBlogDto.title,
         slug,
+        template: createBlogDto.template || 'standard',
         content: createBlogDto.content,
         excerpt: createBlogDto.excerpt,
         featuredImage: createBlogDto.featuredImage,
@@ -26,11 +29,11 @@ export class BlogService {
         scheduledAt: createBlogDto.scheduledAt,
         authorId: userId,
         categoryId: createBlogDto.categoryId,
-        tenantId: tenantId || createBlogDto.tenantId || null,
+        tenantId: finalTenantId,
         publishedAt: createBlogDto.status === BlogStatusDto.PUBLISHED ? new Date() : null,
-        tags: createBlogDto.tagIds
+        tags: tagIds.length
           ? {
-              connect: createBlogDto.tagIds.map((id) => ({ id })),
+              connect: tagIds.map((id) => ({ id })),
             }
           : undefined,
       },
@@ -398,6 +401,7 @@ export class BlogService {
     if (updateBlogDto.metaDescription !== undefined) data.metaDescription = updateBlogDto.metaDescription;
     if (updateBlogDto.scheduledAt !== undefined) data.scheduledAt = updateBlogDto.scheduledAt;
     if (updateBlogDto.categoryId !== undefined) data.categoryId = updateBlogDto.categoryId;
+    if (updateBlogDto.template !== undefined) data.template = updateBlogDto.template;
 
     if (updateBlogDto.status) {
       data.status = updateBlogDto.status;
@@ -406,9 +410,14 @@ export class BlogService {
       }
     }
 
-    if (updateBlogDto.tagIds) {
+    if (updateBlogDto.tagIds || updateBlogDto.tagNames) {
+      const tagIds = await this.resolveTagIds(
+        updateBlogDto.tagIds,
+        updateBlogDto.tagNames,
+        blog.tenantId,
+      );
       data.tags = {
-        set: updateBlogDto.tagIds.map((id) => ({ id })),
+        set: tagIds.map((tagId) => ({ id: tagId })),
       };
     }
 
@@ -479,6 +488,110 @@ export class BlogService {
         publishedAt: blog.publishedAt || new Date(),
       },
     });
+  }
+
+  async getStats(id: string) {
+    const blog = await this.prisma.blog.findUnique({
+      where: { id },
+      select: {
+        viewCount: true,
+        likeCount: true,
+        _count: { select: { comments: true } },
+      },
+    });
+
+    if (!blog) {
+      throw new NotFoundException('Blog not found');
+    }
+
+    return {
+      viewCount: blog.viewCount,
+      likeCount: blog.likeCount,
+      commentCount: blog._count.comments,
+    };
+  }
+
+  async suggestSlug(title: string) {
+    const base = this.slugify(title);
+
+    // "AI" variant: strip stopwords to keep the slug keyword-dense
+    const STOPWORDS = new Set([
+      'a', 'an', 'the', 'and', 'or', 'but', 'of', 'in', 'on', 'at', 'to',
+      'for', 'with', 'by', 'from', 'is', 'are', 'was', 'were', 'be', 'your',
+      'our', 'my', 'this', 'that', 'how', 'what', 'why', 'when',
+    ]);
+    const keywordSlug = base
+      .split('-')
+      .filter((word) => word && !STOPWORDS.has(word))
+      .slice(0, 6)
+      .join('-') || base;
+
+    const dated = `${keywordSlug}-${new Date().getFullYear()}`;
+
+    const slug = await this.dedupeSlug(keywordSlug);
+    const alternatives: string[] = [];
+    for (const candidate of [base, dated]) {
+      const unique = await this.dedupeSlug(candidate);
+      if (unique !== slug && !alternatives.includes(unique)) {
+        alternatives.push(unique);
+      }
+    }
+
+    return { slug, alternatives };
+  }
+
+  /** Resolve explicit tag ids + free-form tag names (upserted) into a single id list. */
+  private async resolveTagIds(
+    tagIds?: string[],
+    tagNames?: string[],
+    tenantId?: string | null,
+  ): Promise<string[]> {
+    const ids = new Set(tagIds || []);
+
+    for (const rawName of tagNames || []) {
+      const name = rawName.trim();
+      if (!name) continue;
+
+      const existing = await this.prisma.blogTag.findUnique({ where: { name } });
+      if (existing) {
+        ids.add(existing.id);
+        continue;
+      }
+
+      // Tag slug is globally unique — dedupe like blog slugs
+      let slug = this.slugify(name);
+      let counter = 1;
+      while (await this.prisma.blogTag.findUnique({ where: { slug } })) {
+        slug = `${this.slugify(name)}-${counter}`;
+        counter++;
+      }
+
+      const created = await this.prisma.blogTag.create({
+        data: { name, slug, tenantId: tenantId || null },
+      });
+      ids.add(created.id);
+    }
+
+    return [...ids];
+  }
+
+  private slugify(text: string): string {
+    return text
+      .toLowerCase()
+      .replace(/[^a-z0-9]+/g, '-')
+      .replace(/^-|-$/g, '');
+  }
+
+  private async dedupeSlug(slug: string): Promise<string> {
+    let counter = 2;
+    let uniqueSlug = slug;
+
+    while (await this.prisma.blog.findUnique({ where: { slug: uniqueSlug } })) {
+      uniqueSlug = `${slug}-${counter}`;
+      counter++;
+    }
+
+    return uniqueSlug;
   }
 
   private async generateSlug(title: string): Promise<string> {

@@ -3,6 +3,8 @@
 import { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 import { blogApi, blogCategoryApi } from '@/lib/api'
+import RichTextEditor from '@/components/RichTextEditor'
+import { TemplatePicker, TagsInput, SeoPanel } from '@/components/BlogFormParts'
 
 export default function NewBlogPage() {
   const router = useRouter()
@@ -13,9 +15,13 @@ export default function NewBlogPage() {
   const [excerpt, setExcerpt] = useState('')
   const [featuredImage, setFeaturedImage] = useState('')
   const [categoryId, setCategoryId] = useState('')
+  const [template, setTemplate] = useState('standard')
+  const [tags, setTags] = useState<string[]>([])
   const [metaTitle, setMetaTitle] = useState('')
   const [metaDescription, setMetaDescription] = useState('')
   const [status, setStatus] = useState('draft')
+  const [slugSuggestion, setSlugSuggestion] = useState('')
+  const [suggesting, setSuggesting] = useState(false)
   const [error, setError] = useState('')
 
   useEffect(() => {
@@ -29,8 +35,20 @@ export default function NewBlogPage() {
     }
   }
 
+  async function handleSuggestSlug() {
+    if (!title) return
+    setSuggesting(true)
+    const response = await blogApi.suggestSlug(title)
+    if (response.data?.slug) setSlugSuggestion(response.data.slug)
+    setSuggesting(false)
+  }
+
   async function handleSubmit(e: React.FormEvent, publishNow: boolean = false) {
     e.preventDefault()
+    if (!content || !content.replace(/<[^>]*>/g, '').trim()) {
+      setError('Content is required')
+      return
+    }
     setLoading(true)
     setError('')
 
@@ -40,6 +58,8 @@ export default function NewBlogPage() {
       excerpt: excerpt || undefined,
       featuredImage: featuredImage || undefined,
       categoryId: categoryId || undefined,
+      template,
+      tagNames: tags.length ? tags : undefined,
       metaTitle: metaTitle || undefined,
       metaDescription: metaDescription || undefined,
       status: publishNow ? 'published' : status,
@@ -96,15 +116,10 @@ export default function NewBlogPage() {
 
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-1">Content *</label>
-            <textarea
-              value={content}
-              onChange={(e) => setContent(e.target.value)}
-              required
-              rows={15}
-              className="input-primary font-mono text-sm"
-              placeholder="Write your blog content here (Markdown supported)..."
-            />
+            <RichTextEditor value={content} onChange={setContent} />
           </div>
+
+          <TemplatePicker value={template} onChange={setTemplate} />
 
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-1">Featured Image URL</label>
@@ -119,6 +134,8 @@ export default function NewBlogPage() {
               <img src={featuredImage} alt="Preview" className="mt-2 h-32 object-cover rounded" />
             )}
           </div>
+
+          <TagsInput tags={tags} onChange={setTags} />
 
           <div className="grid grid-cols-2 gap-4">
             <div>
@@ -151,28 +168,17 @@ export default function NewBlogPage() {
 
         <div className="bg-white rounded-lg shadow p-6 space-y-4">
           <h2 className="text-lg font-medium text-gray-900">SEO Settings</h2>
-          
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">Meta Title</label>
-            <input
-              type="text"
-              value={metaTitle}
-              onChange={(e) => setMetaTitle(e.target.value)}
-              className="input-primary"
-              placeholder="SEO title (defaults to blog title)"
-            />
-          </div>
-
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">Meta Description</label>
-            <textarea
-              value={metaDescription}
-              onChange={(e) => setMetaDescription(e.target.value)}
-              rows={2}
-              className="input-primary"
-              placeholder="SEO description (defaults to excerpt)"
-            />
-          </div>
+          <SeoPanel
+            title={title}
+            metaTitle={metaTitle}
+            setMetaTitle={setMetaTitle}
+            metaDescription={metaDescription}
+            setMetaDescription={setMetaDescription}
+            excerpt={excerpt}
+            slug={slugSuggestion}
+            onSuggestSlug={handleSuggestSlug}
+            suggesting={suggesting}
+          />
         </div>
 
         <div className="flex items-center justify-end gap-4">

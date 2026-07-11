@@ -131,9 +131,12 @@ export const tenantsApi = {
 
 // Users API
 export const usersApi = {
-  list: (tenantId?: string) => {
-    const endpoint = tenantId ? `/users/tenant` : '/users/tenant'
-    return fetchApi<{ users: any[] }>(endpoint)
+  list: (params?: { page?: number; limit?: number }) => {
+    const searchParams = new URLSearchParams()
+    if (params?.page) searchParams.append('page', params.page.toString())
+    if (params?.limit) searchParams.append('limit', params.limit.toString())
+    const qs = searchParams.toString()
+    return fetchApi<any>(`/users/tenant${qs ? `?${qs}` : ''}`)
   },
   
   getById: (id: string) =>
@@ -194,21 +197,46 @@ export const contactApi = {
     }),
 }
 
+// CRM channel setup API (omni-channel inbox configs)
+export const channelsApi = {
+  list: (tenantId?: string) =>
+    fetchApi<any[]>(`/contact/channels${tenantId ? `?tenantId=${tenantId}` : ''}`),
+
+  upsert: (channel: string, data: { enabled?: boolean; displayName?: string | null; credentials?: Record<string, any> | null }, tenantId?: string) =>
+    fetchApi<any>(`/contact/channels/${channel.toLowerCase()}${tenantId ? `?tenantId=${tenantId}` : ''}`, {
+      method: 'PUT',
+      body: JSON.stringify(data),
+    }),
+
+  rotateSecret: (channel: string, tenantId?: string) =>
+    fetchApi<any>(`/contact/channels/${channel.toLowerCase()}/rotate-secret${tenantId ? `?tenantId=${tenantId}` : ''}`, {
+      method: 'POST',
+    }),
+}
+
 // Roles API
 export const rolesApi = {
-  list: () =>
-    fetchApi<any[]>('/roles'),
-  
+  list: (params?: { page?: number; limit?: number }) => {
+    const searchParams = new URLSearchParams()
+    if (params?.page) searchParams.append('page', String(params.page))
+    if (params?.limit) searchParams.append('limit', String(params.limit))
+    const qs = searchParams.toString()
+    return fetchApi<any>(`/roles${qs ? `?${qs}` : ''}`)
+  },
+
+  seedTenant: (tenantId: string) =>
+    fetchApi<any>(`/roles/seed-tenant/${tenantId}`, { method: 'POST' }),
+
   getById: (id: string) =>
     fetchApi<any>(`/roles/${id}`),
-  
-  create: (data: { name: string; description?: string }) =>
+
+  create: (data: { name: string; description?: string; permissions?: string[] }) =>
     fetchApi<any>('/roles', {
       method: 'POST',
       body: JSON.stringify(data),
     }),
-  
-  update: (id: string, data: { name?: string; description?: string }) =>
+
+  update: (id: string, data: { name?: string; description?: string; permissions?: string[] }) =>
     fetchApi<any>(`/roles/${id}`, {
       method: 'PUT',
       body: JSON.stringify(data),
@@ -325,8 +353,13 @@ export const billingApi = {
 
 // Notifications API
 export const notificationsApi = {
-  listTemplates: () =>
-    fetchApi<any[]>('/notifications/templates'),
+  listTemplates: (params?: { page?: number; limit?: number }) => {
+    const searchParams = new URLSearchParams()
+    if (params?.page) searchParams.append('page', params.page.toString())
+    if (params?.limit) searchParams.append('limit', params.limit.toString())
+    const qs = searchParams.toString()
+    return fetchApi<any>(`/notifications/templates${qs ? `?${qs}` : ''}`)
+  },
   
   getTemplate: (id: string) =>
     fetchApi<any>(`/notifications/templates/${id}`),
@@ -451,12 +484,14 @@ export const tenantDomainsApi = {
 // Branches API (for admin to manage branches across all tenants)
 export const branchesApi = {
   // List all branches (admin can see all across tenants)
-  listAll: (params?: { tenantId?: string; status?: string; type?: string }) => {
+  listAll: (params?: { tenantId?: string; status?: string; type?: string; page?: number; limit?: number }) => {
     const searchParams = new URLSearchParams();
     if (params?.tenantId) searchParams.append('tenantId', params.tenantId);
     if (params?.status) searchParams.append('status', params.status);
     if (params?.type) searchParams.append('type', params.type);
-    return fetchApi<any[]>(`/branches?${searchParams.toString()}`);
+    if (params?.page) searchParams.append('page', params.page.toString());
+    if (params?.limit) searchParams.append('limit', params.limit.toString());
+    return fetchApi<any>(`/branches?${searchParams.toString()}`);
   },
   
   listByTenant: (tenantId: string, params?: { status?: string; type?: string }) => {
@@ -597,13 +632,13 @@ export const blogApi = {
   getById: (id: string) =>
     fetchApi<any>(`/blogs/admin/${id}`),
   
-  create: (data: { title: string; content: string; excerpt?: string; featuredImage?: string; status?: string; categoryId?: string; tagIds?: string[]; metaTitle?: string; metaDescription?: string; tenantId?: string }) =>
+  create: (data: { title: string; content: string; excerpt?: string; featuredImage?: string; template?: string; status?: string; categoryId?: string; tagIds?: string[]; tagNames?: string[]; metaTitle?: string; metaDescription?: string; tenantId?: string }) =>
     fetchApi<any>('/blogs', {
       method: 'POST',
       body: JSON.stringify(data),
     }),
   
-  update: (id: string, data: { title?: string; content?: string; excerpt?: string; featuredImage?: string; status?: string; categoryId?: string; tagIds?: string[]; metaTitle?: string; metaDescription?: string }) =>
+  update: (id: string, data: { title?: string; content?: string; excerpt?: string; featuredImage?: string; template?: string; status?: string; categoryId?: string; tagIds?: string[]; tagNames?: string[]; metaTitle?: string; metaDescription?: string }) =>
     fetchApi<any>(`/blogs/${id}`, {
       method: 'PUT',
       body: JSON.stringify(data),
@@ -614,6 +649,15 @@ export const blogApi = {
   
   publish: (id: string) =>
     fetchApi<any>(`/blogs/${id}/publish`, { method: 'POST' }),
+
+  suggestSlug: (title: string) =>
+    fetchApi<{ slug: string; alternatives: string[] }>('/blogs/slug-suggest', {
+      method: 'POST',
+      body: JSON.stringify({ title }),
+    }),
+
+  stats: (id: string) =>
+    fetchApi<{ viewCount: number; likeCount: number; commentCount: number }>(`/blogs/${id}/stats`),
 }
 
 // Blog Categories API
@@ -627,13 +671,13 @@ export const blogCategoryApi = {
   getBySlug: (slug: string) =>
     fetchApi<any>(`/blog-categories/slug/${slug}`),
   
-  create: (data: { name: string; description?: string; color?: string; icon?: string; parentId?: string }) =>
+  create: (data: { name: string; description?: string; color?: string; icon?: string; thumbnail?: string; parentId?: string }) =>
     fetchApi<any>('/blog-categories', {
       method: 'POST',
       body: JSON.stringify(data),
     }),
   
-  update: (id: string, data: { name?: string; description?: string; color?: string; icon?: string; parentId?: string }) =>
+  update: (id: string, data: { name?: string; description?: string; color?: string; icon?: string; thumbnail?: string; parentId?: string }) =>
     fetchApi<any>(`/blog-categories/${id}`, {
       method: 'PUT',
       body: JSON.stringify(data),

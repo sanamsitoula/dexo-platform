@@ -9,12 +9,15 @@ import {
   HttpCode,
   HttpStatus,
 } from '@nestjs/common';
-import { ApiTags, ApiOperation, ApiResponse } from '@nestjs/swagger';
+import { ApiTags, ApiOperation, ApiResponse, ApiBearerAuth } from '@nestjs/swagger';
+import { JwtAuthGuard } from '@dexo/auth';
 import { PermissionService } from './permission.service';
 import { CreatePermissionDto, CheckPermissionDto } from './dto';
 
 @ApiTags('permissions')
 @Controller('permissions')
+@UseGuards(JwtAuthGuard)
+@ApiBearerAuth()
 export class PermissionController {
   constructor(private readonly permissionService: PermissionService) {}
 

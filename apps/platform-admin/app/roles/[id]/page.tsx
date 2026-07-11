@@ -2,7 +2,13 @@
 
 import { useEffect, useState } from 'react'
 import { useParams, useRouter } from 'next/navigation'
-import { rolesApi, permissionsApi } from '@/lib/api'
+import { rolesApi } from '@/lib/api'
+import PermissionMatrix from '@/components/PermissionMatrix'
+import {
+  PERMISSION_ACTIONS,
+  expandPermissions,
+  compressPermissions,
+} from '@/lib/permissions'
 
 interface Role {
   id: string
@@ -10,16 +16,10 @@ interface Role {
   description: string | null
   isSystem: boolean
   isPlatform: boolean
+  tenantId?: string | null
   createdAt: string
   permissions: string[]
   _count?: { userRoles: number }
-}
-
-interface Permission {
-  id: string
-  resource: string
-  action: string
-  description?: string
 }
 
 export default function RoleDetailPage() {
@@ -30,17 +30,14 @@ export default function RoleDetailPage() {
   const [editMode, setEditMode] = useState(false)
   const [name, setName] = useState('')
   const [description, setDescription] = useState('')
-  const [permissions, setPermissions] = useState<string[]>([])
-  const [allPermissions, setAllPermissions] = useState<Permission[]>([])
+  const [cells, setCells] = useState<Set<string>>(new Set())
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [success, setSuccess] = useState<string | null>(null)
-  const [permissionDetails, setPermissionDetails] = useState<Permission[]>([])
 
   useEffect(() => {
     if (!id || id === 'new') return
     fetchRole(id)
-    fetchAllPermissions()
   }, [id])
 
   async function fetchRole(id: string) {
@@ -50,18 +47,9 @@ export default function RoleDetailPage() {
       setRole(response.data)
       setName(response.data.name)
       setDescription(response.data.description || '')
-      setPermissions(response.data.permissions || [])
-      setPermissionDetails(response.data.permissionDetails || [])
+      setCells(expandPermissions(response.data.permissions || []))
     }
     setLoading(false)
-  }
-
-  async function fetchAllPermissions() {
-    const response = await permissionsApi.list().catch(() => ({ data: [] }))
-    if (response.data) {
-      const list = Array.isArray(response.data) ? response.data : (response.data as any).permissions || []
-      setAllPermissions(list)
-    }
   }
 
   async function handleSave() {
@@ -73,16 +61,14 @@ export default function RoleDetailPage() {
     const payload: any = { name, description }
     // Only send permissions if NOT a system role
     if (!role.isSystem) {
-      payload.permissions = permissions
+      payload.permissions = compressPermissions(cells)
     }
 
     const response = await rolesApi.update(role.id, payload)
     if (response.data) {
-      setRole({ ...role, name, description, permissions: response.data.permissions || permissions })
       setSuccess('Role updated successfully')
       setEditMode(false)
       setTimeout(() => setSuccess(null), 3000)
-      // Re-fetch to get latest permission details
       fetchRole(role.id)
     } else if (response.error) {
       setError(response.error)
@@ -101,20 +87,26 @@ export default function RoleDetailPage() {
     }
   }
 
-  function togglePermission(permId: string) {
-    setPermissions((prev) =>
-      prev.includes(permId) ? prev.filter((p) => p !== permId) : [...prev, permId]
-    )
+  function toggleCell(resource: string, action: string) {
+    setCells((prev) => {
+      const next = new Set(prev)
+      const key = `${resource}:${action}`
+      if (next.has(key)) next.delete(key)
+      else next.add(key)
+      return next
+    })
   }
 
-  function toggleResourceGroup(resource: string, perms: Permission[]) {
-    const allSelected = perms.every((p) => permissions.includes(p.id))
-    if (allSelected) {
-      setPermissions((prev) => prev.filter((p) => !perms.find((perm) => perm.id === p)))
-    } else {
-      const newPerms = perms.map((p) => p.id).filter((id) => !permissions.includes(id))
-      setPermissions((prev) => [...prev, ...newPerms])
-    }
+  function toggleRow(resource: string) {
+    setCells((prev) => {
+      const next = new Set(prev)
+      const allSelected = PERMISSION_ACTIONS.every((a) => next.has(`${resource}:${a}`))
+      for (const a of PERMISSION_ACTIONS) {
+        if (allSelected) next.delete(`${resource}:${a}`)
+        else next.add(`${resource}:${a}`)
+      }
+      return next
+    })
   }
 
   if (loading) {
@@ -135,18 +127,6 @@ export default function RoleDetailPage() {
       </div>
     )
   }
-
-  // Group permissions by resource
-  const permissionsByResource = allPermissions.reduce((acc, p) => {
-    if (!acc[p.resource]) acc[p.resource] = []
-    acc[p.resource].push(p)
-    return acc
-  }, {} as Record<string, Permission[]>)
-
-  const groupedPermissions = Object.entries(permissionsByResource).map(([resource, perms]) => ({
-    resource,
-    perms,
-  }))
 
   return (
     <div className="space-y-6 max-w-5xl mx-auto">
@@ -196,7 +176,7 @@ export default function RoleDetailPage() {
                   setEditMode(false)
                   setName(role.name)
                   setDescription(role.description || '')
-                  setPermissions(role.permissions)
+                  setCells(expandPermissions(role.permissions || []))
                   setError(null)
                 }}
                 disabled={saving}
@@ -273,15 +253,23 @@ export default function RoleDetailPage() {
             </dd>
           </div>
           <div>
-            <dt className="text-xs text-gray-500 uppercase">Users Assigned</dt>
-            <dd className="mt-1 text-sm text-gray-900 font-semibold">
-              {role._count?.userRoles ?? 0}
+            <dt className="text-xs text-gray-500 uppercase">Scope</dt>
+            <dd className="mt-1 text-sm text-gray-900">
+              {role.tenantId ? (
+                <span className="px-2 py-1 text-xs font-semibold rounded-full bg-purple-100 text-purple-800">
+                  Tenant
+                </span>
+              ) : (
+                <span className="px-2 py-1 text-xs font-semibold rounded-full bg-green-100 text-green-800">
+                  Platform
+                </span>
+              )}
             </dd>
           </div>
           <div>
-            <dt className="text-xs text-gray-500 uppercase">Permissions</dt>
+            <dt className="text-xs text-gray-500 uppercase">Users Assigned</dt>
             <dd className="mt-1 text-sm text-gray-900 font-semibold">
-              {permissions.length} of {allPermissions.length}
+              {role._count?.userRoles ?? 0}
             </dd>
           </div>
           <div>
@@ -298,13 +286,13 @@ export default function RoleDetailPage() {
         )}
       </div>
 
-      {/* Permissions Section */}
+      {/* Permissions Section — resource × action matrix */}
       <div className="bg-white shadow rounded-lg p-6">
         <div className="flex justify-between items-center mb-4">
           <h2 className="text-lg font-semibold text-gray-900">
-            Permissions ({permissions.length} of {allPermissions.length})
+            Permissions ({cells.size} granted)
           </h2>
-          {!editMode && (
+          {!editMode && !role.isSystem && (
             <button
               onClick={() => setEditMode(true)}
               className="text-sm text-indigo-600 hover:text-indigo-700"
@@ -314,77 +302,16 @@ export default function RoleDetailPage() {
           )}
         </div>
 
-        {editMode && !role.isSystem ? (
-          <div className="space-y-3">
-            {groupedPermissions.map(({ resource, perms }) => {
-              const allSelected = perms.every((p) => permissions.includes(p.id))
-              return (
-                <div key={resource} className="border border-gray-200 rounded-lg p-3">
-                  <div className="flex items-center justify-between mb-2">
-                    <h3 className="text-sm font-semibold text-gray-900 capitalize">{resource}</h3>
-                    <button
-                      type="button"
-                      onClick={() => toggleResourceGroup(resource, perms)}
-                      className="text-xs text-indigo-600 hover:text-indigo-700"
-                    >
-                      {allSelected ? 'Deselect all' : 'Select all'}
-                    </button>
-                  </div>
-                  <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-2">
-                    {perms.map((p) => (
-                      <label
-                        key={p.id}
-                        className="flex items-start gap-2 text-sm text-gray-700 cursor-pointer hover:bg-gray-50 px-2 py-1 rounded"
-                      >
-                        <input
-                          type="checkbox"
-                          checked={permissions.includes(p.id)}
-                          onChange={() => togglePermission(p.id)}
-                          className="mt-0.5 h-4 w-4 text-indigo-600 focus:ring-indigo-500 border-gray-300 rounded"
-                        />
-                        <div>
-                          <div className="font-medium">{p.action}</div>
-                          {p.description && (
-                            <div className="text-xs text-gray-500">{p.description}</div>
-                          )}
-                        </div>
-                      </label>
-                    ))}
-                  </div>
-                </div>
-              )
-            })}
-          </div>
-        ) : (
-          <div className="space-y-3">
-            {permissionDetails.length === 0 ? (
-              <p className="text-sm text-gray-500">No permissions assigned to this role.</p>
-            ) : (
-              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-2">
-                {permissionDetails.map((p) => (
-                  <div
-                    key={p.id}
-                    className="flex items-start gap-2 px-3 py-2 bg-indigo-50 border border-indigo-100 rounded text-sm"
-                  >
-                    <span className="text-indigo-600">✓</span>
-                    <div>
-                      <span className="font-medium text-gray-900 capitalize">
-                        {p.resource}.{p.action}
-                      </span>
-                      {p.description && (
-                        <div className="text-xs text-gray-500">{p.description}</div>
-                      )}
-                    </div>
-                  </div>
-                ))}
-              </div>
-            )}
-            {role.isSystem && (
-              <p className="text-xs text-gray-500 italic mt-2">
-                System role permissions are managed by the platform and cannot be modified.
-              </p>
-            )}
-          </div>
+        <PermissionMatrix
+          cells={cells}
+          onToggle={editMode && !role.isSystem ? toggleCell : undefined}
+          onToggleRow={editMode && !role.isSystem ? toggleRow : undefined}
+        />
+
+        {role.isSystem && (
+          <p className="text-xs text-gray-500 italic mt-3">
+            System role permissions are managed by the platform and cannot be modified.
+          </p>
         )}
       </div>
 

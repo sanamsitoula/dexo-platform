@@ -1977,6 +1977,7 @@ model Blog {
   content       String
   excerpt       String?
   featuredImage String?
+  template      String     @default("standard") // standard | feature | minimal
   status        BlogStatus @default(draft)
   publishedAt   DateTime?
   scheduledAt   DateTime?
@@ -2021,6 +2022,7 @@ model BlogCategory {
   description String?
   color       String?
   icon        String?
+  thumbnail   String?
 
   // Tenant scoping (null = platform category)
   tenant   Tenant? @relation(fields: [tenantId], references: [id])
@@ -2069,9 +2071,31 @@ model BlogTag {
   name String @unique
   slug String @unique
 
+  // Tenant scoping (null = platform tag)
+  tenantId String?
+
   createdAt DateTime @default(now())
 
   blogs Blog[]
+
+  @@index([tenantId])
+}
+
+// Per-tenant (or platform when tenantId is null) CRM channel integration config
+model ChannelConfig {
+  id            String  @id @default(uuid())
+  tenantId      String? // null = platform-level config
+  channel       String // WHATSAPP | TIKTOK | INSTAGRAM | FACEBOOK | EMAIL | WEBSITE | VIBER | SMS
+  enabled       Boolean @default(true)
+  webhookSecret String?
+  credentials   Json? // channel-specific keys/tokens/phone numbers
+  displayName   String?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([tenantId, channel])
+  @@index([tenantId])
 }
 
 // =====================================================

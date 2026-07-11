@@ -6,6 +6,7 @@ import {
   Delete,
   Body,
   Param,
+  Query,
   UseGuards,
   Request,
   HttpCode,
@@ -78,8 +79,11 @@ export class UserController {
   @Get('tenant')
   @UseGuards(JwtAuthGuard)
   @ApiOperation({ summary: 'Get all users in tenant' })
-  async getTenantUsers(@Request() req: any) {
-    return this.userService.getTenantUsers(req.user.tenantId);
+  async getTenantUsers(@Request() req: any, @Query('page') page?: string, @Query('limit') limit?: string) {
+    return this.userService.getTenantUsers(req.user.tenantId, {
+      page: page ? parseInt(page, 10) : undefined,
+      limit: limit ? parseInt(limit, 10) : undefined,
+    });
   }
 
   @Post(':userId/deactivate')

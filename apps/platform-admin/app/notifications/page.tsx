@@ -2,6 +2,9 @@
 
 import { useEffect, useState } from 'react'
 import { notificationsApi } from '@/lib/api'
+import Pager from '@/components/Pager'
+
+const PAGE_SIZE = 25
 
 interface Template {
   id: string
@@ -16,18 +19,22 @@ interface Template {
 
 export default function NotificationsPage() {
   const [templates, setTemplates] = useState<Template[]>([])
+  const [total, setTotal] = useState(0)
+  const [page, setPage] = useState(1)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
   const [showCreate, setShowCreate] = useState(false)
   const [newTemplate, setNewTemplate] = useState({ name: '', type: 'email', subject: '', body: '' })
 
-  useEffect(() => { fetchTemplates() }, [])
+  useEffect(() => { fetchTemplates() }, [page]) // eslint-disable-line react-hooks/exhaustive-deps
 
   async function fetchTemplates() {
     setLoading(true)
-    const response = await notificationsApi.listTemplates()
+    const response = await notificationsApi.listTemplates({ page, limit: PAGE_SIZE })
     if (response.data) {
-      setTemplates(Array.isArray(response.data) ? response.data : [])
+      const list = response.data.items ?? (Array.isArray(response.data) ? response.data : [])
+      setTemplates(list)
+      setTotal(response.data.total ?? list.length)
     } else if (response.error) {
       setError(response.error)
     }
@@ -110,6 +117,8 @@ export default function NotificationsPage() {
           </tbody>
         </table>
       </div>
+
+      <Pager page={page} total={total} pageSize={PAGE_SIZE} onPage={setPage} />
     </div>
   )
 }

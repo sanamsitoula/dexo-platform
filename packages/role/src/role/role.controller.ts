@@ -6,6 +6,7 @@ import {
   Delete,
   Body,
   Param,
+  Query,
   UseGuards,
   Req,
   HttpCode,
@@ -46,7 +47,11 @@ export class RoleController {
   @Get()
   @ApiOperation({ summary: 'Get all roles (tenant-scoped or platform-wide)' })
   @ApiResponse({ status: 200, description: 'Roles retrieved successfully' })
-  async findAll(@Req() req: any) {
+  async findAll(
+    @Req() req: any,
+    @Query('page') page?: string,
+    @Query('limit') limit?: string,
+  ) {
     const user = req.user;
     const tenantId = user.isPlatformAdmin ? undefined : user.tenantId;
 
@@ -54,7 +59,11 @@ export class RoleController {
       throw new ForbiddenException('Access denied');
     }
 
-    return this.roleService.findAll(tenantId);
+    return this.roleService.findAll(
+      tenantId,
+      page ? parseInt(page, 10) || undefined : undefined,
+      limit ? parseInt(limit, 10) || undefined : undefined,
+    );
   }
 
   @Get(':id')
@@ -177,5 +186,19 @@ export class RoleController {
   @ApiResponse({ status: 201, description: 'System roles seeded successfully' })
   async seedSystemRoles() {
     return this.roleService.seedSystemRoles();
+  }
+
+  @Post('seed-tenant/:tenantId')
+  @ApiOperation({ summary: 'Seed default roles (admin/staff/customer) for a tenant' })
+  @ApiResponse({ status: 201, description: 'Tenant default roles seeded successfully' })
+  async seedTenantDefaultRoles(@Param('tenantId') tenantId: string, @Req() req: any) {
+    const user = req.user;
+
+    // Platform admins may seed any tenant; a tenant admin only their own tenant.
+    if (!user.isPlatformAdmin && user.tenantId !== tenantId) {
+      throw new ForbiddenException('Access denied');
+    }
+
+    return this.roleService.seedTenantDefaultRoles(tenantId);
   }
 }

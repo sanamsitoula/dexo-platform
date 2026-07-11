@@ -21,6 +21,11 @@ export class CreateCategoryDto {
   @IsString()
   icon?: string;
 
+  @ApiPropertyOptional({ description: 'Thumbnail image URL' })
+  @IsOptional()
+  @IsString()
+  thumbnail?: string;
+
   @ApiPropertyOptional({ description: 'Parent category ID' })
   @IsOptional()
   @IsString()

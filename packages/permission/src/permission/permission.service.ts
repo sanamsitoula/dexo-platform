@@ -199,7 +199,30 @@ export class PermissionService {
   }
 
   async seedSystemPermissions() {
+    // Module-based catalog: each platform module exposes the same 5 actions.
+    const moduleResources = [
+      'crm',
+      'blog',
+      'billing',
+      'attendance',
+      'subscriptions',
+      'website_builder',
+      'roles',
+      'users',
+      'settings',
+      'reports',
+    ];
+    const moduleActions = ['view', 'create', 'edit', 'delete', 'manage'];
+    const modulePermissions = moduleResources.flatMap(resource =>
+      moduleActions.map(action => ({
+        resource,
+        action,
+        description: `${action.charAt(0).toUpperCase()}${action.slice(1)} ${resource.replace('_', ' ')}`,
+      })),
+    );
+
     const systemPermissions = [
+      ...modulePermissions,
       // User permissions
       { resource: 'users', action: 'create', description: 'Create new users' },
       { resource: 'users', action: 'read', description: 'View users' },
@@ -268,13 +291,12 @@ export class PermissionService {
 
     const created = [];
     for (const permData of systemPermissions) {
-      const existing = await this.prisma.permission.findUnique({
+      // Upsert by [resource, action, tenantId=null]
+      const existing = await this.prisma.permission.findFirst({
         where: {
-          resource_action_tenantId: {
-            resource: permData.resource,
-            action: permData.action,
-            tenantId: null as any,
-          },
+          resource: permData.resource,
+          action: permData.action,
+          tenantId: null,
         },
       });
 
@@ -283,6 +305,11 @@ export class PermissionService {
           data: permData,
         });
         created.push(permission);
+      } else if (existing.description !== permData.description) {
+        await this.prisma.permission.update({
+          where: { id: existing.id },
+          data: { description: permData.description },
+        });
       }
     }
 

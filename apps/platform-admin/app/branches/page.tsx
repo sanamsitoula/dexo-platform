@@ -3,6 +3,9 @@
 import { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 import { branchesApi, branchReportsApi, tenantsApi } from '@/lib/api'
+import Pager from '@/components/Pager'
+
+const PAGE_SIZE = 25
 
 interface Branch {
   id: string
@@ -36,6 +39,8 @@ interface Tenant {
 export default function BranchesPage() {
   const router = useRouter()
   const [branches, setBranches] = useState<Branch[]>([])
+  const [total, setTotal] = useState(0)
+  const [page, setPage] = useState(1)
   const [tenants, setTenants] = useState<Tenant[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
@@ -47,21 +52,25 @@ export default function BranchesPage() {
 
   useEffect(() => {
     loadData()
-  }, [])
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [page])
 
   async function loadData() {
     setLoading(true)
     setError(null)
-    
+
     try {
       const [branchesRes, tenantsRes, reportRes] = await Promise.all([
-        branchesApi.listAll(),
+        branchesApi.listAll({ page, limit: PAGE_SIZE }),
         tenantsApi.list({ limit: 100 }),
         branchReportsApi.getAllBranchesReport(),
       ])
-      
-      if (branchesRes.data) setBranches(branchesRes.data)
-      else if (branchesRes.error) setError(branchesRes.error)
+
+      if (branchesRes.data) {
+        const list = branchesRes.data.items ?? (Array.isArray(branchesRes.data) ? branchesRes.data : [])
+        setBranches(list)
+        setTotal(branchesRes.data.total ?? list.length)
+      } else if (branchesRes.error) setError(branchesRes.error)
       
       if (tenantsRes.data?.data) setTenants(tenantsRes.data.data)
       
@@ -93,7 +102,7 @@ export default function BranchesPage() {
     : branches.filter(b => b.tenantId === selectedTenantId)
 
   const stats = {
-    total: branches.length,
+    total,
     active: branches.filter(b => b.status === 'active').length,
     hq: branches.filter(b => b.isHeadquarters).length,
     totalRevenue: allBranchesReport?.summary?.totalRevenue || '0',
@@ -253,6 +262,8 @@ export default function BranchesPage() {
               </tbody>
             </table>
           </div>
+
+          <Pager page={page} total={total} pageSize={PAGE_SIZE} onPage={setPage} />
 
           {/* Top Performing Branch */}
           {allBranchesReport?.topPerformer && (
