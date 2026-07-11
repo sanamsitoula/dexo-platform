@@ -22,10 +22,27 @@ Consolidated from all planning .md docs, cross-checked against actual code. Item
 
 **NEW — Signup journey revamp (user request 2026-07-11)**: /signup/create rebuilt — industry step now feeds a theme-gallery step using the 10 `industryThemes` from `@dexo/shared/src/themes` (recommended-first sort, color swatches, premium badges, live hero preview that adapts colors/branding/layout), per-step validation, owner password field, theme-aware wizard chrome. `POST /api/tenants/provision` now accepts `themeId` + `branding` and persists them to `Tenant.settings`. platform-web build verified.
 
+
+## ✅ Completed this session (2026-07-11, session 3)
+
+A. **Template ecosystem (60 templates)** — `packages/shared/src/themes/templates.ts`: 12 business types x 5 design families (Aurora/Maison/Slate/Nocturne/Bloc), each with palette, fonts, hero type, nav style, journey sections, forms, admin theme. Signup wizard shows 5 structurally different template thumbnails per industry; `templateId` persists via provision `branding`.
+B. **Template rendering site-wide** — tenant-website renders the chosen family full-size (`components/TemplateHome.tsx`); ALL public pages (about/services/book/contact/login/register) now theme via layout-level CSS vars (`lib/site-theme.ts`, SiteNav/SiteFooter, `.site-*` utilities). No hardcoded palettes remain.
+C. **Domain rebrand + resolution** — all user-facing URLs onedexo.com; public `GET /api/tenants/resolve?host=` (subdomain / custom domain / bare slug); tenant-app + tenant-website middlewares resolve custom domains (cookie-cached) and trust nginx `X-Tenant-Slug`; `docs/CUSTOM_DOMAINS.md` (Namecheap/Hostinger/Mercantile/own-VM DNS flows).
+D. **Dynamic nginx** — `infra/nginx/dexo.conf` rebuilt for onedexo.com: wildcard server blocks (zero per-tenant config for subdomains), `include /etc/nginx/dexo-tenants/*.conf` for per-custom-domain fragments, default_server fallback → tenant-website. `scripts/nginx-tenant-sync.ts` generates/removes only changed fragments (fractional rebuild) + graceful reload, optional certbot issuance.
+E. **Canonical member-portal URL** — `portal.<tenant>.onedexo.com` everywhere (`apps/tenant-website/lib/portal.ts`, NEXT_PUBLIC_TENANT_APP_URL `{slug}` template); middleware understands `portal.<t>` / `admin.<t>` hosts.
+F. **9b DONE — business-type-aware customer portal (:4007)** — `lib/vertical.ts` registry (fitness/salon/school/restaurant/generic: copy, onboarding preferences, dashboard quick actions) + `lib/tenant-info.tsx` (resolve-based branding context). Login/register branded per tenant + vertical copy. Onboarding router: fitness keeps full goals/BMI/plan/payment flow; other verticals get registry-driven flow. Dashboard router: FitnessHome (fitness API data) vs GenericHome (registry-driven). BottomNav vertical-aware. Mobile tab journey aligned (Home/Workouts/Diet/My Plan/Profile) + connect-by-domain + favorites.
+G. **Misc** — branded 404/error pages in all 5 Next apps; platform-admin sidebar rebuilt (theme+branding-driven, grouped, flex layout); signup success URLs port-free in prod; `*.pem/*.key` gitignored (azure/key.pem untracked — ROTATE THE KEY, it was pushed).
+
+### Still pending from F (next session)
+- Sync GenericOnboarding preferences to per-vertical customer profile APIs (salon/school/restaurant customer "me" endpoints don't exist yet — currently localStorage).
+- Mobile forgot-password flow (web has it, mobile doesn't).
+- Web tenant-app notifications page (mobile has one).
+- Salon/school/restaurant dashboard live-data widgets once customer APIs land.
+
 ## P1 — Still open
 
 8. **Website builder** — cms page-builder + builder/[subdomain] page exist (~20%); no drag-and-drop editor or component library.
-9b. **Customer onboarding wizard** in tenant-app (:4007) post-registration.
+~~9b. Customer onboarding wizard~~ — DONE session 3 (vertical-aware, fitness full flow + registry-driven others).
 11b. **Salon/School tenant-admin UI**; remaining 8 domain verticals.
 16b. **PT session revenue + depreciation** — needs schema: price on TrainingSession (or session package model), FixedAsset register.
 

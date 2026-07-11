@@ -14,7 +14,7 @@ import { NextRequest, NextResponse } from 'next/server';
  *   localhost:4007             -> DEV_TENANT env or "vrfitness"
  */
 
-const RESERVED = new Set(['www', 'app', 'api', 'admin', 'localhost', 'dexo']);
+const RESERVED = new Set(['www', 'app', 'api', 'admin', 'portal', 'localhost', 'dexo', 'onedexo']);
 
 // Tunnel hosts (ngrok, cloudflared, localtunnel) have random first labels that
 // must NOT be treated as tenant subdomains. On these hosts the tenant comes
@@ -26,6 +26,10 @@ function extractSlug(host: string): string | null {
   const hostname = (host || '').split(':')[0].toLowerCase();
   if (!hostname || isTunnelHost(hostname)) return null;
   const parts = hostname.split('.');
+  // Canonical member-portal host: portal.<tenant>.onedexo.com / portal.<tenant>.localhost
+  if ((parts[0] === 'portal' || parts[0] === 'admin') && parts.length >= 3 && !RESERVED.has(parts[1])) {
+    return parts[1];
+  }
   if (hostname.endsWith('.localhost') && parts.length >= 2 && !RESERVED.has(parts[0])) {
     return parts[0];
   }
@@ -72,10 +76,13 @@ export async function middleware(req: NextRequest) {
   // how a single ngrok URL demos any tenant: open https://<id>.ngrok-free.app/?tenant=bishnufit
   const queryTenant = req.nextUrl.searchParams.get('tenant')?.toLowerCase() || null;
   const cookieTenant = req.cookies.get('dexo_tenant')?.value || null;
+  // In production nginx already resolved the tenant (X-Tenant-Slug header).
+  const headerSlug = req.headers.get('x-tenant-slug')?.toLowerCase() || null;
   const customSlug =
-    !queryTenant && isCustomDomain(hostname) ? await resolveCustomDomain(req, hostname) : null;
+    !queryTenant && !headerSlug && isCustomDomain(hostname) ? await resolveCustomDomain(req, hostname) : null;
   const slug =
     queryTenant ||
+    headerSlug ||
     customSlug ||
     extractSlug(host) ||
     (isTunnelHost(hostname) ? cookieTenant : null) ||

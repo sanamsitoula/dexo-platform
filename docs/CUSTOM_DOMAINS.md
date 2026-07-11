@@ -90,3 +90,29 @@ The TXT verification record still has to exist wherever the domain's DNS lives.
 - **Local dev**: `vrfitness.localhost:4005` works without hosts-file edits;
   custom domains can be simulated with `?tenant=<slug>` or by adding the domain
   to `Tenant.domain` and a hosts-file entry pointing at 127.0.0.1.
+
+## Automated per-tenant nginx fragments (implemented)
+
+Platform subdomains need NO per-tenant nginx config — the wildcard server
+blocks in `infra/nginx/dexo.conf` match every provisioned tenant automatically
+(`<t>.onedexo.com`, `admin.<t>.`, `portal.<t>.`).
+
+For verified custom domains, run on the VM (after verification or via cron):
+
+```bash
+OUT_DIR=/etc/nginx/dexo-tenants CERTBOT=1 npx ts-node scripts/nginx-tenant-sync.ts
+```
+
+It reads verified domains from the DB, writes one fragment per domain (own SSL
+cert), removes stale fragments, and only touches files whose content changed —
+then `nginx -t && nginx -s reload` (graceful; zero downtime). Until a fragment
+exists, the `default_server` fallback already serves the domain via the
+tenant-website (with the platform cert, so expect a browser warning until the
+per-domain cert is issued).
+
+## Canonical member-portal URL
+
+The customer app is always `portal.<tenant>.onedexo.com` (dev:
+`portal.<tenant>.localhost:4007`). Configure via
+`NEXT_PUBLIC_TENANT_APP_URL=https://portal.{slug}.onedexo.com` — the `{slug}`
+placeholder is substituted per tenant (see `apps/tenant-website/lib/portal.ts`).

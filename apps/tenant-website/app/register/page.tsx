@@ -3,6 +3,7 @@
 import { useState } from 'react';
 import Link from 'next/link';
 import { registerMember } from '@/lib/api';
+import { memberPortalUrl } from '@/lib/portal';
 
 // Tenant is resolved from the host by middleware.ts, which stamps the
 // `dexo_tenant` cookie. We read that (authoritative), then fall back to parsing
@@ -58,8 +59,7 @@ export default function RegisterPage() {
 
   if (done) {
     // Hand off to the member portal (customer app). {slug} supports prod domains.
-    const memberAppUrl = (process.env.NEXT_PUBLIC_TENANT_APP_URL || 'http://{slug}.localhost:4007')
-      .replace('{slug}', resolveSubdomain());
+    const memberAppUrl = memberPortalUrl(resolveSubdomain());
     return (
       <div className="min-h-screen flex items-center justify-center px-4">
         <div className="max-w-md w-full site-card rounded-xl p-8 text-center">

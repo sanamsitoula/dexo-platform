@@ -3,6 +3,7 @@
 import { useEffect } from 'react';
 import { usePathname, useRouter } from 'next/navigation';
 import { AuthProvider, useAuth } from '../../lib/auth';
+import { TenantInfoProvider } from '../../lib/tenant-info';
 
 const PUBLIC_PATHS = ['/login', '/register'];
 
@@ -30,7 +31,9 @@ function Gate({ children }: { children: React.ReactNode }) {
 export default function AuthGate({ children }: { children: React.ReactNode }) {
   return (
     <AuthProvider>
-      <Gate>{children}</Gate>
+      <TenantInfoProvider>
+        <Gate>{children}</Gate>
+      </TenantInfoProvider>
     </AuthProvider>
   );
 }

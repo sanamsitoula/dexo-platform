@@ -81,10 +81,13 @@ export async function middleware(req: NextRequest) {
   // single ngrok URL demo any tenant: https://<id>.ngrok-free.app/?tenant=bishnufit
   const queryTenant = req.nextUrl.searchParams.get('tenant')?.toLowerCase() || null;
   const cookieTenant = req.cookies.get('dexo_tenant')?.value || null;
+  // In production nginx already resolved the tenant (X-Tenant-Slug header).
+  const headerSlug = req.headers.get('x-tenant-slug')?.toLowerCase() || null;
   const customSlug =
-    !queryTenant && isCustomDomain(hostname) ? await resolveCustomDomain(req, hostname) : null;
+    !queryTenant && !headerSlug && isCustomDomain(hostname) ? await resolveCustomDomain(req, hostname) : null;
   const slug =
     queryTenant ||
+    headerSlug ||
     customSlug ||
     extractSlug(host) ||
     (isTunnelHost(hostname) ? cookieTenant : null) ||

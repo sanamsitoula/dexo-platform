@@ -3,6 +3,7 @@ import { headers } from 'next/headers';
 import { getFitnessInfo, getFitnessPlans, getTenantBySubdomain, type FitnessInfo, type FitnessPlan } from '@/lib/api';
 import { getTemplate } from '@dexo/shared/src/themes';
 import TemplateHome from '@/components/TemplateHome';
+import { memberPortalUrl } from '@/lib/portal';
 
 function resolveSubdomain(): string {
   const h = headers();
@@ -71,9 +72,8 @@ export default async function Home() {
     getTenantBySubdomain(subdomain),
   ]);
   const t = info || FALLBACK;
-  // Customer app is served at this tenant's own subdomain under /app
-  // (nginx routes <tenant>.onedexo.com/app to the tenant-app service).
-  const memberLoginUrl = `/app/login`;
+  // Canonical member-portal host: portal.<tenant>.onedexo.com (see lib/portal.ts).
+  const memberLoginUrl = `${memberPortalUrl(subdomain)}/login`;
 
   // Template-ecosystem rendering: if the tenant picked one of the 60 website
   // templates at signup, render that design family instead of the default page.

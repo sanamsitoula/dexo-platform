@@ -5,6 +5,7 @@ import { getSiteTheme } from '@/lib/site-theme';
 import SiteNav from '@/components/SiteNav';
 import SiteFooter from '@/components/SiteFooter';
 import LoginRedirect from './redirect';
+import { memberPortalUrl } from '@/lib/portal';
 
 function resolveSubdomain(): string {
   const h = headers();
@@ -23,8 +24,7 @@ export default async function LoginPage() {
   const [info, theme] = await Promise.all([getFitnessInfo(subdomain), getSiteTheme(subdomain)]);
   const t = info || FALLBACK;
   // Customer app (member portal) URL — {slug} placeholder supports prod domains.
-  const memberAppUrl = (process.env.NEXT_PUBLIC_TENANT_APP_URL || 'http://{slug}.localhost:4007')
-    .replace('{slug}', subdomain);
+  const memberAppUrl = memberPortalUrl(subdomain);
   const loginUrl = `${memberAppUrl}/login`;
 
   return (

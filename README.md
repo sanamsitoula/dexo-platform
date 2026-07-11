@@ -200,6 +200,16 @@ templates, seeded tenant states, and the `/api/health` endpoint.
 | Tenant Website (vrfitness) | 4005 | http://localhost:4005 | Tenant public website        |
 | Tenant Admin Portal    | 4006 | http://localhost:4006     | Tenant owner + staff portal      |
 | Tenant Customer App    | 4007 | http://localhost:4007     | Tenant customer-facing app       |
+
+> **Production URL map (nginx, onedexo.com):** `onedexo.com` → platform-web ·
+> `admin.onedexo.com` → platform-admin · `api.onedexo.com` → API ·
+> `<tenant>.onedexo.com` → tenant-website · `admin.<tenant>.onedexo.com` → tenant-admin ·
+> `portal.<tenant>.onedexo.com` → tenant-app (canonical member portal) ·
+> custom domains → tenant-website via `/api/tenants/resolve`.
+> Subdomain routing is fully dynamic (wildcard server blocks — no per-tenant nginx edits);
+> custom-domain SSL fragments are generated per tenant by `scripts/nginx-tenant-sync.ts`
+> into `/etc/nginx/dexo-tenants/` (fractional rebuild + graceful reload).
+> See `infra/nginx/dexo.conf` and `docs/CUSTOM_DOMAINS.md`.
 | Tenant Reports (admin) | 4006 | http://localhost:4006/reports | NFRS + IRD financial reports |
 | Tenant Finance (admin) | 4006 | http://localhost:4006/finance | Chart of accounts, journal entries, invoices |
 | Tenant Invoices (admin) | 4006 | http://localhost:4006/finance/invoices | Invoice list + print/PDF + reprint copy |

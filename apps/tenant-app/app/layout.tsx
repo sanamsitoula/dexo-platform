@@ -48,9 +48,11 @@ export default async function RootLayout({ children }: { children: React.ReactNo
         style={{ ['--brand-primary' as any]: brand.primary, ['--brand-accent' as any]: brand.accent }}
       >
         <div className="max-w-md mx-auto min-h-screen bg-white">
-          <AuthGate>{children}</AuthGate>
+          <AuthGate>
+            {children}
+            <BottomNav />
+          </AuthGate>
         </div>
-        <BottomNav />
       </body>
     </html>
   );
