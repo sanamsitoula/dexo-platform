@@ -7,6 +7,10 @@ import { TenantProvider } from '@/lib/tenant-context'
 import { ThemeProvider } from '@/lib/theme-provider'
 import { DomainThemeProvider } from '@/components/DomainThemeProvider'
 import { GoogleAnalytics } from '@/components/GoogleAnalytics'
+import SmoothScrollProvider from '@/components/SmoothScrollProvider'
+import CustomCursor from '@/components/CustomCursor'
+import ScrollProgress from '@/components/ScrollProgress'
+import LoadingScreen from '@/components/LoadingScreen'
 
 // DEXO brand type stack (brand/Brand/04-typography.md):
 // Inter for UI/body, Space Grotesk for display 24px+, JetBrains Mono for code/data.
@@ -26,15 +30,20 @@ export default function RootLayout({
 }) {
   return (
     <html lang="en" suppressHydrationWarning>
-      <body className={`${inter.variable} ${grotesk.variable} ${jbMono.variable} ${inter.className}`} suppressHydrationWarning>
+      <body className={`${inter.variable} ${grotesk.variable} ${jbMono.variable} ${inter.className} bg-[#05050a]`} suppressHydrationWarning>
         <TenantProvider>
           <ThemeProvider>
             <DomainThemeProvider>
-              <div className="min-h-screen flex flex-col">
-                <PlatformHeader />
-                <main className="flex-1">{children}</main>
-                <Footer />
-              </div>
+              <LoadingScreen />
+              <ScrollProgress />
+              <CustomCursor />
+              <SmoothScrollProvider>
+                <div className="min-h-screen flex flex-col">
+                  <PlatformHeader />
+                  <main className="flex-1">{children}</main>
+                  <Footer />
+                </div>
+              </SmoothScrollProvider>
               <GoogleAnalytics />
             </DomainThemeProvider>
           </ThemeProvider>

@@ -9,6 +9,22 @@
   --color-dexo-ink: #09090B;
   --color-dexo-paper: #FAFAFA;
   --radius-dexo: 10px;
+
+  /* Premium dark marketing palette (homepage + restyled marketing pages) */
+  --color-dexo-bg: #05050a;
+  --color-dexo-bg-alt: #08080f;
+  --color-dexo-cyan: #22D3EE;
+  --color-dexo-violet: #8B5CF6;
+  --color-dexo-indigo: #6366F1;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
 }
 @theme inline {
   --font-sans: var(--font-inter), Inter, -apple-system, 'Segoe UI', sans-serif;

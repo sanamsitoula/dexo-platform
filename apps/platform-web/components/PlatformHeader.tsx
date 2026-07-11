@@ -29,40 +29,40 @@ export default function PlatformHeader() {
   }
 
   return (
-    <header className="border-b border-gray-200 bg-white sticky top-0 z-30">
+    <header className="border-b border-white/10 bg-[#05050a]/80 backdrop-blur-md sticky top-0 z-30">
       <nav className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between">
         {/* Logo */}
         <Link href="/" className="flex items-center gap-2" aria-label="Dexo home">
           {/* DEXO Tenant Cube mark (brand/Brand/02-visual-guidelines.md) */}
           <svg viewBox="0 0 96 96" width={30} height={30} role="img" aria-label="DEXO logo mark">
-            <path d="M16 62 48 46l32 16-32 16z" fill="#09090B" />
-            <path d="M16 48 48 32l32 16-32 16z" fill="#09090B" opacity={0.7} />
-            <path d="M16 34 48 18l32 16-32 16z" fill="#4F46E5" />
+            <path d="M16 62 48 46l32 16-32 16z" fill="#E4E4E7" />
+            <path d="M16 48 48 32l32 16-32 16z" fill="#71717A" />
+            <path d="M16 34 48 18l32 16-32 16z" fill="#818CF8" />
           </svg>
-          <span className="text-lg font-bold text-gray-900" style={{ fontFamily: "var(--font-grotesk), 'Space Grotesk', system-ui, sans-serif", letterSpacing: '0.02em' }}>DEXO</span>
+          <span className="text-lg font-bold text-white" style={{ fontFamily: "var(--font-grotesk), 'Space Grotesk', system-ui, sans-serif", letterSpacing: '0.02em' }}>DEXO</span>
         </Link>
 
         {/* Platform Nav (always visible) */}
         <div className="hidden md:flex items-center gap-6">
-          <Link href="/#features" className="text-sm text-gray-700 hover:text-indigo-600 font-medium">
+          <Link href="/#features" className="text-sm text-zinc-300 hover:text-cyan-300 font-medium transition-colors">
             Features
           </Link>
-          <Link href="/#industries" className="text-sm text-gray-700 hover:text-indigo-600 font-medium">
+          <Link href="/#industries" className="text-sm text-zinc-300 hover:text-cyan-300 font-medium transition-colors">
             Industries
           </Link>
-          <Link href="/#pricing" className="text-sm text-gray-700 hover:text-indigo-600 font-medium">
+          <Link href="/#pricing" className="text-sm text-zinc-300 hover:text-cyan-300 font-medium transition-colors">
             Pricing
           </Link>
-          <Link href="/docs" className="text-sm text-gray-700 hover:text-indigo-600 font-medium">
+          <Link href="/docs" className="text-sm text-zinc-300 hover:text-cyan-300 font-medium transition-colors">
             Docs
           </Link>
-          <Link href="/blog" className="text-sm text-gray-700 hover:text-indigo-600 font-medium">
+          <Link href="/blog" className="text-sm text-zinc-300 hover:text-cyan-300 font-medium transition-colors">
             Blog
           </Link>
-          <Link href="/marketplace" className="text-sm text-gray-700 hover:text-indigo-600 font-medium">
+          <Link href="/marketplace" className="text-sm text-zinc-300 hover:text-cyan-300 font-medium transition-colors">
             Marketplace
           </Link>
-          <Link href="/contact" className="text-sm text-gray-700 hover:text-indigo-600 font-medium">
+          <Link href="/contact" className="text-sm text-zinc-300 hover:text-cyan-300 font-medium transition-colors">
             Contact
           </Link>
         </div>
@@ -132,13 +132,13 @@ export default function PlatformHeader() {
             <>
               <Link
                 href="/login"
-                className="text-sm text-gray-700 hover:text-indigo-600 font-medium px-3 py-2"
+                className="text-sm text-zinc-300 hover:text-cyan-300 font-medium px-3 py-2 transition-colors"
               >
                 Sign in
               </Link>
               <Link
                 href="/register"
-                className="text-sm text-white bg-indigo-600 hover:bg-indigo-700 font-medium px-4 py-2 rounded-md"
+                className="text-sm text-white bg-gradient-to-r from-indigo-500 via-violet-500 to-cyan-400 hover:opacity-90 font-medium px-4 py-2 rounded-full transition-opacity"
               >
                 Start Free
               </Link>
