@@ -44,4 +44,14 @@ export const fitnessAgents: AiAgentDefinition[] = [
     moduleKeys: ['fitness'],
     systemPromptKey: 'fitness.finance',
   },
+  {
+    key: 'fitness.member',
+    name: 'My Coach',
+    description: "Member-facing assistant — self-scoped, tenant-app only",
+    // Deliberately a DIFFERENT moduleKey ("fitness-self") than the staff
+    // agents above ("fitness") — this agent structurally cannot reach any
+    // tool that accepts an arbitrary memberId, regardless of prompting.
+    moduleKeys: ['fitness-self'],
+    systemPromptKey: 'fitness.member',
+  },
 ];

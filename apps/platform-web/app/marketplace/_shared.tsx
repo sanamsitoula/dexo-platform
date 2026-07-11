@@ -37,7 +37,7 @@ export function Stars({ rating, count }: { rating: number; count?: number }) {
           <span key={i}>{i <= full ? '★' : '☆'}</span>
         ))}
       </span>
-      {count !== undefined && <span className="text-gray-400 text-xs">({count})</span>}
+      {count !== undefined && <span className="text-zinc-500 text-xs">({count})</span>}
     </span>
   )
 }

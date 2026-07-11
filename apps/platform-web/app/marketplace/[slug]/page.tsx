@@ -5,6 +5,7 @@ import Link from 'next/link'
 import { useParams } from 'next/navigation'
 import { marketplaceApi } from '@/lib/api'
 import { ItemThumb, Stars, formatPrice } from '../_shared'
+import MagneticButton from '@/components/MagneticButton'
 
 export default function MarketplaceDetailPage() {
   const params = useParams()
@@ -24,21 +25,25 @@ export default function MarketplaceDetailPage() {
 
   if (loading) {
     return (
-      <div className="max-w-5xl mx-auto px-4 py-20 animate-pulse space-y-6">
-        <div className="h-8 bg-gray-100 rounded w-1/3" />
-        <div className="h-64 bg-gray-100 rounded-xl" />
-        <div className="h-4 bg-gray-100 rounded w-2/3" />
+      <div className="min-h-screen bg-[#05050a]">
+        <div className="max-w-5xl mx-auto px-4 py-20 animate-pulse space-y-6">
+          <div className="h-8 bg-white/10 rounded w-1/3" />
+          <div className="h-64 bg-white/5 rounded-xl" />
+          <div className="h-4 bg-white/10 rounded w-2/3" />
+        </div>
       </div>
     )
   }
 
   if (error || !item) {
     return (
-      <div className="max-w-5xl mx-auto px-4 py-24 text-center">
-        <div className="text-5xl mb-4">🔍</div>
-        <h1 className="text-2xl font-bold text-gray-900">Item not found</h1>
-        <p className="text-gray-500 mt-2">{error}</p>
-        <Link href="/marketplace" className="inline-block mt-6 text-indigo-600 hover:underline">← Back to marketplace</Link>
+      <div className="min-h-screen bg-[#05050a]">
+        <div className="max-w-5xl mx-auto px-4 py-24 text-center">
+          <div className="text-5xl mb-4">🔍</div>
+          <h1 className="text-2xl font-bold text-white">Item not found</h1>
+          <p className="text-zinc-500 mt-2">{error}</p>
+          <Link href="/marketplace" className="inline-block mt-6 text-cyan-400 hover:underline">← Back to marketplace</Link>
+        </div>
       </div>
     )
   }

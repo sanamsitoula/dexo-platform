@@ -145,3 +145,82 @@ h1, h2, .dx-display {
     text-wrap: balance;
   }
 }
+
+/* Reusable glass-card utility for dark cinematic marketing/inner pages
+   (marketplace, blog, domains). Mirrors the ad-hoc pattern used across
+   components/sections/*.tsx and PlatformHeader/Footer. */
+.glass-card {
+  background-color: rgb(255 255 255 / 0.05);
+  backdrop-filter: blur(24px);
+  -webkit-backdrop-filter: blur(24px);
+  border: 1px solid rgb(255 255 255 / 0.1);
+  border-radius: 1rem;
+  transition: border-color 0.3s ease, box-shadow 0.3s ease, background-color 0.3s ease, transform 0.3s ease;
+}
+
+.glass-card-hover {
+  cursor: pointer;
+}
+
+.glass-card-hover:hover {
+  border-color: rgb(34 211 238 / 0.4);
+  background-color: rgb(255 255 255 / 0.08);
+  box-shadow: 0 0 40px rgba(34, 211, 238, 0.12);
+  transform: translateY(-2px);
+}
+
+/* Hand-written dark prose overrides for blog post body content
+   (dangerouslySetInnerHTML) — @tailwindcss/typography is not installed,
+   so this is a manual replacement for `prose-invert`. */
+.prose-dark {
+  color: rgb(212 212 216); /* zinc-300 */
+  line-height: 1.75;
+  max-width: 68ch;
+}
+.prose-dark h1, .prose-dark h2, .prose-dark h3, .prose-dark h4 {
+  color: #fff;
+  font-family: var(--font-grotesk), 'Space Grotesk', system-ui, sans-serif;
+  font-weight: 700;
+  text-wrap: balance;
+}
+.prose-dark h1 { font-size: 2rem; margin: 2rem 0 1rem; }
+.prose-dark h2 { font-size: 1.5rem; margin: 2rem 0 1rem; }
+.prose-dark h3 { font-size: 1.25rem; margin: 1.5rem 0 0.75rem; }
+.prose-dark p { margin: 1.1rem 0; }
+.prose-dark a { color: #22D3EE; text-decoration: underline; text-underline-offset: 2px; }
+.prose-dark a:hover { color: #67e8f9; }
+.prose-dark strong { color: #fff; font-weight: 600; }
+.prose-dark ul, .prose-dark ol { margin: 1.1rem 0; padding-left: 1.4rem; }
+.prose-dark ul { list-style: disc; }
+.prose-dark ol { list-style: decimal; }
+.prose-dark li { margin: 0.4rem 0; }
+.prose-dark blockquote {
+  border-left: 3px solid #8B5CF6;
+  margin: 1.5rem 0;
+  padding: 0.25rem 1.25rem;
+  color: rgb(161 161 170); /* zinc-400 */
+  font-style: italic;
+}
+.prose-dark code {
+  font-family: var(--font-jbmono), 'JetBrains Mono', ui-monospace, monospace;
+  font-size: 0.85em;
+  background: rgb(255 255 255 / 0.08);
+  border: 1px solid rgb(255 255 255 / 0.1);
+  border-radius: 4px;
+  padding: 0.15em 0.4em;
+  color: #67e8f9;
+}
+.prose-dark pre {
+  background: #0a0a12;
+  border: 1px solid rgb(255 255 255 / 0.1);
+  border-radius: 0.75rem;
+  padding: 1rem 1.25rem;
+  overflow-x: auto;
+  margin: 1.5rem 0;
+}
+.prose-dark pre code { background: transparent; border: 0; padding: 0; color: inherit; }
+.prose-dark img { border-radius: 0.75rem; margin: 1.5rem 0; }
+.prose-dark hr { border: 0; border-top: 1px solid rgb(255 255 255 / 0.1); margin: 2.5rem 0; }
+.prose-dark table { width: 100%; border-collapse: collapse; margin: 1.5rem 0; font-size: 0.9rem; }
+.prose-dark th { text-align: left; text-transform: uppercase; font-size: 0.75rem; letter-spacing: 0.04em; color: rgb(161 161 170); border-bottom: 1px solid rgb(255 255 255 / 0.15); padding: 0.5rem 0.75rem; }
+.prose-dark td { border-bottom: 1px solid rgb(255 255 255 / 0.08); padding: 0.5rem 0.75rem; vertical-align: top; }
