@@ -32,10 +32,9 @@ export default async function Home() {
   const subdomain = resolveSubdomain();
   const [info, plans] = await Promise.all([getFitnessInfo(subdomain), getFitnessPlans(subdomain)]);
   const t = info || FALLBACK;
-  // Customer app (member portal) is a single global app — tenant is passed via
-  // ?tenant= (read by tenant-app's middleware, sticky via cookie afterwards).
-  const tenantAppBase = process.env.NEXT_PUBLIC_TENANT_APP_URL || 'http://app.onedexo.com';
-  const memberLoginUrl = `${tenantAppBase}/login?tenant=${subdomain}`;
+  // Customer app is served at this tenant's own subdomain under /app
+  // (nginx routes <tenant>.onedexo.com/app to the tenant-app service).
+  const memberLoginUrl = `/app/login`;
 
   return (
     <div style={{ background: '#0f0f10', color: '#fff', minHeight: '100vh' }}>

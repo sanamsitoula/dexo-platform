@@ -8,7 +8,11 @@ const nextConfig = {
       { protocol: 'http', hostname: '**' },
     ],
   },
-  ...(process.env.ENABLE_PATH_ROUTING === 'true' ? { basePath: '/dexo/app' } : {}),
+  ...(process.env.ENABLE_PATH_ROUTING === 'true'
+    ? { basePath: '/dexo/app' }
+    : process.env.TENANT_PATH_MODE === 'true'
+      ? { basePath: '/app' }
+      : {}),
   async rewrites() {
     return [
       {
