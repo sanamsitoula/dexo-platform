@@ -4,6 +4,7 @@ import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000';
+const PLATFORM_DOMAIN = process.env.NEXT_PUBLIC_PLATFORM_DOMAIN || 'onedexo.com';
 
 interface Lifecycle {
   subdomainSlug: string;
@@ -98,7 +99,7 @@ export default function DomainPage() {
       <div className="mt-6 bg-white rounded-lg shadow p-6">
         <h3 className="font-semibold text-gray-900">Current Subdomain</h3>
         <div className="mt-2 text-lg font-mono text-slate-700">
-          {lc?.subdomainSlug || '(unknown)'}.onedexo.com
+          {lc?.subdomainSlug || '(unknown)'}.{PLATFORM_DOMAIN}
         </div>
         <div className="mt-1 text-xs text-gray-500">Read-only — provisioned at signup</div>
       </div>

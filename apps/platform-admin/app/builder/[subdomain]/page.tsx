@@ -3,6 +3,8 @@
 import { useEffect, useState } from 'react'
 import { useParams } from 'next/navigation'
 
+const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000';
+
 const THEMES = [
   { code: 'fitness-pro', name: 'Fitness Pro', primary: '#FF6B35', secondary: '#1A1A2E' },
   { code: 'beauty-salon', name: 'Beauty Salon', primary: '#A855F7', secondary: '#581C87' },
@@ -90,7 +92,7 @@ export default function WebsiteBuilderPage() {
   async function fetchTenant() {
     try {
       const token = localStorage.getItem('accessToken')
-      const res = await fetch(`http://localhost:4000/api/tenants/subdomain/${subdomain}`, {
+      const res = await fetch(`${API_URL}/api/tenants/subdomain/${subdomain}`, {
         headers: { Authorization: `Bearer ${token}` },
       })
       const data = await res.json()

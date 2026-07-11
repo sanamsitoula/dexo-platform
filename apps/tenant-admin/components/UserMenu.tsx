@@ -3,6 +3,8 @@
 import { useEffect, useRef, useState } from 'react';
 import { tenantApi } from '@/lib/api';
 
+const PLATFORM_DOMAIN = process.env.NEXT_PUBLIC_PLATFORM_DOMAIN || 'onedexo.com';
+
 /**
  * Profile dropdown for the tenant portals (admin + staff): who am I, which
  * tenant/business am I in, my roles — and logout. Self-contained (fetches
@@ -76,12 +78,12 @@ export default function UserMenu() {
             <div className="text-[10px] font-bold uppercase tracking-wide text-gray-400 mb-1.5">Business</div>
             <div className="font-semibold text-gray-900">{tenant?.name ?? subdomain}</div>
             <div className="text-xs text-gray-500 mt-0.5">
-              {subdomain}.onedexo.com{domainCode ? ` · ${String(domainCode).replace(/_/g, ' ').toLowerCase()}` : ''}
+              {subdomain}.{PLATFORM_DOMAIN}{domainCode ? ` · ${String(domainCode).replace(/_/g, ' ').toLowerCase()}` : ''}
             </div>
             {tenant?.status && <div className="text-xs text-gray-400 mt-0.5">status: {tenant.status}</div>}
           </div>
           <div className="p-2">
-            <a href={`http://${subdomain}.localhost:4005`} target="_blank" rel="noreferrer" className="block px-3 py-2 rounded-lg text-sm text-gray-700 hover:bg-gray-50">↗ View public site</a>
+            <a href={`http://${subdomain}.${PLATFORM_DOMAIN}`} target="_blank" rel="noreferrer" className="block px-3 py-2 rounded-lg text-sm text-gray-700 hover:bg-gray-50">↗ View public site</a>
             <a href="/settings" className="block px-3 py-2 rounded-lg text-sm text-gray-700 hover:bg-gray-50">⚙ Settings</a>
             <button onClick={logout} className="w-full text-left px-3 py-2 rounded-lg text-sm text-red-600 font-semibold hover:bg-red-50">⎋ Sign out</button>
           </div>

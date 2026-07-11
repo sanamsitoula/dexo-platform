@@ -166,9 +166,9 @@ export default function EditBlogPage() {
         <div className="flex items-center gap-3">
           {stats && (
             <div className="flex items-center gap-3 text-sm text-gray-500">
-              <span title="Views">👁 {stats.viewCount}</span>
-              <span title="Likes">♥ {stats.likeCount}</span>
-              <span title="Comments">💬 {stats.commentCount}</span>
+              <span title="Views">?? {stats.viewCount}</span>
+              <span title="Likes">? {stats.likeCount}</span>
+              <span title="Comments">?? {stats.commentCount}</span>
             </div>
           )}
           <span className={`px-3 py-1 text-sm font-medium rounded-full ${
@@ -329,6 +329,33 @@ export default function EditBlogPage() {
             onSuggestSlug={handleSuggestSlug}
             suggesting={suggesting}
           />
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">Meta Title</label>
+            <input
+              type="text"
+              value={metaTitle}
+              onChange={(e) => setMetaTitle(e.target.value)}
+              className="input-primary"
+            />
+          </div>
+
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">Meta Description</label>
+            <textarea
+              value={metaDescription}
+              onChange={(e) => setMetaDescription(e.target.value)}
+              rows={3}
+              className="input-primary"
+            />
+          </div>
+
+          <div className="bg-gray-50 p-4 rounded-lg">
+            <p className="text-sm text-gray-600 mb-2">Preview:</p>
+            <p className="text-blue-600 text-lg">{metaTitle || title}</p>
+            <p className="text-green-700 text-sm">onedexo.com/blogs/{title?.toLowerCase().replace(/[^a-z0-9]+/g, '-') || '...'}</p>
+            <p className="text-gray-600 text-sm">{metaDescription || excerpt || 'No description'}</p>
+          </div>
+
           <button
             onClick={handleSubmit as any}
             disabled={saving}

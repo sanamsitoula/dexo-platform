@@ -71,6 +71,9 @@ export default async function Home() {
     getTenantBySubdomain(subdomain),
   ]);
   const t = info || FALLBACK;
+  // Customer app is served at this tenant's own subdomain under /app
+  // (nginx routes <tenant>.onedexo.com/app to the tenant-app service).
+  const memberLoginUrl = `/app/login`;
 
   // Template-ecosystem rendering: if the tenant picked one of the 60 website
   // templates at signup, render that design family instead of the default page.
@@ -103,7 +106,7 @@ export default async function Home() {
           <Link href="/book" className="opacity-80 hover:opacity-100">Book</Link>
           <a href="#plans" className="opacity-80 hover:opacity-100">Plans</a>
           <Link href="/contact" className="opacity-80 hover:opacity-100">Contact</Link>
-          <Link href="/login" className="px-4 py-2 rounded-md font-semibold border border-white/25 hover:bg-white/10">Member Login</Link>
+          <a href={memberLoginUrl} className="px-4 py-2 rounded-md font-semibold border border-white/25 hover:bg-white/10">Member Login</a>
           <Link href="/register" className="px-4 py-2 rounded-md font-semibold text-black" style={{ background: t.colorPrimary }}>Join Now</Link>
         </div>
       </nav>

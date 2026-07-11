@@ -8,6 +8,7 @@ import { headers } from 'next/headers';
 import ContactForm from './ContactForm';
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000';
+const PLATFORM_DOMAIN = process.env.NEXT_PUBLIC_PLATFORM_DOMAIN || 'onedexo.com';
 
 async function getBranches(subdomain: string) {
   try {
@@ -63,7 +64,7 @@ export default async function ContactPage() {
   const hq = branches.find((b: any) => b.isHeadquarters) ?? branches[0];
   const tenantName = tenant?.name ?? subdomain;
   const tenantPhone = (tenant?.settings as any)?.phone ?? hq?.phone ?? '';
-  const tenantEmail = (tenant?.settings as any)?.email ?? hq?.email ?? `hello@${subdomain}.onedexo.com`;
+  const tenantEmail = (tenant?.settings as any)?.email ?? hq?.email ?? `hello@${subdomain}.${PLATFORM_DOMAIN}`;
   const whatsappNumber = whatsapp.isEnabled ? whatsapp.phoneNumber : '';
   const whatsappDisplay = whatsapp.displayName;
 

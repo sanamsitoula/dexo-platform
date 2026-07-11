@@ -194,7 +194,7 @@ export default function LoginPage() {
 
         {/* Footer */}
         <p className="mt-6 text-center text-sm text-slate-400">
-          <Link href="http://localhost:3000" className="hover:text-slate-200">
+          <Link href="https://app.onedexo.com" className="hover:text-slate-200">
             ← Back to Tenant App
           </Link>
         </p>

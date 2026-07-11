@@ -2,6 +2,9 @@
 const nextConfig = {
   reactStrictMode: true,
   transpilePackages: ['@dexo/shared', '@dexo/ui'],
+  // Activate with ENABLE_PATH_ROUTING=true in .env for nginx/ngrok single-URL
+  // demo setup. Leave unset for production (host-based routing needs no basePath).
+  ...(process.env.ENABLE_PATH_ROUTING === 'true' ? { basePath: '/dexo' } : {}),
   experimental: {
     optimizePackageImports: ['@dexo/ui'],
   },
