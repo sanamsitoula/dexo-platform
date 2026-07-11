@@ -140,7 +140,7 @@ export default function LoginScreen() {
                       </View>
                     ) : filteredTenants.length === 0 ? (
                       <Text style={styles.emptyText}>
-                        No business found. If your gym isn't listed, ask them to sign up at dexo.com.
+                        No business found. If your gym isn't listed, ask them to sign up at onedexo.com.
                       </Text>
                     ) : (
                       filteredTenants.map((t) => (

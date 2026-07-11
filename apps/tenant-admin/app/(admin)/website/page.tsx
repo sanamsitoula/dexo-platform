@@ -5,6 +5,8 @@ import { useParams } from 'next/navigation';
 import { tenantSettingsApi, tenantApi } from '@/lib/api';
 import { PageHeader, Card, Btn, Field, Input } from '../_ui';
 
+const PLATFORM_DOMAIN = process.env.NEXT_PUBLIC_PLATFORM_DOMAIN || 'onedexo.com';
+
 const TEMPLATES = [
   { key: 'energetic', name: 'Energetic', desc: 'Bold hero, big imagery', color: '#E85D24' },
   { key: 'minimal', name: 'Minimal', desc: 'Clean, lots of whitespace', color: '#0F172A' },
@@ -42,7 +44,7 @@ export default function WebsiteBuilderPage() {
   return (
     <div className="max-w-3xl">
       <PageHeader title="Website Builder" subtitle="Design your public site — no code"
-        action={<a href={`http://${subdomain}.localhost:4005`} target="_blank" rel="noreferrer"><Btn variant="outline">↗ Preview site</Btn></a>} />
+        action={<a href={`http://${subdomain}.${PLATFORM_DOMAIN}`} target="_blank" rel="noreferrer"><Btn variant="outline">↗ Preview site</Btn></a>} />
 
       <Card className="p-6 mb-4">
         <div className="font-bold text-gray-900 mb-3">Template</div>

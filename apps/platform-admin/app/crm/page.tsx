@@ -3,6 +3,8 @@
 import { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 
+const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000';
+
 interface ContactMessage {
   id: string
   name: string
@@ -83,7 +85,7 @@ export default function CRMPage() {
       if (channelFilter !== 'all') params.append('channel', channelFilter)
       if (search) params.append('search', search)
 
-      const res = await fetch(`http://localhost:4000/api/contact?${params.toString()}`, {
+      const res = await fetch(`${API_URL}/api/contact?${params.toString()}`, {
         headers: { Authorization: `Bearer ${token}` },
       })
 
@@ -107,7 +109,7 @@ export default function CRMPage() {
   async function fetchStats() {
     try {
       const token = localStorage.getItem('accessToken')
-      const res = await fetch('http://localhost:4000/api/contact/stats', {
+      const res = await fetch(`${API_URL}/api/contact/stats`, {
         headers: { Authorization: `Bearer ${token}` },
       })
       const data = await res.json()
@@ -117,7 +119,7 @@ export default function CRMPage() {
 
   async function updateStatus(id: string, status: string) {
     const token = localStorage.getItem('accessToken')
-    await fetch(`http://localhost:4000/api/contact/${id}`, {
+    await fetch(`${API_URL}/api/contact/${id}`, {
       method: 'PUT',
       headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
       body: JSON.stringify({ status }),
@@ -129,7 +131,7 @@ export default function CRMPage() {
   async function sendReply(id: string) {
     if (!replyText.trim()) return
     const token = localStorage.getItem('accessToken')
-    await fetch(`http://localhost:4000/api/contact/${id}/reply`, {
+    await fetch(`${API_URL}/api/contact/${id}/reply`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
       body: JSON.stringify({ replyMessage: replyText }),

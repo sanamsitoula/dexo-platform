@@ -208,7 +208,7 @@ export default function BrandingSettingsPage() {
               value={supportEmail}
               onChange={(e) => setSupportEmail(e.target.value)}
               className="input-primary"
-              placeholder="support@dexo.com"
+              placeholder="support@onedexo.com"
             />
           </div>
           <div>
@@ -228,7 +228,7 @@ export default function BrandingSettingsPage() {
               value={websiteUrl}
               onChange={(e) => setWebsiteUrl(e.target.value)}
               className="input-primary"
-              placeholder="https://dexo.com"
+              placeholder="https://onedexo.com"
             />
           </div>
         </div>
@@ -295,7 +295,7 @@ export default function BrandingSettingsPage() {
               value={privacyPolicyUrl}
               onChange={(e) => setPrivacyPolicyUrl(e.target.value)}
               className="input-primary"
-              placeholder="https://dexo.com/privacy"
+              placeholder="https://onedexo.com/privacy"
             />
           </div>
           <div>
@@ -305,7 +305,7 @@ export default function BrandingSettingsPage() {
               value={termsOfServiceUrl}
               onChange={(e) => setTermsOfServiceUrl(e.target.value)}
               className="input-primary"
-              placeholder="https://dexo.com/terms"
+              placeholder="https://onedexo.com/terms"
             />
           </div>
         </div>

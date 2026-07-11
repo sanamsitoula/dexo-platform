@@ -32,9 +32,10 @@ export default async function Home() {
   const subdomain = resolveSubdomain();
   const [info, plans] = await Promise.all([getFitnessInfo(subdomain), getFitnessPlans(subdomain)]);
   const t = info || FALLBACK;
-  // Customer app (member portal) URL — {slug} placeholder supports prod domains.
-  const memberAppUrl = (process.env.NEXT_PUBLIC_TENANT_APP_URL || 'http://{slug}.localhost:4007')
-    .replace('{slug}', subdomain);
+  // Customer app (member portal) is a single global app — tenant is passed via
+  // ?tenant= (read by tenant-app's middleware, sticky via cookie afterwards).
+  const tenantAppBase = process.env.NEXT_PUBLIC_TENANT_APP_URL || 'http://app.onedexo.com';
+  const memberLoginUrl = `${tenantAppBase}/login?tenant=${subdomain}`;
 
   return (
     <div style={{ background: '#0f0f10', color: '#fff', minHeight: '100vh' }}>
@@ -44,7 +45,7 @@ export default async function Home() {
         <div className="space-x-4 text-sm">
           <a href="#plans" className="opacity-80 hover:opacity-100">Plans</a>
           <Link href="/contact" className="opacity-80 hover:opacity-100">Contact</Link>
-          <a href={`${memberAppUrl}/login`} className="px-4 py-2 rounded-md font-semibold border border-white/25 hover:bg-white/10">Member Login</a>
+          <a href={memberLoginUrl} className="px-4 py-2 rounded-md font-semibold border border-white/25 hover:bg-white/10">Member Login</a>
           <Link href="/register" className="px-4 py-2 rounded-md font-semibold text-black" style={{ background: t.colorPrimary }}>Join Now</Link>
         </div>
       </nav>

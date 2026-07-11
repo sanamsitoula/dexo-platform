@@ -327,7 +327,7 @@ export default function EditBlogPage() {
           <div className="bg-gray-50 p-4 rounded-lg">
             <p className="text-sm text-gray-600 mb-2">Preview:</p>
             <p className="text-blue-600 text-lg">{metaTitle || title}</p>
-            <p className="text-green-700 text-sm">dexo.com/blogs/{title?.toLowerCase().replace(/[^a-z0-9]+/g, '-') || '...'}</p>
+            <p className="text-green-700 text-sm">onedexo.com/blogs/{title?.toLowerCase().replace(/[^a-z0-9]+/g, '-') || '...'}</p>
             <p className="text-gray-600 text-sm">{metaDescription || excerpt || 'No description'}</p>
           </div>
 

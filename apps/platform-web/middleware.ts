@@ -8,12 +8,12 @@ import type { NextRequest } from 'next/server'
  * Sets tenant context in headers for downstream use.
  *
  * Examples:
- * - fitness.dexo.com → subdomain: "fitness"
+ * - fitness.onedexo.com → subdomain: "fitness"
  * - gym.example.com → domain: "gym.example.com"
  * - localhost:3000 → no tenant (platform admin)
  */
 
-const PLATFORM_DOMAIN = process.env.PLATFORM_DOMAIN || 'dexo.com'
+const PLATFORM_DOMAIN = process.env.PLATFORM_DOMAIN || 'onedexo.com'
 const ADMIN_SUBDOMAIN = 'admin'
 
 /**

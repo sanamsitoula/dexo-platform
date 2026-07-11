@@ -60,10 +60,11 @@ export class ProvisioningService {
       data: { status: 'ACTIVE', provisionedAt: new Date(), sslStatus: 'ACTIVE' },
     });
 
+    const platformDomain = process.env.PLATFORM_DOMAIN || 'onedexo.com';
     return {
       tenantId: tenant.id,
       subdomain: input.slug,
-      url: `http://admin.${input.slug}.dexo.com:4006`,
+      url: `http://${input.slug}.${platformDomain}`,
     };
   }
 }

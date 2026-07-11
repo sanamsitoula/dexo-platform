@@ -3,6 +3,8 @@ import Link from 'next/link';
 import { headers } from 'next/headers';
 import UserMenu from '@/components/UserMenu';
 
+const PLATFORM_DOMAIN = process.env.NEXT_PUBLIC_PLATFORM_DOMAIN || 'onedexo.com';
+
 // Grouped nav. Every link resolves to a real page (no 404s).
 const NAV_SECTIONS: { heading: string; items: { href: string; label: string }[] }[] = [
   {
@@ -73,7 +75,7 @@ export default function AdminLayout({ children }: { children: ReactNode }) {
           ))}
         </nav>
         <div className="px-4 py-3 border-t border-slate-800 text-xs text-slate-400">
-          <a href={`http://${slug}.dexo.com:4005`} target="_blank" rel="noreferrer" className="hover:text-slate-200">
+          <a href={`http://${slug}.${PLATFORM_DOMAIN}`} target="_blank" rel="noreferrer" className="hover:text-slate-200">
             ↗ View public site
           </a>
         </div>

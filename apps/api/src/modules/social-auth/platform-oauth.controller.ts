@@ -26,7 +26,7 @@ export class PlatformOAuthController {
     @Res() res: Response,
   ) {
     const result = await this.socialAuthService.handleProviderCallback(provider, code, state);
-    const redirectUrl = `${process.env.ADMIN_URL || 'http://localhost:3001'}/auth/callback?token=${result.accessToken}&refresh=${result.refreshToken}&new=${result.isNewUser}`;
+    const redirectUrl = `${process.env.ADMIN_URL || 'http://onedexo.com'}/auth/callback?token=${result.accessToken}&refresh=${result.refreshToken}&new=${result.isNewUser}`;
     res.redirect(redirectUrl);
   }
 

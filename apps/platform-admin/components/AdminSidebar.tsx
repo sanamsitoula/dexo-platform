@@ -144,7 +144,7 @@ export default function AdminSidebar() {
                 {user?.firstName || 'Admin User'}
               </p>
               <p className="text-xs text-gray-400">
-                {user?.email || 'admin@dexo.com'}
+                {user?.email || 'admin@onedexo.com'}
               </p>
             </div>
           </div>

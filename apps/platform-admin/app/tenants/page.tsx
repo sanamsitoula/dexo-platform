@@ -4,6 +4,7 @@ import { useEffect, useState } from 'react';
 import Link from 'next/link';
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000';
+const PLATFORM_DOMAIN = process.env.NEXT_PUBLIC_PLATFORM_DOMAIN || 'onedexo.com';
 
 interface Tenant {
   id: string;
@@ -51,7 +52,7 @@ export default function TenantsPage() {
               {tenants.map((t) => (
                 <tr key={t.id} className="border-t border-gray-100">
                   <td className="px-4 py-3 font-medium">{t.name}</td>
-                  <td className="px-4 py-3 font-mono text-xs">{t.subdomain}.dexo.com</td>
+                  <td className="px-4 py-3 font-mono text-xs">{t.subdomain}.{PLATFORM_DOMAIN}</td>
                   <td className="px-4 py-3">
                     <span className="px-2 py-0.5 rounded text-xs bg-emerald-100 text-emerald-700">{t.status}</span>
                   </td>

@@ -4,6 +4,7 @@ import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000';
+const PLATFORM_DOMAIN = process.env.NEXT_PUBLIC_PLATFORM_DOMAIN || 'onedexo.com';
 
 const STEPS = [
   { key: 'industry',  title: 'Choose your industry' },
@@ -73,7 +74,7 @@ export default function SignupWizard() {
           slug: data.slug,
           name: data.name,
           domainType: data.domainType,
-          ownerEmail: data.ownerEmail || `${data.slug}@dexo.com`,
+          ownerEmail: data.ownerEmail || `${data.slug}@${PLATFORM_DOMAIN}`,
           ownerPassword: data.ownerPassword || 'Welcome123!',
           ownerFirstName: data.ownerFirstName || data.name,
           ownerLastName: data.ownerLastName || 'Owner',
@@ -219,7 +220,7 @@ export default function SignupWizard() {
                   onBlur={checkSlug}
                   className="flex-1 px-3 py-2 outline-none"
                 />
-                <span className="bg-gray-100 px-3 py-2 text-gray-500 text-sm">.dexo.com</span>
+                <span className="bg-gray-100 px-3 py-2 text-gray-500 text-sm">.{PLATFORM_DOMAIN}</span>
               </div>
               {slugStatus && (
                 <div className={`text-sm ${slugStatus.available ? 'text-emerald-600' : 'text-red-600'}`}>

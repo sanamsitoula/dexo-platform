@@ -4,6 +4,8 @@ import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 import { useState, useEffect } from 'react'
 
+const PLATFORM_ADMIN_URL = process.env.NEXT_PUBLIC_PLATFORM_ADMIN_URL || 'http://platform-admin.onedexo.com';
+
 export default function PlatformHeader() {
   const router = useRouter()
   const [user, setUser] = useState<any>(null)
@@ -93,7 +95,7 @@ export default function PlatformHeader() {
                   </div>
                   {user.isPlatformAdmin && (
                     <a
-                      href="http://localhost:3001/dashboard"
+                      href={`${PLATFORM_ADMIN_URL}/dashboard`}
                       className="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-50"
                     >
                       Admin Console

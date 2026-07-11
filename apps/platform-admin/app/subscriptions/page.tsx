@@ -3,6 +3,8 @@
 import { useEffect, useState } from 'react'
 import { subscriptionsApi } from '@/lib/api'
 
+const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000';
+
 interface Subscription {
   id: string
   tenantId: string
@@ -134,7 +136,7 @@ export default function SubscriptionsPage() {
     const [subRes, planRes, tenantsRes] = await Promise.all([
       subscriptionsApi.list(),
       subscriptionsApi.listPlans(),
-      fetch('http://localhost:4000/api/tenants?limit=100', {
+      fetch(`${API_URL}/api/tenants?limit=100`, {
         headers: { Authorization: `Bearer ${localStorage.getItem('accessToken')}` },
       }).then((r) => r.json()).catch(() => ({ data: [] })),
     ])

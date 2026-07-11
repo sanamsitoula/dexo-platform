@@ -6,7 +6,7 @@ export default function ArchivedPage() {
         <p className="mt-2 text-gray-600">
           This account has been archived. Contact support to restore your tenant.
         </p>
-        <a href="mailto:support@dexo.com" className="mt-6 inline-block px-4 py-2 bg-slate-900 text-white rounded-md">
+        <a href="mailto:support@onedexo.com" className="mt-6 inline-block px-4 py-2 bg-slate-900 text-white rounded-md">
           Contact Support
         </a>
       </div>
