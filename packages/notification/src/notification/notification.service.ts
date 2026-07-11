@@ -114,6 +114,21 @@ export class NotificationService {
   }
 
   /**
+   * Send a single email to ONE recipient via the tenant's SMTP — unlike
+   * `sendAnnouncement` (which always broadcasts to an audience segment),
+   * this targets exactly the address given. Used by individual-record
+   * notifications (e.g. a specific member's renewal reminder) where
+   * broadcasting to the whole tenant would be wrong.
+   */
+  async sendDirect(tenantId: string, dto: { to: string; title: string; message: string }) {
+    if (!dto.to || !dto.title || !dto.message) throw new BadRequestException('to, title and message are required');
+    const result = await this.tenantMail
+      .send(tenantId, { to: dto.to, subject: dto.title, text: dto.message, html: `<p>${dto.message}</p>` })
+      .catch((err) => ({ success: false, error: err?.message } as any));
+    return { message: result?.success ? 'Email sent' : 'Email failed', to: dto.to, ...result };
+  }
+
+  /**
    * Broadcast an announcement to a tenant's members: emails the selected
    * audience through the tenant's SMTP (best-effort) and stores the last 20
    * announcements in Setting key "announcements" for in-app display.

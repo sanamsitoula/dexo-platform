@@ -359,6 +359,7 @@ model Tenant {
   productAttributes      ProductAttribute[]
   webhookEndpoints       WebhookEndpoint[]
   moduleOverrides        TenantModuleOverride[]
+  aiInteractionLogs      AiInteractionLog[]
 
   @@index([subdomain])
   @@index([domain])
@@ -3983,4 +3984,27 @@ model TenantModuleOverride {
 
   @@unique([tenantId, moduleKey])
   @@index([tenantId])
+}
+
+// Full audit trail of every AI agent interaction — required by the AI
+// platform's safety rules (never bypass permissions, log every action,
+// record tool execution history). One row per chat turn; toolCalls captures
+// exactly which tools ran with which args and results, so any AI-initiated
+// action (e.g. sendReminder) is fully traceable to who asked for it.
+model AiInteractionLog {
+  id       String @id @default(uuid())
+  tenant   Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  tenantId String
+  userId   String
+
+  agentKey    String
+  userMessage String @db.Text
+  reply       String @db.Text
+  toolCalls   Json // [{ tool, args, result }]
+
+  createdAt DateTime @default(now())
+
+  @@index([tenantId])
+  @@index([userId])
+  @@index([agentKey])
 }

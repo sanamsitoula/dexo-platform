@@ -14,6 +14,7 @@ import { FilesModule } from '@dexo/files';
 import { SettingsModule } from '@dexo/settings';
 import { DashboardModule } from '@dexo/dashboard';
 import { AuditModule, QueueModule } from '@dexo/shared';
+import { AiPlatformModule } from '@dexo/ai-platform';
 import { PrismaModule } from './prisma.module';
 import { GlobalizationModule } from './modules/globalization/globalization.module';
 import { PaymentGatewayModule } from './modules/payment-gateway/payment-gateway.module';
@@ -38,11 +39,14 @@ import { OnboardingModule } from './modules/onboarding/onboarding.module';
 import { HealthModule } from './modules/health/health.module';
 import { TenantMailApiModule } from './modules/tenant-mail/tenant-mail.module';
 import { AttendanceDevicesModule } from './modules/attendance-devices/attendance-devices.module';
+import { AiGatewayModule } from './modules/ai-gateway/ai-gateway.module';
+import { FitnessAiModule } from './modules/fitness/ai-integration/fitness-ai.module';
 import { TenantStatusMiddleware } from './common/middleware/tenant-status.middleware';
 
 @Module({
   imports: [
     PrismaModule,
+    AiPlatformModule,
     ConfigModule.forRoot({
       isGlobal: true,
       envFilePath: ['.env.local', '.env'],
@@ -83,10 +87,12 @@ import { TenantStatusMiddleware } from './common/middleware/tenant-status.middle
     IrdModule,
     BlogModule,
     FitnessModule,
+    FitnessAiModule,
     SalonModule,
     SchoolModule,
     EcommerceModule,
     WebhooksModule,
+    AiGatewayModule,
     TenantMailApiModule,
     AttendanceDevicesModule,
     BusinessTemplateModule,

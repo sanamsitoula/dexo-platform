@@ -23,6 +23,7 @@
     "baseUrl": ".",
     "paths": {
       "@dexo/shared": ["./packages/shared/src"],
+      "@dexo/ai-platform": ["./packages/ai-platform/src"],
       "@dexo/ui": ["./packages/ui/src"],
       "@dexo/auth": ["./packages/auth/src"],
       "@dexo/blog": ["./packages/blog/src"],
