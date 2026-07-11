@@ -1,5 +1,5 @@
 import { Module } from '@nestjs/common';
-import { PrismaModule } from '@dexo/shared';
+import { PrismaModule, TenantMailModule } from '@dexo/shared';
 import { MembersService } from './members/members.service';
 import { MembersController } from './members/members.controller';
 import { MembershipPlansService } from './members/membership-plans.service';
@@ -7,6 +7,7 @@ import { MembershipPlansController } from './members/membership-plans.controller
 import { MembershipsService } from './members/memberships.service';
 import { MembershipsController } from './members/memberships.controller';
 import { GymLedgerService } from './members/gym-ledger.service';
+import { MembershipReminderService } from './members/membership-reminder.service';
 import { GymFinanceController } from './members/gym-finance.controller';
 import { TrainersService } from './trainers/trainers.service';
 import { TrainersController } from './trainers/trainers.controller';
@@ -46,12 +47,13 @@ import { FitnessPublicController } from './public/fitness-public.controller';
 import { FitnessFinanceService } from './fitness-finance.service';
 
 @Module({
-  imports: [PrismaModule],
+  imports: [PrismaModule, TenantMailModule],
   providers: [
     MembersService,
     MembershipPlansService,
     MembershipsService,
     GymLedgerService,
+    MembershipReminderService,
     TrainersService,
     TrainerMessagesService,
     AssessmentsService,
