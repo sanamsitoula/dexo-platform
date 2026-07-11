@@ -3,12 +3,14 @@
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 
+// Canonical customer journey — mirrored by the mobile app's tab bar
+// (apps/mobile/app/(tabs)/_layout.tsx): Home / Workouts / Diet / My Plan / Profile.
 const ITEMS = [
-  { href: '/',           label: 'Home',       icon: '🏠' },
-  { href: '/workouts',   label: 'Workouts',   icon: '🏋️' },
-  { href: '/diet',       label: 'Diet',       icon: '🥗' },
-  { href: '/membership', label: 'Membership', icon: '💳' },
-  { href: '/account',    label: 'Account',    icon: '👤' },
+  { href: '/',           label: 'Home',     icon: '🏠' },
+  { href: '/workouts',   label: 'Workouts', icon: '🏋️' },
+  { href: '/diet',       label: 'Diet',     icon: '🥗' },
+  { href: '/membership', label: 'My Plan',  icon: '💳' },
+  { href: '/account',    label: 'Profile',  icon: '👤' },
 ];
 
 const HIDDEN_ON = ['/login', '/register', '/onboarding'];
@@ -25,7 +27,8 @@ export default function BottomNav() {
             <Link
               key={it.href}
               href={it.href}
-              className={`flex flex-col items-center px-2 py-1 text-xs ${active ? 'text-orange-600 font-semibold' : 'text-gray-500'}`}
+              className={`flex flex-col items-center px-2 py-1 text-xs ${active ? 'font-semibold' : 'text-gray-500'}`}
+              style={active ? { color: 'var(--brand-primary, #EA580C)' } : undefined}
             >
               <span className="text-lg">{it.icon}</span>
               <span>{it.label}</span>

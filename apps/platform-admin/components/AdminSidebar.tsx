@@ -15,7 +15,7 @@ interface NavItem {
   platformOnly: boolean
 }
 
-/** Grouped navigation — sections give the long list scannable structure. */
+/** Grouped navigation  -  sections give the long list scannable structure. */
 const navGroups: Array<{ label: string; items: NavItem[] }> = [
   {
     label: 'Overview',
@@ -158,7 +158,7 @@ export default function AdminSidebar() {
       className="w-64 flex-shrink-0 h-screen flex flex-col text-white"
       style={{ background: 'linear-gradient(180deg, #0B0B0F 0%, #101018 100%)', borderRight: '1px solid rgba(255,255,255,0.06)' }}
     >
-      {/* Brand header — from platform branding settings */}
+      {/* Brand header - from platform branding settings */}
       <div className="px-5 pt-6 pb-5 border-b border-white/[0.06]">
         <Link href="/" aria-label="Platform home" className="flex items-center gap-3">
           {logo ? (
@@ -183,7 +183,7 @@ export default function AdminSidebar() {
         </Link>
       </div>
 
-      {/* Scrollable nav — grouped sections */}
+      {/* Scrollable nav - grouped sections */}
       <nav className="flex-1 overflow-y-auto py-4 px-3 [scrollbar-width:thin] [scrollbar-color:rgba(255,255,255,0.15)_transparent]">
         {navGroups.map((group) => {
           const items = group.items.filter((i) => !i.platformOnly || isPlatformAdmin)
@@ -236,7 +236,7 @@ export default function AdminSidebar() {
         })}
       </nav>
 
-      {/* User footer — pinned by flex, not absolute positioning */}
+      {/* User footer - pinned by flex, not absolute positioning */}
       <div className="p-3 border-t border-white/[0.06] bg-black/20">
         <div className="flex items-center gap-3 px-2 py-2" style={{ borderRadius: radius }}>
           <div

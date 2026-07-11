@@ -1,6 +1,8 @@
-import Link from 'next/link';
 import { headers } from 'next/headers';
 import { getFitnessInfo, getFitnessPlans, type FitnessInfo } from '@/lib/api';
+import { getSiteTheme } from '@/lib/site-theme';
+import SiteNav from '@/components/SiteNav';
+import SiteFooter from '@/components/SiteFooter';
 import BookingForm from './BookingForm';
 
 function resolveSubdomain(): string {
@@ -29,7 +31,11 @@ const BASE_SERVICES = [
 
 export default async function BookPage({ searchParams }: { searchParams?: { service?: string } }) {
   const subdomain = resolveSubdomain();
-  const [info, plans] = await Promise.all([getFitnessInfo(subdomain), getFitnessPlans(subdomain)]);
+  const [info, plans, theme] = await Promise.all([
+    getFitnessInfo(subdomain),
+    getFitnessPlans(subdomain),
+    getSiteTheme(subdomain),
+  ]);
   const t = info || FALLBACK;
 
   // Same data source as /services: base catalogue + a trial option per plan
@@ -43,24 +49,14 @@ export default async function BookPage({ searchParams }: { searchParams?: { serv
   ]));
 
   return (
-    <div style={{ background: '#0f0f10', color: '#fff', minHeight: '100vh' }}>
-      {/* Nav */}
-      <nav className="flex items-center justify-between px-6 py-4 max-w-6xl mx-auto">
-        <Link href="/" className="text-xl font-extrabold" style={{ color: t.colorPrimary }}>{t.name}</Link>
-        <div className="space-x-4 text-sm">
-          <Link href="/about" className="opacity-80 hover:opacity-100">About</Link>
-          <Link href="/services" className="opacity-80 hover:opacity-100">Services</Link>
-          <Link href="/book" className="opacity-100 font-semibold">Book</Link>
-          <Link href="/contact" className="opacity-80 hover:opacity-100">Contact</Link>
-          <Link href="/register" className="px-4 py-2 rounded-md font-semibold text-black" style={{ background: t.colorPrimary }}>Join Now</Link>
-        </div>
-      </nav>
+    <div style={{ background: 'var(--site-bg)', color: 'var(--site-text)', minHeight: '100vh' }}>
+      <SiteNav theme={theme} name={t.name} active="/book" />
 
       {/* Hero */}
       <section className="text-center px-4 py-14 max-w-2xl mx-auto">
-        <p className="text-sm uppercase tracking-widest opacity-60">Booking</p>
+        <p className="text-sm uppercase tracking-widest" style={{ color: 'var(--site-sub)' }}>Booking</p>
         <h1 className="mt-3 text-4xl font-extrabold leading-tight">Book a session at {t.name}</h1>
-        <p className="mt-3 opacity-70">
+        <p className="mt-3" style={{ color: 'var(--site-sub)' }}>
           Pick a class or service and a preferred time — our team will confirm your booking
           by phone or email, usually within a few hours.
         </p>
@@ -71,23 +67,13 @@ export default async function BookPage({ searchParams }: { searchParams?: { serv
         <BookingForm
           subdomain={subdomain}
           tenantName={t.name}
-          accent={t.colorPrimary}
+          accent={theme.primary}
           services={services}
           preselected={preselected}
         />
       </section>
 
-      {/* Footer */}
-      <footer className="py-10 text-center text-sm opacity-60">
-        <div className="space-x-3 mb-2">
-          <Link href="/" className="hover:text-white">Home</Link>
-          <Link href="/about" className="hover:text-white">About</Link>
-          <Link href="/services" className="hover:text-white">Services</Link>
-          <Link href="/book" className="hover:text-white">Book</Link>
-          <Link href="/contact" className="hover:text-white">Contact</Link>
-        </div>
-        <div>© {new Date().getFullYear()} {t.name} · Powered by Dexo</div>
-      </footer>
+      <SiteFooter theme={theme} name={t.name} contact={t.contact} />
     </div>
   );
 }

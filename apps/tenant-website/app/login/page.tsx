@@ -1,6 +1,9 @@
 import Link from 'next/link';
 import { headers } from 'next/headers';
 import { getFitnessInfo, type FitnessInfo } from '@/lib/api';
+import { getSiteTheme } from '@/lib/site-theme';
+import SiteNav from '@/components/SiteNav';
+import SiteFooter from '@/components/SiteFooter';
 import LoginRedirect from './redirect';
 
 function resolveSubdomain(): string {
@@ -17,7 +20,7 @@ const FALLBACK: FitnessInfo = {
 
 export default async function LoginPage() {
   const subdomain = resolveSubdomain();
-  const info = await getFitnessInfo(subdomain);
+  const [info, theme] = await Promise.all([getFitnessInfo(subdomain), getSiteTheme(subdomain)]);
   const t = info || FALLBACK;
   // Customer app (member portal) URL — {slug} placeholder supports prod domains.
   const memberAppUrl = (process.env.NEXT_PUBLIC_TENANT_APP_URL || 'http://{slug}.localhost:4007')
@@ -25,43 +28,30 @@ export default async function LoginPage() {
   const loginUrl = `${memberAppUrl}/login`;
 
   return (
-    <div style={{ background: '#0f0f10', color: '#fff', minHeight: '100vh' }}>
-      {/* Nav */}
-      <nav className="flex items-center justify-between px-6 py-4 max-w-6xl mx-auto">
-        <Link href="/" className="text-xl font-extrabold" style={{ color: t.colorPrimary }}>{t.name}</Link>
-        <div className="space-x-4 text-sm">
-          <Link href="/#plans" className="opacity-80 hover:opacity-100">Plans</Link>
-          <Link href="/contact" className="opacity-80 hover:opacity-100">Contact</Link>
-          <Link href="/register" className="px-4 py-2 rounded-md font-semibold text-black" style={{ background: t.colorPrimary }}>Join Now</Link>
-        </div>
-      </nav>
+    <div style={{ background: 'var(--site-bg)', color: 'var(--site-text)', minHeight: '100vh' }}>
+      <SiteNav theme={theme} name={t.name} />
 
       {/* Redirect card */}
       <section className="px-4 py-24 max-w-md mx-auto text-center">
-        <div className="p-8 rounded-xl bg-white/5 border border-white/10">
+        <div
+          className="p-8"
+          style={{ backgroundColor: 'var(--site-surface)', border: '1px solid var(--site-border)', borderRadius: 'var(--site-radius)' }}
+        >
           <div className="text-4xl">🔐</div>
           <h1 className="mt-4 text-3xl font-extrabold">Member Login</h1>
-          <p className="mt-3 text-sm opacity-70">
+          <p className="mt-3 text-sm" style={{ color: 'var(--site-sub)' }}>
             Members sign in through the {t.name} member portal, where you can book classes,
             track workouts, manage payments and check in with your QR code.
           </p>
-          <LoginRedirect loginUrl={loginUrl} accent={t.colorPrimary} />
-          <p className="mt-6 text-sm opacity-60">
+          <LoginRedirect loginUrl={loginUrl} accent={theme.primary} />
+          <p className="mt-6 text-sm" style={{ color: 'var(--site-sub)' }}>
             Not a member yet?{' '}
-            <Link href="/register" className="underline hover:text-white" style={{ color: t.colorPrimary }}>Join now</Link>
+            <Link href="/register" className="underline hover:opacity-80" style={{ color: 'var(--site-primary)' }}>Join now</Link>
           </p>
         </div>
       </section>
 
-      {/* Footer */}
-      <footer className="py-10 text-center text-sm opacity-60">
-        <div className="space-x-3 mb-2">
-          <Link href="/" className="hover:text-white">Home</Link>
-          <Link href="/register" className="hover:text-white">Join</Link>
-          <Link href="/contact" className="hover:text-white">Contact</Link>
-        </div>
-        <div>© {new Date().getFullYear()} {t.name} · Powered by Dexo</div>
-      </footer>
+      <SiteFooter theme={theme} name={t.name} contact={t.contact} />
     </div>
   );
 }

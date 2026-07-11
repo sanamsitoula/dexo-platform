@@ -59,6 +59,8 @@ export default function TabLayout() {
       home: 'home-outline',
       workouts: 'barbell-outline',
       training: 'barbell-outline',
+      diet: 'nutrition-outline',
+      nutrition: 'nutrition-outline',
       progress: 'stats-chart-outline',
       members: 'people-outline',
       customers: 'people-outline',
@@ -85,11 +87,12 @@ export default function TabLayout() {
         { code: 'profile', label: 'Profile', route: 'profile' },
       ];
     }
-    // Customer / Member
+    // Customer / Member — canonical journey, mirrored by the web tenant-app
+    // BottomNav: Home / Workouts / Diet / My Plan / Profile.
     return [
       { code: 'dashboard', label: 'Home', route: 'index' },
       { code: 'workouts', label: 'Workouts', route: 'workouts' },
-      { code: 'trainers', label: 'Trainers', route: 'team' },
+      { code: 'diet', label: 'Diet', route: 'diet' },
       { code: 'packages', label: 'My Plan', route: 'billing' },
       { code: 'profile', label: 'Profile', route: 'profile' },
     ];

@@ -76,7 +76,7 @@ export default function BookingForm({ subdomain, tenantName, accent, services, p
 
   if (status === 'success') {
     return (
-      <div className="p-8 rounded-xl bg-white/5 border border-white/10 text-center">
+      <div className="p-8 rounded-xl site-card text-center">
         <div className="text-5xl">✅</div>
         <h2 className="mt-4 text-2xl font-bold">Booking request sent!</h2>
         <p className="mt-3 text-sm opacity-80">
@@ -89,11 +89,11 @@ export default function BookingForm({ subdomain, tenantName, accent, services, p
         <div className="mt-6 flex gap-3 justify-center">
           <button
             onClick={() => { setStatus('idle'); setForm((f) => ({ ...f, date: '', time: '', notes: '' })) }}
-            className="px-5 py-2.5 rounded-md font-semibold border border-white/20 hover:bg-white/5"
+            className="px-5 py-2.5 rounded-md font-semibold site-input hover:opacity-80"
           >
             Book another
           </button>
-          <Link href="/" className="px-5 py-2.5 rounded-md font-semibold text-black" style={{ background: accent }}>
+          <Link href="/" className="px-5 py-2.5 rounded-md font-semibold" style={{ background: accent, color: 'var(--site-on-primary)' }}>
             Back to Home
           </Link>
         </div>
@@ -101,10 +101,10 @@ export default function BookingForm({ subdomain, tenantName, accent, services, p
     )
   }
 
-  const inputCls = 'w-full rounded-md bg-black/30 border border-white/15 px-3 py-2 text-white'
+  const inputCls = 'w-full rounded-md site-input px-3 py-2'
 
   return (
-    <form onSubmit={onSubmit} className="p-8 rounded-xl bg-white/5 border border-white/10 space-y-4">
+    <form onSubmit={onSubmit} className="p-8 rounded-xl site-card space-y-4">
       {status === 'error' && errorMsg && (
         <div className="p-3 rounded bg-red-500/10 border border-red-500/30 text-sm text-red-300">
           Could not send your booking: {errorMsg}
@@ -156,8 +156,8 @@ export default function BookingForm({ subdomain, tenantName, accent, services, p
       <button
         type="submit"
         disabled={status === 'loading'}
-        className="w-full rounded-md py-2.5 font-semibold text-black disabled:opacity-60"
-        style={{ background: accent }}
+        className="w-full rounded-md py-2.5 font-semibold disabled:opacity-60"
+        style={{ background: accent, color: 'var(--site-on-primary)' }}
       >
         {status === 'loading' ? 'Sending…' : 'Request Booking'}
       </button>

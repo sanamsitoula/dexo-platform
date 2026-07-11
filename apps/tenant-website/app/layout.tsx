@@ -2,6 +2,7 @@
 import './globals.css';
 import { headers } from 'next/headers';
 import { FloatingWhatsApp } from '@/components/FloatingWhatsApp';
+import { getSiteTheme, themeVars } from '@/lib/site-theme';
 
 export const metadata = {
   title: 'Tenant Website',
@@ -105,12 +106,17 @@ export default async function RootLayout({ children }: { children: React.ReactNo
     };
   }
 
+  // Template-aware theme (settings.branding.templateId) exposed to every page
+  // — server and client — through CSS variables.
+  const theme = await getSiteTheme(slug, ctx.colorPrimary, ctx.colorAccent);
+
   return (
     <html lang="en">
       <body
         style={{
-          backgroundColor: ctx.colorBg || '#ffffff',
-          color: ctx.colorPrimary || '#3b82f6'
+          ...(themeVars(theme) as React.CSSProperties),
+          backgroundColor: theme.bg,
+          color: theme.text,
         }}
       >
         {children}

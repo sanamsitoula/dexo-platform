@@ -8,3 +8,27 @@ body {
   font-family: 'Inter', system-ui, -apple-system, sans-serif;
   -webkit-font-smoothing: antialiased;
 }
+
+/* Template-aware utilities — consume the CSS vars set on <body> by the root
+   layout, so client components follow the tenant's selected template. */
+.site-card {
+  background-color: var(--site-surface);
+  border: 1px solid var(--site-border);
+}
+.site-inset {
+  background-color: var(--site-surface);
+  border: 1px solid var(--site-border);
+}
+.site-input {
+  background-color: transparent;
+  border: 1px solid var(--site-border);
+  color: var(--site-text);
+}
+.site-input::placeholder { color: var(--site-sub); }
+.site-input:focus { outline: none; border-color: var(--site-primary); }
+.site-btn {
+  background-color: var(--site-primary);
+  color: var(--site-on-primary);
+}
+.site-btn:hover { filter: brightness(1.08); }
+.site-sub { color: var(--site-sub); }

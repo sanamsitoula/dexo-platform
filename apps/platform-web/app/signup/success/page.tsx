@@ -31,8 +31,15 @@ export default function SignupSuccess() {
     return () => clearTimeout(t);
   }, []);
 
-  const adminUrl = `http://admin.${sub}.onedexo.com:4006/login`;
-  const siteUrl = `http://${sub}.onedexo.com:4005`;
+  // Dev (localhost) needs explicit ports; production serves everything on 443
+  // behind the ingress, so URLs must be clean https:// without ports.
+  const isDev = typeof window !== 'undefined' && window.location.hostname.endsWith('localhost');
+  const adminUrl = isDev
+    ? `http://admin.${sub}.localhost:4006/login`
+    : `https://admin.${sub}.onedexo.com/login`;
+  const siteUrl = isDev
+    ? `http://${sub}.localhost:4005`
+    : `https://${sub}.onedexo.com`;
 
   function copy(label: string, value: string) {
     navigator.clipboard?.writeText(value).then(() => {

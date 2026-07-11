@@ -209,3 +209,10 @@ maximum
 
 # Prisma generated client output (regenerated on `prisma generate`)
 /generated/prisma/
+
+# Secrets & private keys — never commit
+*.pem
+*.key
+*.pfx
+*.p12
+azure/key.pem

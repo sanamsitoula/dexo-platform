@@ -61,18 +61,18 @@ export default function RegisterPage() {
     const memberAppUrl = (process.env.NEXT_PUBLIC_TENANT_APP_URL || 'http://{slug}.localhost:4007')
       .replace('{slug}', resolveSubdomain());
     return (
-      <div className="min-h-screen flex items-center justify-center bg-gray-950 text-white px-4">
-        <div className="max-w-md w-full bg-white/5 border border-white/10 rounded-xl p-8 text-center">
+      <div className="min-h-screen flex items-center justify-center px-4">
+        <div className="max-w-md w-full site-card rounded-xl p-8 text-center">
           <div className="text-5xl">🎉</div>
           <h1 className="text-2xl font-bold mt-3">Welcome, {form.firstName}!</h1>
           <p className="mt-2 opacity-80">Your membership account is ready.</p>
-          <div className="mt-5 text-left text-sm bg-black/30 rounded-lg p-4 space-y-1">
+          <div className="mt-5 text-left text-sm site-inset rounded-lg p-4 space-y-1">
             <p className="opacity-70">Next steps:</p>
             <p>1. Open the <strong>member portal</strong> below (or the Dexo Fitness mobile app).</p>
             <p>2. Log in with <strong>{form.email}</strong>.</p>
             <p>3. Complete onboarding &amp; pick your plan.</p>
           </div>
-          <a href={`${memberAppUrl}/login`} className="mt-6 inline-block w-full px-6 py-3 rounded-md font-semibold bg-orange-500 text-black">
+          <a href={`${memberAppUrl}/login`} className="mt-6 inline-block w-full px-6 py-3 rounded-md font-semibold site-btn">
             Open Member Portal →
           </a>
           <Link href="/" className="mt-3 block text-sm opacity-70 hover:opacity-100">← Back to Home</Link>
@@ -82,26 +82,26 @@ export default function RegisterPage() {
   }
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-gray-950 text-white px-4 py-10">
-      <div className="max-w-md w-full bg-white/5 border border-white/10 rounded-xl p-8">
+    <div className="min-h-screen flex items-center justify-center px-4 py-10">
+      <div className="max-w-md w-full site-card rounded-xl p-8">
         <h1 className="text-2xl font-bold text-center">Create your membership</h1>
         <p className="text-center text-sm opacity-70 mt-1">Join in under a minute.</p>
         <form onSubmit={onSubmit} className="space-y-3 mt-6">
           <div className="grid grid-cols-2 gap-3">
             <input required placeholder="First name" value={form.firstName} onChange={set('firstName')}
-              className="rounded-md bg-black/30 border border-white/15 px-3 py-2" />
+              className="rounded-md site-input px-3 py-2" />
             <input required placeholder="Last name" value={form.lastName} onChange={set('lastName')}
-              className="rounded-md bg-black/30 border border-white/15 px-3 py-2" />
+              className="rounded-md site-input px-3 py-2" />
           </div>
           <input required type="email" placeholder="Email" value={form.email} onChange={set('email')}
-            className="w-full rounded-md bg-black/30 border border-white/15 px-3 py-2" />
+            className="w-full rounded-md site-input px-3 py-2" />
           <input placeholder="Phone (optional)" value={form.phone} onChange={set('phone')}
-            className="w-full rounded-md bg-black/30 border border-white/15 px-3 py-2" />
+            className="w-full rounded-md site-input px-3 py-2" />
           <input required type="password" placeholder="Password" value={form.password} onChange={set('password')}
-            className="w-full rounded-md bg-black/30 border border-white/15 px-3 py-2" />
+            className="w-full rounded-md site-input px-3 py-2" />
           {error && <div className="text-sm text-red-400">{error}</div>}
           <button type="submit" disabled={submitting}
-            className="w-full rounded-md py-2.5 font-semibold text-black bg-orange-500 disabled:opacity-60">
+            className="w-full rounded-md py-2.5 font-semibold site-btn disabled:opacity-60">
             {submitting ? 'Creating account…' : 'Create Account'}
           </button>
         </form>

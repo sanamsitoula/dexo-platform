@@ -1,6 +1,9 @@
 import Link from 'next/link';
 import { headers } from 'next/headers';
 import { getFitnessInfo, getFitnessPlans, type FitnessInfo, type FitnessPlan } from '@/lib/api';
+import { getSiteTheme } from '@/lib/site-theme';
+import SiteNav from '@/components/SiteNav';
+import SiteFooter from '@/components/SiteFooter';
 
 function resolveSubdomain(): string {
   const h = headers();
@@ -31,47 +34,65 @@ function planPeriod(type: string, days: number): string {
   return map[type] || `${days} days`;
 }
 
+const card = {
+  backgroundColor: 'var(--site-surface)',
+  border: '1px solid var(--site-border)',
+  borderRadius: 'var(--site-radius)',
+} as const;
+
 export default async function ServicesPage() {
   const subdomain = resolveSubdomain();
-  const [info, plans] = await Promise.all([getFitnessInfo(subdomain), getFitnessPlans(subdomain)]);
+  const [info, plans, theme] = await Promise.all([
+    getFitnessInfo(subdomain),
+    getFitnessPlans(subdomain),
+    getSiteTheme(subdomain),
+  ]);
   const t = info || FALLBACK;
 
   return (
-    <div style={{ background: '#0f0f10', color: '#fff', minHeight: '100vh' }}>
-      {/* Nav */}
-      <nav className="flex items-center justify-between px-6 py-4 max-w-6xl mx-auto">
-        <Link href="/" className="text-xl font-extrabold" style={{ color: t.colorPrimary }}>{t.name}</Link>
-        <div className="space-x-4 text-sm">
-          <Link href="/about" className="opacity-80 hover:opacity-100">About</Link>
-          <Link href="/services" className="opacity-100 font-semibold">Services</Link>
-          <Link href="/book" className="opacity-80 hover:opacity-100">Book</Link>
-          <Link href="/contact" className="opacity-80 hover:opacity-100">Contact</Link>
-          <Link href="/register" className="px-4 py-2 rounded-md font-semibold text-black" style={{ background: t.colorPrimary }}>Join Now</Link>
-        </div>
-      </nav>
+    <div style={{ background: 'var(--site-bg)', color: 'var(--site-text)', minHeight: '100vh' }}>
+      <SiteNav theme={theme} name={t.name} active="/services" />
 
       {/* Hero */}
       <section className="text-center px-4 py-20 max-w-3xl mx-auto">
-        <p className="text-sm uppercase tracking-widest opacity-60">Services</p>
+        <p className="text-sm uppercase tracking-widest" style={{ color: 'var(--site-sub)' }}>Services</p>
         <h1 className="mt-3 text-4xl sm:text-5xl font-extrabold leading-tight">Everything {t.name} offers</h1>
-        <p className="mt-4 opacity-70">{t.description}</p>
+        <p className="mt-4" style={{ color: 'var(--site-sub)' }}>{t.description}</p>
         <div className="mt-8 flex gap-3 justify-center">
-          <Link href="/book" className="px-7 py-3 rounded-md font-semibold text-black" style={{ background: t.colorPrimary }}>Book a Session</Link>
-          <a href="#plans" className="px-7 py-3 rounded-md font-semibold border border-white/20 hover:bg-white/5">View Plans</a>
+          <Link
+            href="/book"
+            className="px-7 py-3 font-semibold"
+            style={{ background: 'var(--site-primary)', color: 'var(--site-on-primary)', borderRadius: 'var(--site-radius)' }}
+          >
+            Book a Session
+          </Link>
+          <a
+            href="#plans"
+            className="px-7 py-3 font-semibold border hover:opacity-80"
+            style={{ borderColor: 'var(--site-border)', borderRadius: 'var(--site-radius)' }}
+          >
+            View Plans
+          </a>
         </div>
       </section>
 
       {/* Services grid */}
       <section className="px-4 py-14 max-w-6xl mx-auto">
         <h2 className="text-3xl font-bold text-center">Classes & services</h2>
-        <p className="text-center opacity-70 mt-2">Ask at the front desk or book online for the current class schedule.</p>
+        <p className="text-center mt-2" style={{ color: 'var(--site-sub)' }}>
+          Ask at the front desk or book online for the current class schedule.
+        </p>
         <div className="mt-10 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
           {SERVICES.map((s) => (
-            <div key={s.title} className="p-6 rounded-xl bg-white/5 border border-white/10 flex flex-col">
+            <div key={s.title} className="p-6 flex flex-col" style={card}>
               <div className="text-3xl">{s.icon}</div>
               <h3 className="mt-3 font-semibold text-lg">{s.title}</h3>
-              <p className="mt-1 text-sm opacity-70 flex-1">{s.desc}</p>
-              <Link href={`/book?service=${encodeURIComponent(s.title)}`} className="mt-4 text-sm font-semibold hover:underline" style={{ color: t.colorPrimary }}>
+              <p className="mt-1 text-sm flex-1" style={{ color: 'var(--site-sub)' }}>{s.desc}</p>
+              <Link
+                href={`/book?service=${encodeURIComponent(s.title)}`}
+                className="mt-4 text-sm font-semibold hover:underline"
+                style={{ color: 'var(--site-primary)' }}
+              >
                 Book this →
               </Link>
             </div>
@@ -82,21 +103,23 @@ export default async function ServicesPage() {
       {/* Membership plans (live from public API) */}
       <section id="plans" className="px-4 py-14 max-w-6xl mx-auto">
         <h2 className="text-3xl font-bold text-center">Membership Plans</h2>
-        <p className="text-center opacity-70 mt-2">Prices in NPR, inclusive of VAT.</p>
+        <p className="text-center mt-2" style={{ color: 'var(--site-sub)' }}>Prices in NPR, inclusive of VAT.</p>
         {plans.length === 0 ? (
-          <p className="text-center opacity-60 mt-10">Plans will be available shortly. <Link href="/contact" className="underline">Contact us</Link> to get started today.</p>
+          <p className="text-center mt-10" style={{ color: 'var(--site-sub)' }}>
+            Plans will be available shortly. <Link href="/contact" className="underline">Contact us</Link> to get started today.
+          </p>
         ) : (
           <div className="mt-10 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
             {plans.map((p: FitnessPlan, i: number) => (
-              <div key={p.id} className="p-6 rounded-xl bg-white/5 border border-white/10 flex flex-col"
-                style={i === 1 ? { borderColor: t.colorPrimary, boxShadow: `0 0 0 1px ${t.colorPrimary}` } : {}}>
+              <div key={p.id} className="p-6 flex flex-col"
+                style={{ ...card, ...(i === 1 ? { borderColor: 'var(--site-primary)', boxShadow: '0 0 0 1px var(--site-primary)' } : {}) }}>
                 <h3 className="font-bold text-xl">{p.name}</h3>
-                {p.description && <p className="text-sm opacity-70 mt-1">{p.description}</p>}
+                {p.description && <p className="text-sm mt-1" style={{ color: 'var(--site-sub)' }}>{p.description}</p>}
                 <div className="mt-4">
                   <span className="text-4xl font-extrabold">Rs {p.totalWithVat.toLocaleString()}</span>
-                  <span className="opacity-60 text-sm"> / {planPeriod(p.type, p.durationDays)}</span>
+                  <span className="text-sm" style={{ color: 'var(--site-sub)' }}> / {planPeriod(p.type, p.durationDays)}</span>
                 </div>
-                <ul className="mt-4 space-y-1 text-sm opacity-80 flex-1">
+                <ul className="mt-4 space-y-1 text-sm flex-1" style={{ color: 'var(--site-sub)' }}>
                   <li>✓ {p.accessHours || 'Gym access'}</li>
                   <li>{p.includesTrainer ? '✓' : '✗'} Personal trainer</li>
                   <li>{p.includesClasses ? '✓' : '✗'} Group classes</li>
@@ -104,7 +127,11 @@ export default async function ServicesPage() {
                   <li>{p.includesLocker ? '✓' : '✗'} Locker</li>
                   <li>✓ {p.branchAccess === 'all' ? 'All branches' : 'Single branch'}</li>
                 </ul>
-                <Link href={`/register?plan=${p.id}`} className="mt-6 text-center px-4 py-2 rounded-md font-semibold text-black" style={{ background: t.colorPrimary }}>
+                <Link
+                  href={`/register?plan=${p.id}`}
+                  className="mt-6 text-center px-4 py-2 font-semibold"
+                  style={{ background: 'var(--site-primary)', color: 'var(--site-on-primary)', borderRadius: 'var(--site-radius)' }}
+                >
                   Choose {p.name}
                 </Link>
               </div>
@@ -114,23 +141,19 @@ export default async function ServicesPage() {
       </section>
 
       {/* CTA */}
-      <section className="px-4 py-16 text-center" style={{ background: t.colorAccent, color: '#111' }}>
+      <section className="px-4 py-16 text-center" style={{ background: 'var(--site-accent)', color: 'var(--site-on-accent)' }}>
         <h2 className="text-3xl font-bold">Not sure where to start?</h2>
         <p className="mt-2 opacity-80">Book a free intro session and we&apos;ll build a plan together.</p>
-        <Link href="/book" className="mt-6 inline-block px-8 py-3 bg-black text-white rounded-md font-semibold">Book a Session</Link>
+        <Link
+          href="/book"
+          className="mt-6 inline-block px-8 py-3 font-semibold"
+          style={{ background: 'var(--site-primary)', color: 'var(--site-on-primary)', borderRadius: 'var(--site-radius)' }}
+        >
+          Book a Session
+        </Link>
       </section>
 
-      {/* Footer */}
-      <footer className="py-10 text-center text-sm opacity-60">
-        <div className="space-x-3 mb-2">
-          <Link href="/" className="hover:text-white">Home</Link>
-          <Link href="/about" className="hover:text-white">About</Link>
-          <Link href="/services" className="hover:text-white">Services</Link>
-          <Link href="/book" className="hover:text-white">Book</Link>
-          <Link href="/contact" className="hover:text-white">Contact</Link>
-        </div>
-        <div>© {new Date().getFullYear()} {t.name} · Powered by Dexo</div>
-      </footer>
+      <SiteFooter theme={theme} name={t.name} contact={t.contact} />
     </div>
   );
 }
