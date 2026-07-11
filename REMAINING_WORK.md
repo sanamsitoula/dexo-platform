@@ -1,4 +1,4 @@
-# Dexo Platform — Remaining Work Audit (updated 2026-07-11, session 5)
+# Dexo Platform — Remaining Work Audit (updated 2026-07-11, session 6)
 
 Consolidated from all planning .md docs, cross-checked against actual code. Items completed 2026-07-10/11 (blogs, roles matrix, CRM channels, subscription modules + guard, pagination, billing seed, tenant login) are excluded.
 
@@ -60,7 +60,14 @@ P. **Full doc coverage** — `docs/ai/00_AI_MASTER_ARCHITECTURE.md` consolidates
 - The other two fitness workflows from the spec ("member absent 30 days" retention, "new member onboarding" plan generation) — documented in `workflows/index.ts` with the specific reason each wasn't built (a genuine new aggregate query for the first; LLM-generated plans needing a review step before a member sees them, for the second).
 - Rate-limiting / prompt-injection hardening on `/api/ai/chat` beyond "tools never take tenantId from the model."
 - Ecommerce AI integration (the natural second reference implementation — real services already exist, see `docs/ECOMMERCE_MODULE.md`).
-- Frontend: no chat UI yet in tenant-admin/tenant-app consuming `/api/ai/chat` — API-only so far.
+- ~~Frontend: no chat UI~~ — DONE session 6: `AiAssistant` floating widget in tenant-admin layout (staff personas: Reception/Trainer/Nutrition/Management/Finance, agent picker), and `/coach/ai` "My Coach" page in tenant-app (member-facing, linked from the existing human-coach page).
+
+## ✅ Completed this session (2026-07-11, session 6)
+
+Q. **AI chat UI + a real permission gap found and fixed before shipping it.** While wiring the AI Gateway into the frontend, found that most fitness staff tools (`getMember`, `memberWorkoutPlans`, etc.) had no `requiredPermission` — fine behind tenant-admin (staff-only login), but would have been a cross-member data leak if the SAME agent/tools were reused for tenant-app's customer-facing chat (any authenticated member could ask "show member X's profile" for any X). Fixed by adding a structurally separate tool set: `apps/api/src/modules/fitness/ai-integration/tools/member-self-tools.ts` registered under its own `moduleKey: "fitness-self"` — none of its tools (`myProfile`, `myMembershipStatus`, `myPaymentHistory`, `myWorkoutPlans`, `myDietPlans`, `myAttendanceHistory`) accept an id argument at all; every one resolves the caller's own member record from `ctx.userId` via `MembersService.findByUserId`. The new `fitness.member` ("My Coach") agent's `moduleKeys` is `['fitness-self']` only, so it cannot reach the staff tools regardless of prompting — not a policy/prompt-level restriction, a structural one.
+- `apps/tenant-admin/components/AiAssistant.tsx` — floating widget on every admin page (added to `(admin)/layout.tsx`), agent picker excludes `fitness.member`, shows which tools were used per reply (transparency, matches the audit-log spirit).
+- `apps/tenant-app/app/coach/ai/page.tsx` — member-facing "My Coach" chat, hardcoded to `agentKey: 'fitness.member'` (no picker — customers should never see or select staff agents), linked from the existing `/coach` (human trainer messaging) page via an "✨ Ask AI" button.
+- Both builds clean, API typecheck 0 errors.
 
 ## P1 — Still open
 

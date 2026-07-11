@@ -168,6 +168,36 @@ written would have emailed the tenant's entire active-member list instead of
 one person. Added `NotificationService.sendDirect(tenantId, {to, title,
 message})` (a genuinely single-recipient send) rather than papering over it.
 
+## Staff vs. member-facing agents — structural, not policy-level, isolation
+
+Only tenant-admin users are staff, so the five personas above (built with
+tools that accept an arbitrary `memberId`) are safe there. Reusing the same
+tools for tenant-app (customers) would have let any signed-in member ask the
+assistant to look up *another* member's profile, workouts, or payment
+history — a real cross-tenant-user data leak, caught while wiring the
+frontend.
+
+Fix: a **separate tool set under a separate `moduleKey`**
+(`fitness-self`, in `tools/member-self-tools.ts`) — none of its tools take
+an id; every one resolves the caller's own member record from
+`ctx.userId`. The `fitness.member` ("My Coach") agent's `moduleKeys` is
+`['fitness-self']` only, so it cannot reach the staff tools **no matter what
+the model is prompted to do** — the isolation is in which tools exist to be
+called, not in an instruction the model could be talked out of. Any future
+module's member/customer-facing agent should follow this same
+two-module-key split.
+
+## Frontend surfaces (built)
+
+- `apps/tenant-admin/components/AiAssistant.tsx` — floating widget, added to
+  every admin page via `(admin)/layout.tsx`. Lets staff pick a persona
+  (Reception/Trainer/Nutrition/Management/Finance), shows which tools each
+  reply used (transparency).
+- `apps/tenant-app/app/coach/ai/page.tsx` — "My Coach," hardcoded to
+  `agentKey: 'fitness.member'` (no persona picker — customers should never
+  see or select staff agents), linked from the existing human-trainer
+  messaging page (`/coach`).
+
 ## Roadmap — sections from the original 18-doc outline not yet built
 
 Each of these is real, scoped work — not fabricated as done:
