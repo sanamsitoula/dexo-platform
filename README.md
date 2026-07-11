@@ -412,27 +412,40 @@ curl -X POST http://localhost:4000/api/domains/tenant/{tenantId}/assign/SALON_AN
 When a tenant is provisioned (via the signup wizard at `:3001` or the API), Dexo
 creates the `Tenant` + `TenantLifecycle` + `TenantOnboarding` and returns
 `{ tenantId, subdomain, url }`. The `url` is a production-style placeholder
-(`https://<slug>.dexo.com`). **You do NOT get a new port per tenant** — one app
-instance serves every tenant; the tenant is selected by hostname (prod) or
+(`https://<slug>.onedexo.com`). **You do NOT get a new port per tenant** — one
+app instance serves every tenant; the tenant is selected by hostname (prod) or
 `DEV_TENANT` (dev).
 
-**Production — subdomain routing (one instance, many tenants):**
+**Production — one subdomain per tenant, role paths underneath (one instance,
+many tenants):**
 
 | What | URL | Who logs in |
 |------|-----|-------------|
-| Public website | `https://<slug>.dexo.com` | (public, no login) |
-| Owner / admin login + dashboard | `https://admin.<slug>.dexo.com/login` | owner, manager |
-| Staff login + dashboard | `https://admin.<slug>.dexo.com/login` | trainers, waiters, staff (role-routed to `/staff/dashboard`) |
-| Customer app | `https://app.<slug>.dexo.com` | members / customers |
+| Public website | `https://<slug>.onedexo.com` | (public, no login) |
+| Owner / staff admin login + dashboard | `https://<slug>.onedexo.com/admin/login` | owner, manager, trainers/waiters/staff (role-routed to `/admin/dashboard` or `/admin/staff/dashboard`) |
+| Customer app | `https://<slug>.onedexo.com/app/login` | members / customers |
 | Custom domain | `https://customer.com` (DNS TXT verified) | same as above |
 
-The reverse proxy (Traefik/Nginx) reads the hostname, sets the `x-tenant-slug`
-header, and routes to the shared `tenant-website` / `tenant-admin` / `tenant-app`.
+Tenant-admin and tenant-app each run with a Next.js `basePath` (`/admin`,
+`/app` — `TENANT_PATH_MODE=true`), so one running process serves every tenant
+without a per-tenant subdomain cert (the wildcard cert only covers one
+subdomain level, so `admin.<slug>.onedexo.com` is **not** used). A generic,
+tenant-less entry point also still works for staff who don't know their
+subdomain: `https://admin.onedexo.com/login` (tenant resolved from the
+account, since email is globally unique) and
+`https://app.onedexo.com/login?tenant=<slug>`.
+
+nginx reads the hostname (and, for the wildcard tenant block, the `/admin` /
+`/app` path prefix), sets `X-Tenant-Slug`, and routes to the shared
+`tenant-website` / `tenant-admin` / `tenant-app` upstream. See
+`/etc/nginx/sites-available/onedexo.conf` on the production host (not checked
+into the repo) and `deploy/nginx/dexo.conf` / `infra/nginx/dexo.conf` for
+local/legacy reference templates.
 
 **Dev — one tenant per running instance (switch with `DEV_TENANT`):**
 
-You can't use real `*.dexo.com` subdomains on `localhost`, so the tenant apps
-take the active tenant from the `DEV_TENANT` env var (default `vrfitness`).
+You can't use real `*.onedexo.com` subdomains on `localhost`, so the tenant
+apps take the active tenant from the `DEV_TENANT` env var (default `vrfitness`).
 
 | What | How to reach it |
 |------|-----------------|
@@ -505,7 +518,8 @@ Both guides are also published on the platform site at **http://localhost:3001/d
 stop.bat
 
 # Linux/macOS
-./stop-all.sh    # if present, otherwise stop node + docker manually
+./stop.sh        # stops all Dexo node apps, frees the locked ports
+                 # (Docker services keep running so you don't lose data)
 
 # To also stop the Docker infra services:
 docker stop dexo-postgres dexo-redis dexo-minio dexo-mailhog
@@ -519,4 +533,4 @@ Proprietary and Confidential © Dexo Platform Team.
 
 ---
 
-**Version:** v5.0 · **Status:** Core platform complete · **Last updated:** 2026-06-29
+**Version:** v5.0 · **Status:** Core platform complete · **Last updated:** 2026-07-11
