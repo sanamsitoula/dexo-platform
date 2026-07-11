@@ -521,6 +521,8 @@ Both guides are also published on the platform site at **http://localhost:3001/d
 | [docs/RBAC_ARCHITECTURE.md](./docs/RBAC_ARCHITECTURE.md) | Access-control hierarchy (Platform Admin → Tenant Module Override → Plan → Role), gaps and plan |
 | [docs/ai/00_AI_MASTER_ARCHITECTURE.md](./docs/ai/00_AI_MASTER_ARCHITECTURE.md) | Dexo AI Platform — TypeScript agent runtime, tool/prompt/agent registries, Fitness reference integration, full built-vs-roadmap table |
 | [docs/CUSTOM_DOMAINS.md](./docs/CUSTOM_DOMAINS.md) | Custom domain DNS setup (Namecheap/Hostinger/Mercantile/own VM) + nginx automation |
+| [docs/azurevm.md](./docs/azurevm.md) | Azure VM production deployment runbook (DNS, nginx install, SSL, verification/troubleshooting) |
+| [docs/EMAIL_SYSTEM.md](./docs/EMAIL_SYSTEM.md) | Global email hierarchy (Tenant → Global → System Default), provider-agnostic, super-admin configurable, no redeploy |
 | [REMAINING_WORK.md](./REMAINING_WORK.md) | Session-by-session audit of what's done vs open across the whole platform |
 | [todo.md](./todo.md) | Longer-horizon feature backlog (incl. planned Asset Management module) |
 

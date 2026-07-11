@@ -763,3 +763,26 @@ export const attendanceAdminApi = {
   devices: (page = 1, pageSize = 25) => fetchApi<any>(`/attendance-devices/admin/all?page=${page}&pageSize=${pageSize}`),
   sessions: (page = 1, pageSize = 25) => fetchApi<any>(`/attendance-devices/admin/sessions?page=${page}&pageSize=${pageSize}`),
 }
+
+// Global Email Config — Tier 2 of Tenant -> Global -> System Default (see
+// TenantMailService). Switching providers or rotating keys here takes
+// effect on the next send, no redeploy.
+export const platformEmailApi = {
+  get: () => fetchApi<any>('/platform-email/config'),
+  save: (data: {
+    provider?: string;
+    isEnabled?: boolean;
+    host?: string;
+    port?: number;
+    secure?: boolean;
+    user?: string;
+    pass?: string;
+    fromName?: string;
+    fromEmail?: string;
+    replyTo?: string;
+    dailyLimit?: number;
+    monthlyLimit?: number;
+  }) => fetchApi<any>('/platform-email/config', { method: 'PUT', body: JSON.stringify(data) }),
+  test: (to: string) => fetchApi<{ success: boolean; error?: string }>('/platform-email/test', { method: 'POST', body: JSON.stringify({ to }) }),
+  logs: (limit = 50) => fetchApi<any[]>(`/platform-email/logs?limit=${limit}`),
+}

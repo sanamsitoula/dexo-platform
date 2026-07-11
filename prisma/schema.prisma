@@ -3875,6 +3875,8 @@ enum WebhookDeliveryStatus {
   PENDING
   SUCCESS
   FAILED
+  RETRYING
+  DEAD
 }
 
 enum OrderPaymentMethod {
@@ -3957,9 +3959,14 @@ model WebhookDelivery {
   lastError      String?
   createdAt      DateTime              @default(now())
   deliveredAt    DateTime?
+  // Retry-with-backoff (added for retry worker — see WebhooksService.retryFailedDeliveries):
+  // nextRetryAt is when the @Cron sweep should next attempt redelivery; null once
+  // SUCCESS or DEAD (max attempts exhausted, 5).
+  nextRetryAt    DateTime?
 
   @@index([endpointId])
   @@index([status])
+  @@index([nextRetryAt])
 }
 
 // Explicit, platform-admin-controlled per-tenant module grant/restriction —
@@ -4007,4 +4014,60 @@ model AiInteractionLog {
   @@index([tenantId])
   @@index([userId])
   @@index([agentKey])
+}
+
+// =====================================================
+// GLOBAL EMAIL SYSTEM (Platform-configurable, provider-agnostic)
+// =====================================================
+// Hierarchy: Tenant SMTP (Setting key "smtp", see TenantMailService) ->
+// PlatformEmailConfig (this model, super-admin-editable via
+// /api/platform-email, no redeploy needed) -> System Default (SMTP_* env
+// vars, last-resort dev fallback). No email provider name is hardcoded in
+// business logic anywhere — "provider" here is a free-text label
+// ("brevo", "smtp", "sendgrid", ...) purely for the admin UI/monitoring.
+
+model PlatformEmailConfig {
+  id String @id @default(uuid())
+
+  provider String @default("smtp") // free-text label, not an enum — new providers need no migration
+  isEnabled Boolean @default(true)
+
+  host     String
+  port     Int     @default(587)
+  secure   Boolean @default(false)
+  user     String?
+  pass     String?
+
+  fromName  String?
+  fromEmail String
+  replyTo   String?
+
+  dailyLimit   Int?
+  monthlyLimit Int?
+
+  lastTestedAt   DateTime?
+  lastTestStatus String? // "SUCCESS" | "FAILED"
+  lastTestError  String?
+
+  updatedBy String?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+model PlatformEmailLog {
+  id       String  @id @default(uuid())
+  tenantId String? // null = a platform-level send (no tenant context)
+
+  to      String
+  subject String
+  via     String // "tenant" | "global" | "system"
+  status  String // "SENT" | "FAILED"
+
+  messageId String?
+  error     String?
+  createdAt DateTime @default(now())
+
+  @@index([tenantId])
+  @@index([status])
+  @@index([createdAt])
 }

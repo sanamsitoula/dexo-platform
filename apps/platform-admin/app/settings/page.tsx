@@ -114,6 +114,22 @@ export default function SettingsPage() {
           </div>
         </Link>
 
+        <Link href="/settings/email" className="group">
+          <div className="bg-white rounded-lg shadow p-6 hover:shadow-lg transition-shadow border-l-4 border-emerald-500">
+            <div className="flex items-center">
+              <div className="flex-shrink-0 bg-emerald-500 rounded-md p-3">
+                <svg className="h-6 w-6 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" />
+                </svg>
+              </div>
+              <div className="ml-4">
+                <h3 className="text-lg font-medium text-gray-900 group-hover:text-emerald-600">Global Email</h3>
+                <p className="text-sm text-gray-500">Platform-wide provider, test send & delivery log</p>
+              </div>
+            </div>
+          </div>
+        </Link>
+
         <Link href="/settings" className="group">
           <div className="bg-white rounded-lg shadow p-6 hover:shadow-lg transition-shadow border-l-4 border-gray-500">
             <div className="flex items-center">

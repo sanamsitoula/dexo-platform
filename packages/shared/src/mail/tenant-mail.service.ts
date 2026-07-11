@@ -19,20 +19,134 @@ export interface TenantMailMessage {
   text?: string;
 }
 
+export interface GlobalEmailConfig {
+  provider: string;
+  isEnabled: boolean;
+  host: string;
+  port: number;
+  secure: boolean;
+  user?: string | null;
+  pass?: string | null;
+  fromName?: string | null;
+  fromEmail: string;
+  replyTo?: string | null;
+  dailyLimit?: number | null;
+  monthlyLimit?: number | null;
+}
+
 const SETTING_KEY = 'smtp';
 
 /**
- * Per-tenant transactional email. Each tenant can configure its own SMTP
- * server (Setting key "smtp"); when a tenant has no config the platform
- * SMTP env vars (SMTP_HOST/PORT/USER/PASSWORD — MailHog in local dev) are
- * used, so emails always have a route. Lives in @dexo/shared so both the
- * auth package (welcome / password reset) and the API modules can send.
+ * Platform-wide transactional email — provider-agnostic, three-tier
+ * hierarchy, no code change or redeploy needed to switch providers or
+ * rotate credentials:
+ *
+ *   1. Tenant SMTP (Setting key "smtp")        — per-tenant white-label override
+ *   2. Global Email Config (PlatformEmailConfig) — super-admin-editable via
+ *      /api/platform-email, this is what "the platform's email provider" means
+ *   3. System Default (SMTP_* env vars)         — last-resort dev fallback
+ *      (MailHog locally), only reached if neither of the above exists
+ *
+ * Every send is logged to PlatformEmailLog for delivery monitoring. Lives in
+ * @dexo/shared so both the auth package (welcome / password reset) and every
+ * API module can send through the same routing logic.
  */
 @Injectable()
 export class TenantMailService {
   private readonly logger = new Logger(TenantMailService.name);
 
   constructor(private prisma: PrismaService) {}
+
+  // ------------------------------ global config (super admin) ------------------------------
+
+  async getGlobalConfig(maskSecret = true): Promise<GlobalEmailConfig | null> {
+    const row = await this.prisma.platformEmailConfig.findFirst({ orderBy: { createdAt: 'asc' } });
+    if (!row) return null;
+    return maskSecret && row.pass ? { ...row, pass: '********' } : row;
+  }
+
+  async saveGlobalConfig(dto: Partial<GlobalEmailConfig>, updatedBy?: string): Promise<GlobalEmailConfig> {
+    const existing = await this.prisma.platformEmailConfig.findFirst({ orderBy: { createdAt: 'asc' } });
+    let pass = dto.pass;
+    if (pass === '********') pass = existing?.pass ?? undefined;
+
+    const data = {
+      provider: dto.provider || existing?.provider || 'smtp',
+      isEnabled: dto.isEnabled ?? existing?.isEnabled ?? true,
+      host: dto.host ?? existing?.host ?? '',
+      port: Number(dto.port ?? existing?.port ?? 587),
+      secure: dto.secure ?? existing?.secure ?? false,
+      user: dto.user ?? existing?.user ?? null,
+      pass: pass ?? existing?.pass ?? null,
+      fromName: dto.fromName ?? existing?.fromName ?? null,
+      fromEmail: dto.fromEmail || existing?.fromEmail || 'noreply@onedexo.com',
+      replyTo: dto.replyTo ?? existing?.replyTo ?? null,
+      dailyLimit: dto.dailyLimit ?? existing?.dailyLimit ?? null,
+      monthlyLimit: dto.monthlyLimit ?? existing?.monthlyLimit ?? null,
+      updatedBy: updatedBy || null,
+    };
+
+    const saved = existing
+      ? await this.prisma.platformEmailConfig.update({ where: { id: existing.id }, data })
+      : await this.prisma.platformEmailConfig.create({ data });
+
+    return { ...saved, pass: saved.pass ? '********' : undefined };
+  }
+
+  /**
+   * One-time bootstrap: if no global config exists yet in the DB but
+   * GLOBAL_SMTP_* env vars are set (e.g. the initial Brevo credential
+   * dropped into .env), seed PlatformEmailConfig from them so the platform
+   * has a working global provider immediately without anyone touching the
+   * admin UI first. Safe to call repeatedly — no-ops once a DB row exists.
+   */
+  async bootstrapGlobalConfigFromEnv(): Promise<void> {
+    const existing = await this.prisma.platformEmailConfig.findFirst();
+    if (existing) return;
+    const host = process.env.GLOBAL_SMTP_HOST;
+    if (!host) return;
+    await this.prisma.platformEmailConfig.create({
+      data: {
+        provider: process.env.GLOBAL_SMTP_PROVIDER || 'smtp',
+        isEnabled: true,
+        host,
+        port: parseInt(process.env.GLOBAL_SMTP_PORT || '587', 10),
+        secure: process.env.GLOBAL_SMTP_SECURE === 'true',
+        user: process.env.GLOBAL_SMTP_USER || null,
+        pass: process.env.GLOBAL_SMTP_PASSWORD || null,
+        fromName: process.env.GLOBAL_SMTP_FROM_NAME || 'OneDexo',
+        fromEmail: process.env.GLOBAL_SMTP_FROM_EMAIL || 'noreply@onedexo.com',
+      },
+    });
+    this.logger.log('Bootstrapped global email config from GLOBAL_SMTP_* env vars.');
+  }
+
+  async testGlobalConfig(to: string): Promise<{ success: boolean; error?: string }> {
+    const cfg = await this.getGlobalConfig(false);
+    if (!cfg) return { success: false, error: 'No global email config saved yet' };
+    const result = await this.sendWith(cfg as TenantSmtpConfig, 'global', null, {
+      to,
+      subject: 'OneDexo — global email test',
+      text: 'Your global platform email configuration works.',
+      html: this.shell('Global email test successful ✅', '<p style="color:#374151">Your platform-wide email provider is configured correctly. This test bypassed tenant overrides.</p>', 'OneDexo'),
+    });
+    await this.prisma.platformEmailConfig.updateMany({
+      data: {
+        lastTestedAt: new Date(),
+        lastTestStatus: result.success ? 'SUCCESS' : 'FAILED',
+        lastTestError: result.success ? null : result.error || null,
+      },
+    });
+    return result;
+  }
+
+  async getLogs(tenantId?: string, limit = 50) {
+    return this.prisma.platformEmailLog.findMany({
+      where: tenantId ? { tenantId } : undefined,
+      orderBy: { createdAt: 'desc' },
+      take: Math.min(limit, 200),
+    });
+  }
 
   // ------------------------------ config ------------------------------
 
@@ -94,10 +208,15 @@ export class TenantMailService {
     });
   }
 
-  /** Send using the tenant's SMTP if configured & enabled, else platform SMTP. */
+  /**
+   * Resolve + send following the hierarchy: Tenant SMTP -> Global (DB) ->
+   * System Default (env). The decision is entirely data-driven — no code
+   * path branches on a provider name.
+   */
   async send(tenantId: string | null | undefined, msg: TenantMailMessage): Promise<{ success: boolean; messageId?: string; error?: string; via: string }> {
     let cfg: TenantSmtpConfig | null = null;
-    let via = 'platform';
+    let via: 'tenant' | 'global' | 'system' = 'system';
+
     if (tenantId) {
       const tenantCfg = await this.getConfig(tenantId, false).catch(() => null);
       if (tenantCfg?.enabled && tenantCfg.host) {
@@ -105,8 +224,28 @@ export class TenantMailService {
         via = 'tenant';
       }
     }
-    if (!cfg) cfg = this.platformConfig();
+    if (!cfg) {
+      const globalCfg = await this.getGlobalConfig(false).catch(() => null);
+      if (globalCfg?.isEnabled && globalCfg.host) {
+        cfg = globalCfg as TenantSmtpConfig;
+        via = 'global';
+      }
+    }
+    if (!cfg) {
+      cfg = this.platformConfig();
+      via = 'system';
+    }
 
+    return this.sendWith(cfg, via, tenantId ?? null, msg);
+  }
+
+  private async sendWith(
+    cfg: TenantSmtpConfig,
+    via: 'tenant' | 'global' | 'system',
+    tenantId: string | null,
+    msg: TenantMailMessage,
+  ): Promise<{ success: boolean; messageId?: string; error?: string; via: string }> {
+    let result: { success: boolean; messageId?: string; error?: string };
     try {
       const transport = this.buildTransport(cfg);
       const from = cfg.fromName
@@ -120,11 +259,27 @@ export class TenantMailService {
         html: msg.html,
       });
       this.logger.log(`Email sent via ${via} SMTP (${cfg.host}:${cfg.port}) to ${msg.to}: ${info.messageId}`);
-      return { success: true, messageId: info.messageId, via };
+      result = { success: true, messageId: info.messageId };
     } catch (err: any) {
       this.logger.warn(`Email send failed via ${via} SMTP: ${err?.message}`);
-      return { success: false, error: err?.message, via };
+      result = { success: false, error: err?.message };
     }
+
+    await this.prisma.platformEmailLog
+      .create({
+        data: {
+          tenantId,
+          to: Array.isArray(msg.to) ? msg.to.join(', ') : msg.to,
+          subject: msg.subject,
+          via,
+          status: result.success ? 'SENT' : 'FAILED',
+          messageId: result.messageId || null,
+          error: result.error || null,
+        },
+      })
+      .catch(() => { /* logging must never break the send path */ });
+
+    return { ...result, via };
   }
 
   // ------------------------------ templates ------------------------------

@@ -1,4 +1,4 @@
-# Dexo Platform — Remaining Work Audit (updated 2026-07-11, session 6)
+# Dexo Platform — Remaining Work Audit (updated 2026-07-12, session 7)
 
 Consolidated from all planning .md docs, cross-checked against actual code. Items completed 2026-07-10/11 (blogs, roles matrix, CRM channels, subscription modules + guard, pagination, billing seed, tenant login) are excluded.
 
@@ -68,6 +68,11 @@ Q. **AI chat UI + a real permission gap found and fixed before shipping it.** Wh
 - `apps/tenant-admin/components/AiAssistant.tsx` — floating widget on every admin page (added to `(admin)/layout.tsx`), agent picker excludes `fitness.member`, shows which tools were used per reply (transparency, matches the audit-log spirit).
 - `apps/tenant-app/app/coach/ai/page.tsx` — member-facing "My Coach" chat, hardcoded to `agentKey: 'fitness.member'` (no picker — customers should never see or select staff agents), linked from the existing `/coach` (human trainer messaging) page via an "✨ Ask AI" button.
 - Both builds clean, API typecheck 0 errors.
+
+## ✅ Completed this session (2026-07-12, session 7)
+
+R. **Global Email Management System** — provider-agnostic 3-tier hierarchy: Tenant SMTP (existing, unchanged) → **Global Email Config** (new — `PlatformEmailConfig`, one DB row, super-admin-editable at platform-admin **Settings → Email**, takes effect on the next send with no redeploy) → System Default (`SMTP_*` env, last-resort dev fallback). `TenantMailService.send()` (`@dexo/shared`) resolves this automatically; no business logic anywhere branches on a provider name. Every send is now logged to `PlatformEmailLog` (to/subject/via/status/error) with a delivery-log table in the admin UI. Initial provider (Brevo) seeded via `GLOBAL_SMTP_*` in the local **gitignored** `.env` — `bootstrapGlobalConfigFromEnv()` creates the DB row once on first boot, then the env vars are inert and rotation happens through the admin form only. **The credential the user pasted in chat was never written to source control** — `.env.example` has blank placeholders only. New API: `apps/api/src/modules/platform-email/` (`GET/PUT /config`, `POST /test`, `GET /logs`, all `PlatformAdminGuard`-only). Full architecture + explicit roadmap (multi-domain-per-tenant verification, template versioning, rate-limit enforcement, delivery webhooks, send queue) in `docs/EMAIL_SYSTEM.md`.
+S. **`docs/azurevm.md` deployment runbook** — written in response to "admin portal still redirects": the empty file meant there was no repeatable checklist for actually installing `infra/nginx/dexo.conf` on the VM. Covers verifying each app is listening, DNS setup (with the specific two-level-subdomain wildcard gotcha for `admin.<tenant>.onedexo.com`/`portal.<tenant>.onedexo.com`), nginx install + reload, SSL issuance, and self-serve verification commands (`dig`, `curl -sI`) that isolate whether the problem is DNS, nginx, or the app itself.
 
 ## P1 — Still open
 
