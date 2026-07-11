@@ -10,6 +10,15 @@ export interface CreateTenantInput {
   ownerPassword: string;
   ownerFirstName?: string;
   ownerLastName?: string;
+  /** Industry theme picked in the signup wizard (id from @dexo/shared industryThemes). */
+  themeId?: string;
+  branding?: {
+    colorPrimary?: string;
+    colorAccent?: string;
+    logo?: string;
+    /** Website template picked in the signup wizard (id from @dexo/shared websiteTemplates). */
+    templateId?: string;
+  };
 }
 
 export interface ProvisionResult {
@@ -36,6 +45,11 @@ export class ProvisioningService {
         name: input.name,
         subdomain: input.slug,
         status: 'active',
+        settings: {
+          domainType: input.domainType || null,
+          themeId: input.themeId || null,
+          branding: input.branding || null,
+        },
       },
     });
 
@@ -68,7 +82,7 @@ export class ProvisioningService {
     return {
       tenantId: tenant.id,
       subdomain: input.slug,
-      url: `http://admin.${input.slug}.dexo.com:4006`,
+      url: `http://admin.${input.slug}.onedexo.com:4006`,
     };
   }
 

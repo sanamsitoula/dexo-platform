@@ -1,11 +1,11 @@
 'use client';
 
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { useParams, useRouter } from 'next/navigation';
-import { tenantRolesApi } from '@/lib/api';
+import { tenantRolesApi, tenantModulesApi } from '@/lib/api';
 import { PageHeader, Card, Btn, Field, Input } from '../../_ui';
 import PermissionMatrix from '@/components/PermissionMatrix';
-import { PERMISSION_ACTIONS, compressPermissions } from '@/lib/permissions';
+import { PERMISSION_ACTIONS, compressPermissions, resourcesForModules } from '@/lib/permissions';
 
 export default function NewRolePage() {
   const subdomain = (useParams()?.subdomain as string) || 'vrfitness';
@@ -15,6 +15,11 @@ export default function NewRolePage() {
   const [cells, setCells] = useState<Set<string>>(new Set());
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [modules, setModules] = useState<Record<string, boolean> | null>(null);
+
+  useEffect(() => {
+    tenantModulesApi.get(subdomain).then(setModules); // null on error → fail open
+  }, [subdomain]);
 
   function toggleCell(resource: string, action: string) {
     setCells((prev) => {
@@ -75,7 +80,7 @@ export default function NewRolePage() {
             <span className="block text-sm font-semibold text-gray-700 mb-1.5">
               Permissions ({cells.size} selected)
             </span>
-            <PermissionMatrix cells={cells} onToggle={toggleCell} onToggleRow={toggleRow} />
+            <PermissionMatrix cells={cells} onToggle={toggleCell} onToggleRow={toggleRow} resources={resourcesForModules(modules)} />
           </div>
           <div className="flex justify-end gap-2 pt-2">
             <Btn variant="ghost" onClick={() => router.push('/roles')}>Cancel</Btn>

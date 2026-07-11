@@ -56,7 +56,7 @@ export default function TenantsPage() {
               {tenants.map((t) => (
                 <tr key={t.id} className="border-t border-gray-100">
                   <td className="px-4 py-3 font-medium">{t.name}</td>
-                  <td className="px-4 py-3 font-mono text-xs">{t.subdomain}.dexo.com</td>
+                  <td className="px-4 py-3 font-mono text-xs">{t.subdomain}.onedexo.com</td>
                   <td className="px-4 py-3">
                     <span className="px-2 py-0.5 rounded text-xs bg-emerald-100 text-emerald-700">{t.status}</span>
                   </td>

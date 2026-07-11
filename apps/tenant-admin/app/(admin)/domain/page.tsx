@@ -98,7 +98,7 @@ export default function DomainPage() {
       <div className="mt-6 bg-white rounded-lg shadow p-6">
         <h3 className="font-semibold text-gray-900">Current Subdomain</h3>
         <div className="mt-2 text-lg font-mono text-slate-700">
-          {lc?.subdomainSlug || '(unknown)'}.dexo.com
+          {lc?.subdomainSlug || '(unknown)'}.onedexo.com
         </div>
         <div className="mt-1 text-xs text-gray-500">Read-only — provisioned at signup</div>
       </div>

@@ -1,4 +1,5 @@
 import Link from 'next/link';
+import BlogSection from '@/components/BlogSection';
 
 const industries = [
   { name: 'Fitness', icon: '🏋️‍♂️' },
@@ -195,6 +196,9 @@ export default function HomePage() {
           </div>
         </div>
       </section>
+
+      {/* Blog Section */}
+      <BlogSection />
 
       {/* CTA Section */}
       <section className="py-20 px-4 sm:px-6 lg:px-8 bg-white">

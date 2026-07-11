@@ -126,7 +126,7 @@ export function SeoPanel({
       <div className="bg-gray-50 p-4 rounded-lg border border-gray-200">
         <p className="text-xs text-gray-400 uppercase tracking-wide mb-2">Google snippet preview</p>
         <p className="text-blue-700 text-lg leading-snug truncate">{metaTitle || title || 'Blog title'}</p>
-        <p className="text-green-700 text-sm">dexo.com/blog/{slug || title.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '') || '…'}</p>
+        <p className="text-green-700 text-sm">onedexo.com/blog/{slug || title.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '') || '…'}</p>
         <p className="text-gray-600 text-sm line-clamp-2">{metaDescription || excerpt || 'No description provided — add a meta description to control how this appears in search results.'}</p>
       </div>
     </div>

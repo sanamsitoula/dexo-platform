@@ -58,7 +58,7 @@ export default function AccountPage() {
       <div className="mt-3 rounded-xl border border-gray-200 p-4">
         <div className="text-sm text-gray-500">My gym</div>
         <div className="font-semibold text-gray-900">{info?.name ?? resolveSubdomain()}</div>
-        <div className="text-xs text-gray-500 mt-0.5">{resolveSubdomain()}.dexo.com{info?.tagline ? ` · ${info.tagline}` : ''}</div>
+        <div className="text-xs text-gray-500 mt-0.5">{resolveSubdomain()}.onedexo.com{info?.tagline ? ` · ${info.tagline}` : ''}</div>
         {member?.createdAt && (
           <div className="text-xs text-gray-400 mt-1">
             Member since {new Date(member.createdAt).toLocaleDateString([], { month: 'long', year: 'numeric' })}

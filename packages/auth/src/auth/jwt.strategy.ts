@@ -14,6 +14,11 @@ export class JwtStrategy extends PassportStrategy(Strategy) {
   }
 
   async validate(payload: any) {
+    // Scoped tokens (e.g. the 5-min 'mfa' challenge token) are NOT access tokens.
+    if (payload.scope) {
+      throw new UnauthorizedException('Invalid token');
+    }
+
     const user = await this.prisma.user.findUnique({
       where: { id: payload.sub },
     });

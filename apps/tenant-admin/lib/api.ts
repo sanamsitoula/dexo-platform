@@ -591,3 +591,23 @@ export const blogCategoryApi = {
     fetchApi<any>(`/blog-categories/${id}`, s, { method: 'PUT', body: JSON.stringify(data) }),
   remove: (s: string, id: string) => fetchApi<{ message: string }>(`/blog-categories/${id}`, s, { method: 'DELETE' }),
 }
+
+// Plan modules API — which modules the tenant's subscription plan enables.
+// Returns null on any failure so callers can FAIL OPEN (show everything).
+export const tenantModulesApi = {
+  get: async (subdomain: string): Promise<Record<string, boolean> | null> => {
+    try {
+      const tenantRes = await tenantApi.getBySubdomain(subdomain)
+      const tenantId = tenantRes.data?.id
+      if (!tenantId) return null
+      const res = await fetchApi<{ modules?: Record<string, boolean> }>(
+        `/subscriptions/tenant/${tenantId}/modules`,
+        subdomain
+      )
+      if (res.error || !res.data?.modules) return null
+      return res.data.modules
+    } catch {
+      return null
+    }
+  },
+}

@@ -97,7 +97,7 @@ export default function RegisterScreen() {
                   </View>
                   <View style={{ flex: 1 }}>
                     <Text style={styles.tenantName}>{selectedTenant.name}</Text>
-                    <Text style={styles.tenantSub}>{selectedTenant.subdomain}.dexo.app</Text>
+                    <Text style={styles.tenantSub}>{selectedTenant.subdomain}.onedexo.com</Text>
                   </View>
                 </View>
               ) : (
@@ -143,7 +143,7 @@ export default function RegisterScreen() {
                         </View>
                         <View style={{ flex: 1 }}>
                           <Text style={styles.tenantName}>{t.name}</Text>
-                          <Text style={styles.tenantSub}>{t.subdomain}.dexo.app</Text>
+                          <Text style={styles.tenantSub}>{t.subdomain}.onedexo.com</Text>
                         </View>
                         {tenantSubdomain === t.subdomain && (
                           <Ionicons name="checkmark-circle" size={20} color={Colors.primary} />

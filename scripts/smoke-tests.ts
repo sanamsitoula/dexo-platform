@@ -55,7 +55,7 @@ async function main() {
     if (status !== 201 && status !== 200) throw new Error(`status=${status}`);
     if (!data.tenantId) throw new Error('no tenantId');
     if (!data.subdomain) throw new Error('no subdomain');
-    if (!data.url?.includes('smoketest.dexo.com')) throw new Error('url wrong');
+    if (!data.url?.includes('smoketest.onedexo.com')) throw new Error('url wrong');
   });
 
   await test('GET /api/tenants/check-slug?slug=taken → available=false', async () => {

@@ -14,6 +14,7 @@ import {
 } from '@nestjs/common';
 import { ApiTags, ApiOperation, ApiResponse, ApiBearerAuth, ApiQuery } from '@nestjs/swagger';
 import { JwtAuthGuard, PlatformAdminGuard } from '@dexo/auth';
+import { RequireModule } from '@dexo/shared';
 import { BlogService } from './blog.service';
 import { CreateBlogDto, UpdateBlogDto, QueryBlogDto } from './dto';
 
@@ -88,6 +89,7 @@ export class BlogController {
 
   @Post()
   @UseGuards(JwtAuthGuard)
+  @RequireModule('blog')
   @ApiBearerAuth()
   @ApiOperation({ summary: 'Create blog' })
   async create(@Body() createBlogDto: CreateBlogDto, @Req() req: any) {
@@ -100,6 +102,7 @@ export class BlogController {
 
   @Put(':id')
   @UseGuards(JwtAuthGuard)
+  @RequireModule('blog')
   @ApiBearerAuth()
   @ApiOperation({ summary: 'Update blog' })
   async update(
@@ -118,6 +121,7 @@ export class BlogController {
 
   @Delete(':id')
   @UseGuards(JwtAuthGuard)
+  @RequireModule('blog')
   @ApiBearerAuth()
   @HttpCode(HttpStatus.OK)
   @ApiOperation({ summary: 'Delete blog' })
@@ -132,6 +136,7 @@ export class BlogController {
 
   @Post(':id/publish')
   @UseGuards(JwtAuthGuard)
+  @RequireModule('blog')
   @ApiBearerAuth()
   @ApiOperation({ summary: 'Publish blog' })
   async publish(@Param('id') id: string, @Req() req: any) {

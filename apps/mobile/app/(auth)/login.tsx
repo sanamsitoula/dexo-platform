@@ -110,7 +110,7 @@ export default function LoginScreen() {
                     </View>
                     <View style={{ flex: 1 }}>
                       <Text style={styles.tenantName}>{selectedTenant.name}</Text>
-                      <Text style={styles.tenantSub}>{selectedTenant.subdomain}.dexo.app</Text>
+                      <Text style={styles.tenantSub}>{selectedTenant.subdomain}.onedexo.com</Text>
                     </View>
                   </View>
                 ) : (
@@ -140,7 +140,7 @@ export default function LoginScreen() {
                       </View>
                     ) : filteredTenants.length === 0 ? (
                       <Text style={styles.emptyText}>
-                        No business found. If your gym isn't listed, ask them to sign up at dexo.com.
+                        No business found. If your gym isn't listed, ask them to sign up at onedexo.com.
                       </Text>
                     ) : (
                       filteredTenants.map((t) => (
@@ -154,7 +154,7 @@ export default function LoginScreen() {
                           </View>
                           <View style={{ flex: 1 }}>
                             <Text style={styles.tenantName}>{t.name}</Text>
-                            <Text style={styles.tenantSub}>{t.subdomain}.dexo.app</Text>
+                            <Text style={styles.tenantSub}>{t.subdomain}.onedexo.com</Text>
                           </View>
                           {tenantSubdomain === t.subdomain && (
                             <Ionicons name="checkmark-circle" size={20} color={Colors.primary} />

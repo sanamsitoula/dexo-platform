@@ -1,4 +1,5 @@
 import { Injectable, Logger, NotFoundException } from '@nestjs/common';
+import { Cron, CronExpression } from '@nestjs/schedule';
 import { PrismaService } from '@dexo/shared';
 import { HttpService } from '@nestjs/axios';
 import { firstValueFrom } from 'rxjs';
@@ -211,5 +212,64 @@ export class CbmsSyncService {
     }
 
     return { processed: rows.length, succeeded, failed };
+  }
+
+  /** Background retry sweep across all tenants. */
+  @Cron(CronExpression.EVERY_30_MINUTES)
+  async retryQueueCron() {
+    const result = await this.retryQueue();
+    if (result.processed > 0) {
+      this.logger.log(
+        `CBMS retry cron: processed=${result.processed} succeeded=${result.succeeded} failed=${result.failed}`,
+      );
+    }
+  }
+
+  /**
+   * Retry a single queue row immediately (manual retry button), regardless of
+   * its nextRetryAt schedule. Rows already SUCCESS or at MAX_RETRY are rejected.
+   */
+  async retryOne(tenantId: string, queueId: string) {
+    const row = await this.prisma.cbmsSyncQueue.findFirst({ where: { id: queueId, tenantId } });
+    if (!row) throw new NotFoundException('CBMS sync queue row not found');
+    if (row.status === 'SUCCESS') return { status: 'SUCCESS', message: 'Row already synced' };
+    if (row.attemptCount >= this.MAX_RETRIES && row.status === 'MAX_RETRY') {
+      // Manual retry resets the row for one more attempt below.
+      await this.prisma.cbmsSyncQueue.update({ where: { id: row.id }, data: { status: 'FAILED' } });
+    }
+
+    const payload = row.requestPayload as any;
+    const { ok, response } = await this.attemptSync(payload);
+    const now = new Date();
+    const attempt = row.attemptCount + 1;
+
+    if (ok) {
+      await this.prisma.masterBill
+        .updateMany({
+          where: { tenantId: row.tenantId, billNo: payload.invoice_number },
+          data: { syncWithIrd: payload.operation !== 'CANCEL' },
+        })
+        .catch(() => undefined);
+      await this.prisma.cbmsSyncQueue.update({
+        where: { id: row.id },
+        data: { status: 'SUCCESS', attemptCount: attempt, lastAttemptedAt: now, responsePayload: response as any },
+      });
+      await this.logAudit(row.tenantId, row.invoiceId, 'SYNC', { manualRetry: true, response }, 'manual');
+      return { status: 'SUCCESS', message: 'Row synced to CBMS' };
+    }
+
+    const maxed = attempt >= this.MAX_RETRIES;
+    await this.prisma.cbmsSyncQueue.update({
+      where: { id: row.id },
+      data: {
+        status: maxed ? 'MAX_RETRY' : 'FAILED',
+        attemptCount: attempt,
+        lastAttemptedAt: now,
+        nextRetryAt: maxed ? null : this.backoff(attempt),
+        responsePayload: response as any,
+        errorMessage: typeof response?.error === 'string' ? response.error : JSON.stringify(response?.error ?? {}),
+      },
+    });
+    return { status: maxed ? 'MAX_RETRY' : 'FAILED', message: 'Retry attempt failed' };
   }
 }

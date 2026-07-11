@@ -18,6 +18,7 @@ import { PrismaService, AuditService } from '@dexo/shared';
 import { JwtAuthGuard } from '@dexo/auth';
 import { ContactMessageStatus, ContactMessagePriority } from '@prisma/client';
 import { ChannelConfigService } from './channel-config.service';
+import { RequireModule } from '../../common/guards/module-access.guard';
 
 interface CreateContactDto {
   name: string;
@@ -153,6 +154,7 @@ export class ContactController {
 
   @Get()
   @UseGuards(JwtAuthGuard)
+  @RequireModule('crm')
   @ApiBearerAuth()
   @ApiOperation({ summary: 'List contact messages (tenant-scoped or platform-wide)' })
   @ApiQuery({ name: 'page', required: false })
@@ -226,6 +228,7 @@ export class ContactController {
 
   @Get('stats')
   @UseGuards(JwtAuthGuard)
+  @RequireModule('crm')
   @ApiBearerAuth()
   @ApiOperation({ summary: 'Get contact message statistics' })
   async getStats(@Req() req: any) {

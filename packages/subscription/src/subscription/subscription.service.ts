@@ -13,6 +13,19 @@ import {
   BillingInterval,
 } from './dto';
 
+/** Canonical plan module keys (mirrors seed 07 PLAN_DEFS features.modules). */
+export const MODULE_KEYS = [
+  'crm',
+  'blog',
+  'billing_invoice',
+  'invoice_print',
+  'attendance',
+  'website_builder',
+  'payments_online',
+  'reports_nfrs',
+  'announcements',
+] as const;
+
 @Injectable()
 export class SubscriptionService {
   constructor(private prisma: PrismaTenantService) {}
@@ -420,6 +433,39 @@ export class SubscriptionService {
     }
 
     return subscription;
+  }
+
+  /**
+   * Resolve a tenant's enabled modules from its active subscription's plan
+   * (`plan.features.modules`). Tenants without a subscription/plan, or on a
+   * plan without a modules config, get all modules enabled (backward compatible).
+   */
+  async getTenantModules(tenantId: string) {
+    const allEnabled = Object.fromEntries(
+      MODULE_KEYS.map((k) => [k, true]),
+    ) as Record<string, boolean>;
+
+    const subscription = await this.prisma.subscription.findFirst({
+      where: {
+        tenantId,
+        status: { in: ['active', 'trial', 'past_due'] },
+      },
+      include: { plan: true },
+      orderBy: { createdAt: 'desc' },
+    });
+
+    const features = subscription?.plan?.features as Record<string, any> | null | undefined;
+    const planModules = features?.modules;
+
+    if (!planModules || typeof planModules !== 'object') {
+      return { tenantId, planId: subscription?.planId ?? null, modules: allEnabled };
+    }
+
+    return {
+      tenantId,
+      planId: subscription!.planId,
+      modules: { ...allEnabled, ...planModules },
+    };
   }
 
   async checkTrialExpiry() {

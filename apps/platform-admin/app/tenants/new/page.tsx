@@ -274,7 +274,7 @@ export default function NewTenantPage() {
   // Auto-fill admin email from subdomain
   useEffect(() => {
     if (subdomain && !adminEmail) {
-      setAdminEmail(`admin@${subdomain}.dexo.app`)
+      setAdminEmail(`admin@${subdomain}.onedexo.com`)
     }
   }, [subdomain])
 
@@ -1025,12 +1025,12 @@ export default function NewTenantPage() {
                   placeholder="acme-fitness"
                 />
                 <span className="inline-flex items-center px-3 rounded-r-md border border-l-0 border-gray-300 bg-gray-50 text-gray-500 text-sm">
-                  .dexo.app
+                  .onedexo.com
                 </span>
               </div>
               {subdomainStatus === 'checking' && <p className="mt-1 text-xs text-gray-500">Checking availability…</p>}
               {subdomainStatus === 'available' && (
-                <p className="mt-1 text-xs text-green-600">✓ Available — your tenant will be at <strong>{subdomain}.dexo.app</strong></p>
+                <p className="mt-1 text-xs text-green-600">✓ Available — your tenant will be at <strong>{subdomain}.onedexo.com</strong></p>
               )}
               {subdomainStatus === 'taken' && (
                 <p className="mt-1 text-xs text-red-600">✗ This subdomain is already taken.</p>
@@ -1087,7 +1087,7 @@ export default function NewTenantPage() {
                   value={adminEmail}
                   onChange={(e) => setAdminEmail(e.target.value)}
                   className="block w-full border border-gray-300 rounded-md py-2 px-3"
-                  placeholder="admin@yourtenant.dexo.app"
+                  placeholder="admin@yourtenant.onedexo.com"
                 />
               </div>
               <div>
@@ -1160,7 +1160,7 @@ export default function NewTenantPage() {
             <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
               <SummaryItem label="Business template" value={`${selectedDomain?.icon} ${selectedDomain?.name || ''}`} />
               <SummaryItem label="Design template" value={`${selectedTemplate.thumbnail} ${selectedTemplate.name}`} />
-              <SummaryItem label="Subdomain" value={`${subdomain}.dexo.app`} />
+              <SummaryItem label="Subdomain" value={`${subdomain}.onedexo.com`} />
               <SummaryItem label="Custom domain" value={customDomain || '—'} />
               <SummaryItem label="Theme" value={theme || 'default'} />
               <SummaryItem label="Menu items" value={`${menuItems.filter((m) => m.trim()).length} pages`} />
@@ -1173,7 +1173,7 @@ export default function NewTenantPage() {
               <h4 className="font-semibold text-indigo-900 mb-2">What happens next:</h4>
               <ol className="text-sm text-indigo-800 space-y-1 list-decimal list-inside">
                 <li>Tenant <strong>{name}</strong> is created in the database</li>
-                <li>Subdomain <code className="bg-white px-1 rounded">{subdomain}.dexo.app</code> is reserved</li>
+                <li>Subdomain <code className="bg-white px-1 rounded">{subdomain}.onedexo.com</code> is reserved</li>
                 <li>{selectedDomain?.name} industry template is applied (modules, roles, menus, permissions)</li>
                 <li>Tenant administrator <strong>{adminEmail}</strong> is created</li>
                 <li>Your design template + brand settings are saved to the tenant app</li>

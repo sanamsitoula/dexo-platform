@@ -405,3 +405,5 @@ export function getThemesByPremium(premium: boolean): IndustryTheme[] {
 export function getThemeForIndustry(industry: string): IndustryTheme | undefined {
   return industryThemes.find((t) => t.industry.toLowerCase().includes(industry.toLowerCase()));
 }
+
+export * from './templates';

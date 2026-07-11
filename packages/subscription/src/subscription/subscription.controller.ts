@@ -9,8 +9,10 @@ import {
   Query,
   HttpCode,
   HttpStatus,
+  UseGuards,
 } from '@nestjs/common';
-import { ApiTags, ApiOperation, ApiResponse } from '@nestjs/swagger';
+import { ApiTags, ApiOperation, ApiResponse, ApiBearerAuth } from '@nestjs/swagger';
+import { JwtAuthGuard } from '@dexo/auth';
 import { SubscriptionService } from './subscription.service';
 import { CreateSubscriptionDto, UpdateSubscriptionDto, CreatePlanDto } from './dto';
 
@@ -99,6 +101,15 @@ export class SubscriptionController {
   @ApiResponse({ status: 404, description: 'No active subscription found' })
   async getTenantSubscription(@Param('tenantId') tenantId: string) {
     return this.subscriptionService.getTenantSubscription(tenantId);
+  }
+
+  @Get('tenant/:tenantId/modules')
+  @UseGuards(JwtAuthGuard)
+  @ApiBearerAuth()
+  @ApiOperation({ summary: "Get modules enabled by the tenant's plan (features.modules)" })
+  @ApiResponse({ status: 200, description: 'Enabled modules map retrieved successfully' })
+  async getTenantModules(@Param('tenantId') tenantId: string) {
+    return this.subscriptionService.getTenantModules(tenantId);
   }
 
   @Put(':id')

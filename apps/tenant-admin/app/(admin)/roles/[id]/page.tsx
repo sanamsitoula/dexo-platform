@@ -2,10 +2,10 @@
 
 import { useEffect, useState } from 'react';
 import { useParams, useRouter } from 'next/navigation';
-import { tenantRolesApi } from '@/lib/api';
+import { tenantRolesApi, tenantModulesApi } from '@/lib/api';
 import { PageHeader, Card, Btn, Field, Input, Badge } from '../../_ui';
 import PermissionMatrix from '@/components/PermissionMatrix';
-import { PERMISSION_ACTIONS, expandPermissions, compressPermissions } from '@/lib/permissions';
+import { PERMISSION_ACTIONS, expandPermissions, compressPermissions, resourcesForModules } from '@/lib/permissions';
 
 interface Role {
   id: string;
@@ -31,6 +31,11 @@ export default function RoleDetailPage() {
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState<string | null>(null);
+  const [modules, setModules] = useState<Record<string, boolean> | null>(null);
+
+  useEffect(() => {
+    tenantModulesApi.get(subdomain).then(setModules); // null on error → fail open
+  }, [subdomain]);
 
   useEffect(() => {
     if (!id) return;
@@ -152,6 +157,7 @@ export default function RoleDetailPage() {
               cells={cells}
               onToggle={role.isSystem ? undefined : toggleCell}
               onToggleRow={role.isSystem ? undefined : toggleRow}
+              resources={resourcesForModules(modules)}
             />
             {role.isSystem && (
               <p className="text-xs text-gray-500 italic mt-2">

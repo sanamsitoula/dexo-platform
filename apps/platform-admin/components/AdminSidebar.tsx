@@ -1,26 +1,67 @@
 'use client'
 
 import Link from 'next/link'
+import { useEffect, useState } from 'react'
 import { usePathname } from 'next/navigation'
 import { useAuth } from '@/contexts/AuthContext'
+import { useTheme } from '@/components/ThemeProvider'
+import { brandingApi } from '@/lib/api'
 import { DexoLogo } from '@dexo/ui'
 
-const navItems = [
-  { name: 'Home', href: '/', icon: 'Home', platformOnly: false },
-  { name: 'Dashboard', href: '/dashboard', icon: 'Chart', platformOnly: true },
-  { name: 'Tenants', href: '/tenants', icon: 'Building', platformOnly: true },
-  { name: 'Users', href: '/users', icon: 'Users', platformOnly: true },
-  { name: 'Roles', href: '/roles', icon: 'Shield', platformOnly: true },
-  { name: 'Blogs', href: '/blogs', icon: 'Document', platformOnly: true },
-  { name: 'CRM', href: '/crm', icon: 'Inbox', platformOnly: false },
-  { name: 'Subscriptions', href: '/subscriptions', icon: 'CreditCard', platformOnly: true },
-  { name: 'Billing', href: '/billing', icon: 'Receipt', platformOnly: true },
-  { name: 'Notifications', href: '/notifications', icon: 'Bell', platformOnly: false },
-  { name: 'Attendance', href: '/attendance', icon: 'Clipboard', platformOnly: true },
-  { name: 'Audit Logs', href: '/audit', icon: 'Clipboard', platformOnly: true },
-  { name: 'Reports', href: '/reports', icon: 'Document', platformOnly: true },
-  { name: 'System Logs', href: '/logs', icon: 'Terminal', platformOnly: true },
-  { name: 'Settings', href: '/settings', icon: 'Settings', platformOnly: true },
+interface NavItem {
+  name: string
+  href: string
+  icon: string
+  platformOnly: boolean
+}
+
+/** Grouped navigation — sections give the long list scannable structure. */
+const navGroups: Array<{ label: string; items: NavItem[] }> = [
+  {
+    label: 'Overview',
+    items: [
+      { name: 'Home', href: '/', icon: 'Home', platformOnly: false },
+      { name: 'Dashboard', href: '/dashboard', icon: 'Chart', platformOnly: true },
+    ],
+  },
+  {
+    label: 'Management',
+    items: [
+      { name: 'Tenants', href: '/tenants', icon: 'Building', platformOnly: true },
+      { name: 'Users', href: '/users', icon: 'Users', platformOnly: true },
+      { name: 'Roles', href: '/roles', icon: 'Shield', platformOnly: true },
+    ],
+  },
+  {
+    label: 'Engagement',
+    items: [
+      { name: 'CRM', href: '/crm', icon: 'Inbox', platformOnly: false },
+      { name: 'Blogs', href: '/blogs', icon: 'Document', platformOnly: true },
+      { name: 'Notifications', href: '/notifications', icon: 'Bell', platformOnly: false },
+    ],
+  },
+  {
+    label: 'Finance',
+    items: [
+      { name: 'Subscriptions', href: '/subscriptions', icon: 'CreditCard', platformOnly: true },
+      { name: 'Billing', href: '/billing', icon: 'Receipt', platformOnly: true },
+    ],
+  },
+  {
+    label: 'Operations',
+    items: [
+      { name: 'Attendance', href: '/attendance', icon: 'Clipboard', platformOnly: true },
+      { name: 'Reports', href: '/reports', icon: 'Document', platformOnly: true },
+      { name: 'Audit Logs', href: '/audit', icon: 'Clipboard', platformOnly: true },
+    ],
+  },
+  {
+    label: 'System',
+    items: [
+      { name: 'System Logs', href: '/logs', icon: 'Terminal', platformOnly: true },
+      { name: 'Settings', href: '/settings', icon: 'Settings', platformOnly: true },
+    ],
+  },
 ]
 
 const icons: Record<string, JSX.Element> = {
@@ -95,65 +136,130 @@ const icons: Record<string, JSX.Element> = {
 export default function AdminSidebar() {
   const pathname = usePathname()
   const { user, logout, isPlatformAdmin } = useAuth()
+  const { theme } = useTheme()
+  const [branding, setBranding] = useState<{ platformName?: string; tagline?: string; logoDarkUrl?: string; logoUrl?: string } | null>(null)
 
-  const filteredNavItems = navItems.filter((item) => {
-    if (item.platformOnly && !isPlatformAdmin) return false
-    return true
-  })
+  // Platform branding (name, tagline, logo) comes from Settings → Branding.
+  useEffect(() => {
+    brandingApi.get().then((res) => {
+      if (res.data) setBranding(res.data)
+    }).catch(() => {})
+  }, [])
+
+  const primary = theme.primaryColor
+  const radius = theme.borderRadius || '0.5rem'
+  const logo = branding?.logoDarkUrl || branding?.logoUrl
+
+  const isActive = (href: string) =>
+    href === '/' ? pathname === '/' : pathname === href || pathname?.startsWith(`${href}/`)
 
   return (
-    <aside className="w-64 flex-shrink-0 text-white" style={{ backgroundColor: '#09090B' }}>
-      <div className="p-6">
-        <Link href="/" aria-label="Dexo home">
-          <DexoLogo size={28} variant="dark" />
+    <aside
+      className="w-64 flex-shrink-0 h-screen flex flex-col text-white"
+      style={{ background: 'linear-gradient(180deg, #0B0B0F 0%, #101018 100%)', borderRight: '1px solid rgba(255,255,255,0.06)' }}
+    >
+      {/* Brand header — from platform branding settings */}
+      <div className="px-5 pt-6 pb-5 border-b border-white/[0.06]">
+        <Link href="/" aria-label="Platform home" className="flex items-center gap-3">
+          {logo ? (
+            // eslint-disable-next-line @next/next/no-img-element
+            <img src={logo} alt={branding?.platformName || 'Logo'} className="h-8 w-8 object-contain rounded-md" />
+          ) : (
+            <span
+              className="h-9 w-9 flex items-center justify-center shrink-0"
+              style={{ background: `linear-gradient(135deg, ${primary}, ${theme.accentColor})`, borderRadius: radius }}
+            >
+              <DexoLogo size={20} variant="dark" />
+            </span>
+          )}
+          <span className="min-w-0">
+            <span className="block text-[15px] font-bold leading-tight truncate">
+              {branding?.platformName || 'OneDexo'}
+            </span>
+            <span className="block text-[11px] leading-tight truncate text-white/40">
+              {branding?.tagline || 'Platform administration'}
+            </span>
+          </span>
         </Link>
-        <p className="text-xs mt-2" style={{ color: '#A1A1AA' }}>Platform administration</p>
       </div>
-      <nav className="mt-6">
-        <ul className="space-y-1 px-3">
-          {filteredNavItems.map((item) => {
-            const isActive = pathname === item.href
-            return (
-              <li key={item.name}>
-                <Link
-                  href={item.href}
-                  className={`flex items-center px-4 py-3 rounded-lg transition-colors ${
-                    isActive
-                      ? 'text-white bg-[#4F46E5]'
-                      : 'text-gray-300 hover:bg-white/10 hover:text-white'
-                  }`}
-                >
-                  <span className="h-5 w-5">{icons[item.icon]}</span>
-                  <span className="ml-3">{item.name}</span>
-                </Link>
-              </li>
-            )
-          })}
-        </ul>
+
+      {/* Scrollable nav — grouped sections */}
+      <nav className="flex-1 overflow-y-auto py-4 px-3 [scrollbar-width:thin] [scrollbar-color:rgba(255,255,255,0.15)_transparent]">
+        {navGroups.map((group) => {
+          const items = group.items.filter((i) => !i.platformOnly || isPlatformAdmin)
+          if (items.length === 0) return null
+          return (
+            <div key={group.label} className="mb-4">
+              <div className="px-3 mb-1.5 text-[10px] font-semibold uppercase tracking-[0.14em] text-white/30">
+                {group.label}
+              </div>
+              <ul className="space-y-0.5">
+                {items.map((item) => {
+                  const active = isActive(item.href)
+                  return (
+                    <li key={item.name}>
+                      <Link
+                        href={item.href}
+                        aria-current={active ? 'page' : undefined}
+                        className={`group relative flex items-center gap-3 px-3 py-2 text-[13px] font-medium transition-all duration-150 ${
+                          active ? 'text-white' : 'text-white/55 hover:text-white hover:bg-white/[0.06]'
+                        }`}
+                        style={{
+                          borderRadius: radius,
+                          ...(active
+                            ? {
+                                background: `linear-gradient(90deg, ${primary}2E, ${primary}14)`,
+                                boxShadow: `inset 0 0 0 1px ${primary}40`,
+                              }
+                            : {}),
+                        }}
+                      >
+                        {/* Active indicator bar */}
+                        <span
+                          className="absolute left-0 top-1/2 -translate-y-1/2 h-4 w-[3px] rounded-full transition-opacity duration-150"
+                          style={{ backgroundColor: primary, opacity: active ? 1 : 0 }}
+                        />
+                        <span
+                          className="h-[18px] w-[18px] shrink-0 transition-colors"
+                          style={active ? { color: primary } : undefined}
+                        >
+                          {icons[item.icon]}
+                        </span>
+                        <span className="truncate">{item.name}</span>
+                      </Link>
+                    </li>
+                  )
+                })}
+              </ul>
+            </div>
+          )
+        })}
       </nav>
-      <div className="absolute bottom-0 w-64 p-4 border-t border-gray-800">
-        <div className="flex items-center justify-between">
-          <div className="flex items-center">
-            <div className="h-10 w-10 rounded-full bg-gray-700 flex items-center justify-center">
-              <span className="text-sm font-medium">
-                {user?.firstName?.charAt(0) || user?.email?.charAt(0) || 'A'}
-              </span>
-            </div>
-            <div className="ml-3">
-              <p className="text-sm font-medium">
-                {user?.firstName || 'Admin User'}
-              </p>
-              <p className="text-xs text-gray-400">
-                {user?.email || 'admin@dexo.com'}
-              </p>
-            </div>
+
+      {/* User footer — pinned by flex, not absolute positioning */}
+      <div className="p-3 border-t border-white/[0.06] bg-black/20">
+        <div className="flex items-center gap-3 px-2 py-2" style={{ borderRadius: radius }}>
+          <div
+            className="h-9 w-9 shrink-0 rounded-full flex items-center justify-center text-sm font-bold text-white"
+            style={{ background: `linear-gradient(135deg, ${primary}, ${theme.accentColor})` }}
+          >
+            {(user?.firstName?.charAt(0) || user?.email?.charAt(0) || 'A').toUpperCase()}
+          </div>
+          <div className="min-w-0 flex-1">
+            <p className="text-[13px] font-semibold truncate leading-tight">
+              {user?.firstName ? `${user.firstName} ${user.lastName || ''}`.trim() : 'Admin User'}
+            </p>
+            <p className="text-[11px] text-white/40 truncate leading-tight">
+              {user?.email || 'admin@onedexo.com'}
+            </p>
           </div>
           <button
             onClick={logout}
-            className="text-gray-400 hover:text-white"
+            className="shrink-0 p-1.5 text-white/40 hover:text-white hover:bg-white/10 transition-colors"
+            style={{ borderRadius: radius }}
             title="Logout"
           >
-            <svg fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className="h-5 w-5">
+            <svg fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className="h-[18px] w-[18px]">
               <path strokeLinecap="round" strokeLinejoin="round" d="M15.75 9V5.25A2.25 2.25 0 0013.5 3h-6a2.25 2.25 0 00-2.25 2.25v13.5A2.25 2.25 0 007.5 21h6a2.25 2.25 0 002.25-2.25V15m3 0l3-3m0 0l-3-3m3 3H9" />
             </svg>
           </button>

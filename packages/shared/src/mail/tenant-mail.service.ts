@@ -78,7 +78,7 @@ export class TenantMailService {
       secure: process.env.SMTP_SECURE === 'true',
       user: process.env.SMTP_USER || undefined,
       pass: process.env.SMTP_PASSWORD || process.env.SMTP_PASS || undefined,
-      fromEmail: process.env.EMAIL_FROM || 'noreply@dexo.com',
+      fromEmail: process.env.EMAIL_FROM || 'noreply@onedexo.com',
       enabled: true,
     };
   }
@@ -110,8 +110,8 @@ export class TenantMailService {
     try {
       const transport = this.buildTransport(cfg);
       const from = cfg.fromName
-        ? `"${cfg.fromName}" <${cfg.fromEmail || 'noreply@dexo.com'}>`
-        : cfg.fromEmail || 'noreply@dexo.com';
+        ? `"${cfg.fromName}" <${cfg.fromEmail || 'noreply@onedexo.com'}>`
+        : cfg.fromEmail || 'noreply@onedexo.com';
       const info = await transport.sendMail({
         from,
         to: Array.isArray(msg.to) ? msg.to.join(', ') : msg.to,

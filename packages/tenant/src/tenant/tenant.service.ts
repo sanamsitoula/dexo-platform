@@ -177,6 +177,63 @@ export class TenantService {
     });
   }
 
+  /**
+   * Resolve a tenant from a request Host header. Handles both platform
+   * subdomains (vrfitness.onedexo.com, ramgym.localhost) and verified custom
+   * domains (fitness.com). Returns a lean public payload safe for
+   * unauthenticated callers (middleware, mobile "connect by domain").
+   */
+  async resolveByHost(rawHost: string) {
+    const host = (rawHost || '').split(':')[0].toLowerCase().replace(/^www\./, '');
+    if (!host) throw new BadRequestException('host query param required');
+
+    const select = {
+      id: true, name: true, subdomain: true, domain: true, status: true, settings: true,
+    } as const;
+    const platformSuffixes = ['.onedexo.com', '.localhost'];
+    const suffix = platformSuffixes.find((s) => host.endsWith(s));
+
+    let tenant: any = null;
+    if (suffix) {
+      // vrfitness.onedexo.com -> "vrfitness"; admin.vrfitness.onedexo.com -> "vrfitness"
+      const labels = host.slice(0, -suffix.length).split('.').filter(Boolean);
+      const sub = labels[labels.length - 1];
+      if (sub) {
+        tenant = await this.prisma.tenant.findUnique({ where: { subdomain: sub }, select });
+      }
+    } else if (host.includes('.')) {
+      // Custom domain: legacy tenant.domain column first, then the verified
+      // lifecycle customDomain flow (TXT-record verification).
+      tenant = await this.prisma.tenant.findFirst({ where: { domain: host }, select });
+      if (!tenant) {
+        const lc = await this.prisma.tenantLifecycle.findFirst({
+          where: { customDomain: host, customDomainVerified: true },
+          select: { tenantId: true },
+        });
+        if (lc) {
+          tenant = await this.prisma.tenant.findUnique({ where: { id: lc.tenantId }, select });
+        }
+      }
+    } else {
+      // Bare label ("vrfitness") — treat as a subdomain slug.
+      tenant = await this.prisma.tenant.findUnique({ where: { subdomain: host }, select });
+    }
+
+    if (!tenant || tenant.status !== 'active') {
+      throw new NotFoundException(`No active tenant for host "${host}"`);
+    }
+    const s = (tenant.settings as Record<string, any>) || {};
+    return {
+      id: tenant.id,
+      name: tenant.name,
+      subdomain: tenant.subdomain,
+      domain: tenant.domain,
+      domainType: s.domainType || s.theme || null,
+      themeId: s.themeId || null,
+      branding: s.branding || null,
+    };
+  }
+
   async findBySubdomain(subdomain: string) {
     const tenant = await this.prisma.tenant.findUnique({
       where: { subdomain },

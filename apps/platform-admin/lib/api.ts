@@ -308,18 +308,34 @@ export const subscriptionsApi = {
   renew: (id: string) =>
     fetchApi<any>(`/subscriptions/${id}/renew`, { method: 'POST' }),
   
-  changePlan: (id: string, planId: string) =>
-    fetchApi<any>(`/subscriptions/${id}/change-plan`, {
+  // :subscriptionId is the SUBSCRIPTION id; the controller reads `newPlanId`.
+  changePlan: (subscriptionId: string, newPlanId: string) =>
+    fetchApi<any>(`/subscriptions/${subscriptionId}/change-plan`, {
       method: 'POST',
-      body: JSON.stringify({ planId }),
+      body: JSON.stringify({ newPlanId }),
     }),
-  
+
+  create: (data: { tenantId: string; planId: string; status?: string }) =>
+    fetchApi<any>('/subscriptions', {
+      method: 'POST',
+      body: JSON.stringify(data),
+    }),
+
+  getTenantModules: (tenantId: string) =>
+    fetchApi<any>(`/subscriptions/tenant/${tenantId}/modules`),
+
   listPlans: () =>
     fetchApi<any[]>('/subscriptions/plans'),
-  
+
   createPlan: (data: any) =>
     fetchApi<any>('/subscriptions/plans', {
       method: 'POST',
+      body: JSON.stringify(data),
+    }),
+
+  updatePlan: (id: string, data: any) =>
+    fetchApi<any>(`/subscriptions/plans/${id}`, {
+      method: 'PUT',
       body: JSON.stringify(data),
     }),
 }

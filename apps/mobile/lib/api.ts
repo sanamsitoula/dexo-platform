@@ -32,7 +32,7 @@ const API_BASE_URL = __DEV__
   ? Platform.OS === 'web'
     ? 'http://localhost:4000/api'
     : resolveDevApiBase()
-  : 'https://api.dexo.app/api';
+  : 'https://api.onedexo.com/api';
 
 interface ApiResponse<T> {
   data?: T;
@@ -203,6 +203,12 @@ export const tenantsApi = {
   /** Returns the tenant(s) the current authenticated user belongs to */
   myTenants: () => fetchApi<{ data: any[] }>('/tenants/me'),
   getBySubdomain: (subdomain: string) => fetchApi<any>(`/tenants/subdomain/${subdomain}`),
+  /**
+   * Public: resolve a tenant from any address the customer knows —
+   * "vrfitness.onedexo.com", a custom domain like "fitness.com", or a bare
+   * slug like "vrfitness".
+   */
+  resolveHost: (host: string) => fetchApi<any>(`/tenants/resolve?host=${encodeURIComponent(host)}`),
 };
 
 export const workoutsApi = {

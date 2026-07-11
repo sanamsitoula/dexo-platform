@@ -388,3 +388,32 @@ export const contactApi = {
     body: JSON.stringify({ ...data, subdomain, source: 'tenant_website_contact_form' }),
   }),
 }
+
+// Public platform blog API (blogs with no tenant = platform blogs)
+export const blogApi = {
+  list: (params?: { page?: number; limit?: number; categoryId?: string; search?: string }) => {
+    const p = new URLSearchParams({ status: 'published' })
+    if (params?.page) p.append('page', String(params.page))
+    if (params?.limit) p.append('limit', String(params.limit))
+    if (params?.categoryId) p.append('categoryId', params.categoryId)
+    if (params?.search) p.append('search', params.search)
+    return fetchApi<{ data: any[]; meta: { total: number; page: number; limit: number; totalPages: number } }>(`/blogs?${p.toString()}`)
+  },
+  getBySlug: (slug: string) => fetchApi<any>(`/blogs/${encodeURIComponent(slug)}`),
+}
+
+// Public marketplace API
+export const marketplaceApi = {
+  list: (params?: { type?: string; category?: string; domainType?: string; search?: string; sort?: string; page?: number; limit?: number }) => {
+    const p = new URLSearchParams()
+    if (params?.type) p.append('type', params.type)
+    if (params?.category) p.append('category', params.category)
+    if (params?.domainType) p.append('domainType', params.domainType)
+    if (params?.search) p.append('search', params.search)
+    if (params?.sort) p.append('sort', params.sort)
+    if (params?.page) p.append('page', String(params.page))
+    if (params?.limit) p.append('limit', String(params.limit))
+    return fetchApi<{ items: any[]; total: number; page: number; limit: number; totalPages: number }>(`/marketplace?${p.toString()}`)
+  },
+  getBySlug: (slug: string) => fetchApi<any>(`/marketplace/${encodeURIComponent(slug)}`),
+}

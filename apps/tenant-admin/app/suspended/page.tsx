@@ -12,10 +12,10 @@ export default function SuspendedPage() {
           Your account is temporarily suspended. Please contact support or upgrade your plan to restore service.
         </p>
         <div className="mt-6 flex gap-2 justify-center">
-          <a href="mailto:support@dexo.com" className="px-4 py-2 bg-slate-900 text-white rounded-md hover:bg-slate-800">
+          <a href="mailto:support@onedexo.com" className="px-4 py-2 bg-slate-900 text-white rounded-md hover:bg-slate-800">
             Contact Support
           </a>
-          <a href="https://dexo.com/pricing" className="px-4 py-2 border border-gray-300 rounded-md hover:bg-gray-50">
+          <a href="https://onedexo.com/pricing" className="px-4 py-2 border border-gray-300 rounded-md hover:bg-gray-50">
             View Plans
           </a>
         </div>

@@ -24,6 +24,10 @@ import { BranchModule } from './modules/branch/branch.module';
 import { MobileAppModule } from './modules/mobile-app/mobile-app.module';
 import { ContactModule } from './modules/contact/contact.module';
 import { WhatsAppModule } from './modules/whatsapp/whatsapp.module';
+import { MarketplaceModule } from './modules/marketplace/marketplace.module';
+import { PlatformBillingModule, IrdModule } from '@dexo/finance';
+import { SalonModule } from './modules/salon/salon.module';
+import { SchoolModule } from './modules/school/school.module';
 import { BlogModule } from '@dexo/blog';
 import { FitnessModule } from './modules/fitness/fitness.module';
 import { BusinessTemplateModule } from './modules/business-template/business-template.module';
@@ -72,8 +76,13 @@ import { TenantStatusMiddleware } from './common/middleware/tenant-status.middle
     MobileAppModule,
     ContactModule,
     WhatsAppModule,
+    MarketplaceModule,
+    PlatformBillingModule,
+    IrdModule,
     BlogModule,
     FitnessModule,
+    SalonModule,
+    SchoolModule,
     TenantMailApiModule,
     AttendanceDevicesModule,
     BusinessTemplateModule,

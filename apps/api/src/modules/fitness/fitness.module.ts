@@ -43,6 +43,7 @@ import { CheckinController } from './checkin/checkin.controller';
 import { FitnessPublicService } from './public/fitness-public.service';
 import { AiPlanService } from './ai/ai-plan.service';
 import { FitnessPublicController } from './public/fitness-public.controller';
+import { FitnessFinanceService } from './fitness-finance.service';
 
 @Module({
   imports: [PrismaModule],
@@ -69,6 +70,7 @@ import { FitnessPublicController } from './public/fitness-public.controller';
     CheckinService,
     FitnessPublicService,
     AiPlanService,
+    FitnessFinanceService,
   ],
   controllers: [
     MembersController,

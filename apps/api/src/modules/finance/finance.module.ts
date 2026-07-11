@@ -18,11 +18,13 @@ import { ReportsController } from './reports.controller';
 import { GlPostingService } from './gl-posting.service';
 import { CbmsSyncService } from './cbms-sync.service';
 import { CbmsController } from './cbms.controller';
+import { BillsService } from './bills.service';
+import { BillsController } from './bills.controller';
 
 @Module({
   imports: [PrismaModule, HttpModule],
-  providers: [AccountsService, JournalService, CustomersService, BankingService, InvoicesService, PaymentsService, ReportsService, GlPostingService, CbmsSyncService],
-  controllers: [AccountsController, JournalController, CustomersController, BankingController, InvoicesController, PaymentsController, ReportsController, CbmsController],
-  exports: [AccountsService, JournalService, CustomersService, BankingService, InvoicesService, PaymentsService, ReportsService, GlPostingService, CbmsSyncService],
+  providers: [AccountsService, JournalService, CustomersService, BankingService, InvoicesService, PaymentsService, ReportsService, GlPostingService, CbmsSyncService, BillsService],
+  controllers: [AccountsController, JournalController, CustomersController, BankingController, InvoicesController, PaymentsController, ReportsController, CbmsController, BillsController],
+  exports: [AccountsService, JournalService, CustomersService, BankingService, InvoicesService, PaymentsService, ReportsService, GlPostingService, CbmsSyncService, BillsService],
 })
 export class FinanceModule {}

@@ -98,11 +98,46 @@ export class AuthController {
   @Post('logout')
   @UseGuards(JwtAuthGuard)
   @HttpCode(HttpStatus.OK)
-  async logout(@Request() _req: any) {
-    // In a production system, you would add the token to a blacklist/Redis
-    // For now, we'll just return success (client should discard the token)
-    return {
-      message: 'Logged out successfully',
-    };
+  async logout(@Request() req: any, @Body() body: { refreshToken?: string; all?: boolean }) {
+    return this.authService.logout(req.user.id, body?.refreshToken, body?.all === true);
+  }
+
+  // ------------------------------------------------------------------
+  // TOTP MFA
+  // ------------------------------------------------------------------
+
+  @Get('mfa/status')
+  @UseGuards(JwtAuthGuard)
+  async mfaStatus(@Request() req: any) {
+    return this.authService.getMfaStatus(req.user.id);
+  }
+
+  @Post('mfa/setup')
+  @UseGuards(JwtAuthGuard)
+  @HttpCode(HttpStatus.OK)
+  async mfaSetup(@Request() req: any) {
+    return this.authService.setupMfa(req.user.id);
+  }
+
+  @Post('mfa/enable')
+  @UseGuards(JwtAuthGuard)
+  @HttpCode(HttpStatus.OK)
+  async mfaEnable(@Request() req: any, @Body() body: { code: string }) {
+    return this.authService.enableMfa(req.user.id, body?.code);
+  }
+
+  @Post('mfa/disable')
+  @UseGuards(JwtAuthGuard)
+  @HttpCode(HttpStatus.OK)
+  async mfaDisable(@Request() req: any, @Body() body: { code?: string; backupCode?: string }) {
+    return this.authService.disableMfa(req.user.id, body?.code, body?.backupCode);
+  }
+
+  /** Second step of an MFA login: exchange mfaToken + code for real tokens. */
+  @Public()
+  @Post('mfa/verify')
+  @HttpCode(HttpStatus.OK)
+  async mfaVerify(@Body() body: { mfaToken: string; code?: string; backupCode?: string }) {
+    return this.authService.verifyMfaLogin(body?.mfaToken, body?.code, body?.backupCode);
   }
 }

@@ -63,7 +63,7 @@ export default async function ContactPage() {
   const hq = branches.find((b: any) => b.isHeadquarters) ?? branches[0];
   const tenantName = tenant?.name ?? subdomain;
   const tenantPhone = (tenant?.settings as any)?.phone ?? hq?.phone ?? '';
-  const tenantEmail = (tenant?.settings as any)?.email ?? hq?.email ?? `hello@${subdomain}.dexo.com`;
+  const tenantEmail = (tenant?.settings as any)?.email ?? hq?.email ?? `hello@${subdomain}.onedexo.com`;
   const whatsappNumber = whatsapp.isEnabled ? whatsapp.phoneNumber : '';
   const whatsappDisplay = whatsapp.displayName;
 

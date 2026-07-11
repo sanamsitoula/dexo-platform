@@ -167,7 +167,15 @@ export class AuditService {
   }
 
   async logAuthEvent(
-    action: 'user.login' | 'user.logout' | 'user.failed_login',
+    action:
+      | 'user.login'
+      | 'user.logout'
+      | 'user.failed_login'
+      | 'user.account_locked'
+      | 'user.refresh_token_reuse'
+      | 'user.mfa_enabled'
+      | 'user.mfa_disabled'
+      | 'user.mfa_failed',
     userId?: string,
     tenantId?: string,
     ipAddress?: string,

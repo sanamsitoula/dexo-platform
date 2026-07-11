@@ -9,7 +9,7 @@ import { NextRequest, NextResponse } from 'next/server';
  * ambiguity from parsing `window.location.hostname` on odd dev hosts.
  *
  * Host shapes (see tenant-website/middleware.ts for the full rationale):
- *   vrfitness.dexo.app         -> "vrfitness"
+ *   vrfitness.onedexo.com         -> "vrfitness"
  *   ramgym.localhost:4007      -> "ramgym"
  *   localhost:4007             -> DEV_TENANT env or "vrfitness"
  */
@@ -35,16 +35,50 @@ function extractSlug(host: string): string | null {
   return null;
 }
 
-export function middleware(req: NextRequest) {
+// Hosts on our own platform suffixes are handled by extractSlug; anything else
+// with a dot (fitness.com) is treated as a tenant's custom domain and resolved
+// via the API, cached per-host in a cookie so we only hit the API once.
+const PLATFORM_SUFFIXES = ['.onedexo.com', '.localhost'];
+const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000';
+
+function isCustomDomain(hostname: string): boolean {
+  return Boolean(
+    hostname &&
+    hostname.includes('.') &&
+    hostname !== 'localhost' &&
+    !isTunnelHost(hostname) &&
+    !PLATFORM_SUFFIXES.some((s) => hostname.endsWith(s)),
+  );
+}
+
+async function resolveCustomDomain(req: NextRequest, hostname: string): Promise<string | null> {
+  const cached = req.cookies.get('dexo_host_map')?.value || '';
+  const [cachedHost, cachedSlug] = cached.split('~');
+  if (cachedHost === hostname && cachedSlug) return cachedSlug;
+  try {
+    const r = await fetch(`${API_URL}/api/tenants/resolve?host=${encodeURIComponent(hostname)}`);
+    if (!r.ok) return null;
+    const t = await r.json();
+    return t?.subdomain || null;
+  } catch {
+    return null;
+  }
+}
+
+export async function middleware(req: NextRequest) {
   const host = req.headers.get('host') || '';
+  const hostname = (host || '').split(':')[0].toLowerCase();
   // ?tenant=<slug> pins a tenant for the session (sticky via cookie) — this is
   // how a single ngrok URL demos any tenant: open https://<id>.ngrok-free.app/?tenant=bishnufit
   const queryTenant = req.nextUrl.searchParams.get('tenant')?.toLowerCase() || null;
   const cookieTenant = req.cookies.get('dexo_tenant')?.value || null;
+  const customSlug =
+    !queryTenant && isCustomDomain(hostname) ? await resolveCustomDomain(req, hostname) : null;
   const slug =
     queryTenant ||
+    customSlug ||
     extractSlug(host) ||
-    (isTunnelHost((host || '').split(':')[0].toLowerCase()) ? cookieTenant : null) ||
+    (isTunnelHost(hostname) ? cookieTenant : null) ||
     process.env.DEV_TENANT ||
     'vrfitness';
 
@@ -53,6 +87,10 @@ export function middleware(req: NextRequest) {
 
   const res = NextResponse.next({ request: { headers: requestHeaders } });
   res.cookies.set('dexo_tenant', slug, { path: '/', sameSite: 'lax' });
+  // Cache the custom-domain → slug mapping so we don't re-resolve every request.
+  if (customSlug) {
+    res.cookies.set('dexo_host_map', `${hostname}~${customSlug}`, { path: '/', sameSite: 'lax', maxAge: 3600 });
+  }
   return res;
 }
 

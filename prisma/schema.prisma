@@ -367,6 +367,9 @@ model User {
   mfaEnabled              Boolean              @default(false)
   mfaSecret               String?
   recoveryCodes           String?
+  failedLoginCount        Int                  @default(0)
+  lockedUntil             DateTime?
+  refreshTokens           RefreshToken[]
   createdAt               DateTime             @default(now())
   updatedAt               DateTime             @updatedAt
   lastLoginAt             DateTime?
@@ -401,6 +404,101 @@ model User {
   @@index([tenantId])
   @@index([email])
   @@index([status])
+}
+
+// Rotating refresh tokens (hashed); revocation = logout/blacklist
+model RefreshToken {
+  id           String    @id @default(uuid())
+  user         User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  userId       String
+  tokenHash    String    @unique // sha256 of the token
+  expiresAt    DateTime
+  revokedAt    DateTime?
+  replacedById String? // rotation chain; reuse of a replaced token = theft signal
+  userAgent    String?
+  ip           String?
+  createdAt    DateTime  @default(now())
+
+  @@index([userId])
+  @@index([expiresAt])
+}
+
+// =====================================================
+// MARKETPLACE
+// =====================================================
+
+enum MarketplaceItemType {
+  template // website/domain template
+  plugin // functional add-on module
+}
+
+enum MarketplaceItemStatus {
+  draft
+  published
+  archived
+}
+
+model MarketplaceItem {
+  id          String                @id @default(uuid())
+  type        MarketplaceItemType   @default(template)
+  name        String
+  slug        String                @unique
+  description String?
+  longDescription String?
+  category    String? // e.g. fitness, restaurant, general
+  domainType  String? // target domain vertical, null = any
+  thumbnail   String?
+  screenshots Json? // string[]
+  priceCents  Int                   @default(0) // 0 = free
+  currency    String                @default("NPR")
+  version     String                @default("1.0.0")
+  authorName  String                @default("Dexo Platform")
+  features    Json? // string[] of feature bullets / module keys enabled
+  config      Json? // template payload / plugin manifest
+  status      MarketplaceItemStatus @default(draft)
+  installCount Int                  @default(0)
+  ratingAvg   Float                 @default(0)
+  ratingCount Int                   @default(0)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  installs MarketplaceInstall[]
+  reviews  MarketplaceReview[]
+
+  @@index([type, status])
+  @@index([category])
+  @@index([domainType])
+}
+
+model MarketplaceInstall {
+  id       String          @id @default(uuid())
+  item     MarketplaceItem @relation(fields: [itemId], references: [id], onDelete: Cascade)
+  itemId   String
+  tenantId String
+  status   String          @default("installed") // installed | disabled | uninstalled
+  settings Json?
+
+  installedAt   DateTime  @default(now())
+  uninstalledAt DateTime?
+
+  @@unique([itemId, tenantId])
+  @@index([tenantId])
+}
+
+model MarketplaceReview {
+  id       String          @id @default(uuid())
+  item     MarketplaceItem @relation(fields: [itemId], references: [id], onDelete: Cascade)
+  itemId   String
+  tenantId String?
+  userId   String?
+  rating   Int // 1-5
+  comment  String?
+
+  createdAt DateTime @default(now())
+
+  @@unique([itemId, userId])
+  @@index([itemId])
 }
 
 // =====================================================

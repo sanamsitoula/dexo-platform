@@ -1,6 +1,8 @@
 import Link from 'next/link';
 import { headers } from 'next/headers';
-import { getFitnessInfo, getFitnessPlans, type FitnessInfo, type FitnessPlan } from '@/lib/api';
+import { getFitnessInfo, getFitnessPlans, getTenantBySubdomain, type FitnessInfo, type FitnessPlan } from '@/lib/api';
+import { getTemplate } from '@dexo/shared/src/themes';
+import TemplateHome from '@/components/TemplateHome';
 
 function resolveSubdomain(): string {
   const h = headers();
@@ -28,10 +30,67 @@ function planPeriod(type: string, days: number): string {
   return map[type] || `${days} days`;
 }
 
+/** Neutral plans section, palette-aware — slotted into template homepages. */
+function TemplatePlans({ plans, color, name }: { plans: FitnessPlan[]; color: string; name: string }) {
+  if (plans.length === 0) return null;
+  return (
+    <section id="plans" className="px-4 py-16 max-w-6xl mx-auto">
+      <h2 className="text-3xl font-bold text-center">Membership Plans</h2>
+      <p className="text-center opacity-70 mt-2">Prices in NPR, inclusive of VAT.</p>
+      <div className="mt-10 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
+        {plans.map((p: FitnessPlan, i: number) => (
+          <div key={p.id} className="p-6 rounded-xl border flex flex-col"
+            style={{ borderColor: i === 1 ? color : 'rgba(128,128,128,0.3)', boxShadow: i === 1 ? `0 0 0 1px ${color}` : undefined }}>
+            <h3 className="font-bold text-xl">{p.name}</h3>
+            {p.description && <p className="text-sm opacity-70 mt-1">{p.description}</p>}
+            <div className="mt-4">
+              <span className="text-4xl font-extrabold">Rs {p.totalWithVat.toLocaleString()}</span>
+              <span className="opacity-60 text-sm"> / {planPeriod(p.type, p.durationDays)}</span>
+            </div>
+            <ul className="mt-4 space-y-1 text-sm opacity-80 flex-1">
+              <li>✓ {p.accessHours || 'Full access'}</li>
+              <li>{p.includesTrainer ? '✓' : '✗'} Personal trainer</li>
+              <li>{p.includesClasses ? '✓' : '✗'} Group classes</li>
+              <li>✓ {p.branchAccess === 'all' ? 'All branches' : 'Single branch'}</li>
+            </ul>
+            <Link href={`/register?plan=${p.id}`} className="mt-6 text-center px-4 py-2 rounded-md font-semibold text-white" style={{ background: color }}>
+              Choose {p.name}
+            </Link>
+          </div>
+        ))}
+      </div>
+    </section>
+  );
+}
+
 export default async function Home() {
   const subdomain = resolveSubdomain();
-  const [info, plans] = await Promise.all([getFitnessInfo(subdomain), getFitnessPlans(subdomain)]);
+  const [info, plans, tenant] = await Promise.all([
+    getFitnessInfo(subdomain),
+    getFitnessPlans(subdomain),
+    getTenantBySubdomain(subdomain),
+  ]);
   const t = info || FALLBACK;
+
+  // Template-ecosystem rendering: if the tenant picked one of the 60 website
+  // templates at signup, render that design family instead of the default page.
+  const branding = (tenant?.settings as any)?.branding;
+  const tpl = branding?.templateId ? getTemplate(branding.templateId) : undefined;
+  if (tpl) {
+    const color = branding.colorPrimary || tpl.palette.primary;
+    return (
+      <TemplateHome
+        tpl={tpl}
+        name={t.name}
+        tagline={t.tagline}
+        description={t.description}
+        colorPrimary={branding.colorPrimary}
+        colorAccent={branding.colorAccent}
+        contact={t.contact}
+        plansSlot={<TemplatePlans plans={plans} color={color} name={t.name} />}
+      />
+    );
+  }
 
   return (
     <div style={{ background: '#0f0f10', color: '#fff', minHeight: '100vh' }}>
@@ -39,6 +98,9 @@ export default async function Home() {
       <nav className="flex items-center justify-between px-6 py-4 max-w-6xl mx-auto">
         <div className="text-xl font-extrabold" style={{ color: t.colorPrimary }}>{t.name}</div>
         <div className="space-x-4 text-sm">
+          <Link href="/about" className="opacity-80 hover:opacity-100">About</Link>
+          <Link href="/services" className="opacity-80 hover:opacity-100">Services</Link>
+          <Link href="/book" className="opacity-80 hover:opacity-100">Book</Link>
           <a href="#plans" className="opacity-80 hover:opacity-100">Plans</a>
           <Link href="/contact" className="opacity-80 hover:opacity-100">Contact</Link>
           <Link href="/login" className="px-4 py-2 rounded-md font-semibold border border-white/25 hover:bg-white/10">Member Login</Link>
@@ -121,6 +183,9 @@ export default async function Home() {
         )}
         <div className="space-x-3 mb-2">
           <Link href="/" className="hover:text-white">Home</Link>
+          <Link href="/about" className="hover:text-white">About</Link>
+          <Link href="/services" className="hover:text-white">Services</Link>
+          <Link href="/book" className="hover:text-white">Book</Link>
           <Link href="/register" className="hover:text-white">Join</Link>
           <Link href="/contact" className="hover:text-white">Contact</Link>
         </div>

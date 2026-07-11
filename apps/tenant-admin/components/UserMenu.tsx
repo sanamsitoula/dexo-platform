@@ -76,7 +76,7 @@ export default function UserMenu() {
             <div className="text-[10px] font-bold uppercase tracking-wide text-gray-400 mb-1.5">Business</div>
             <div className="font-semibold text-gray-900">{tenant?.name ?? subdomain}</div>
             <div className="text-xs text-gray-500 mt-0.5">
-              {subdomain}.dexo.com{domainCode ? ` · ${String(domainCode).replace(/_/g, ' ').toLowerCase()}` : ''}
+              {subdomain}.onedexo.com{domainCode ? ` · ${String(domainCode).replace(/_/g, ' ').toLowerCase()}` : ''}
             </div>
             {tenant?.status && <div className="text-xs text-gray-400 mt-0.5">status: {tenant.status}</div>}
           </div>

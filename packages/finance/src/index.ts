@@ -11,3 +11,8 @@ export * from './platform-billing/platform-billing.service';
 export * from './platform-billing/platform-billing.controller';
 export * from './finance/dto';
 export * from './invoices/dto';
+export * from './platform-billing/platform-billing.module';
+export * from './ird/ird.module';
+export * from './accounting/accounting.module';
+export * from './invoices/invoice.module';
+export * from './reports/reports.module';

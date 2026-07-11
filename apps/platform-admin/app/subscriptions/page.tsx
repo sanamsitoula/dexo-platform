@@ -117,6 +117,26 @@ const DEFAULT_PLANS: Omit<Plan, 'id'>[] = [
   },
 ]
 
+// Canonical plan module keys (mirrors seed 07 PLAN_DEFS features.modules).
+const MODULE_DEFS: { key: string; label: string }[] = [
+  { key: 'crm', label: 'CRM & Inbox' },
+  { key: 'blog', label: 'Blog' },
+  { key: 'billing_invoice', label: 'Billing & Invoicing' },
+  { key: 'invoice_print', label: 'Invoice Printing' },
+  { key: 'attendance', label: 'Attendance' },
+  { key: 'website_builder', label: 'Website Builder' },
+  { key: 'payments_online', label: 'Online Payments' },
+  { key: 'reports_nfrs', label: 'NFRS Reports' },
+  { key: 'announcements', label: 'Announcements' },
+]
+
+/** Enabled when the plan has no modules config (backward compatible) or the key is truthy. */
+function moduleEnabled(features: Record<string, any> | undefined, key: string): boolean {
+  const modules = features?.modules
+  if (!modules || typeof modules !== 'object') return true
+  return modules[key] === true
+}
+
 export default function SubscriptionsPage() {
   const [subscriptions, setSubscriptions] = useState<Subscription[]>([])
   const [plans, setPlans] = useState<Plan[]>([])
@@ -154,7 +174,12 @@ export default function SubscriptionsPage() {
   }
 
   async function handleAssignPlan(tenantId: string, planId: string) {
-    const res = await subscriptionsApi.changePlan(planId, tenantId)
+    // Change THE TENANT's subscription: find its active subscription first,
+    // then change that subscription's plan (controller expects { newPlanId }).
+    const subRes = await subscriptionsApi.getTenantSubscription(tenantId)
+    const res = subRes.data?.id
+      ? await subscriptionsApi.changePlan(subRes.data.id, planId)
+      : await subscriptionsApi.create({ tenantId, planId, status: 'active' })
     if (res.error) {
       alert(res.error)
     } else {
@@ -164,7 +189,12 @@ export default function SubscriptionsPage() {
 
   async function handleSavePlan() {
     if (!editingPlan) return
-    const res = await subscriptionsApi.createPlan(editingPlan)
+    const isExisting = editingPlan.id && !editingPlan.id.startsWith('default-')
+    const { id: _id, ...payload } = editingPlan as any
+    delete payload._count
+    const res = isExisting
+      ? await subscriptionsApi.updatePlan(editingPlan.id, payload)
+      : await subscriptionsApi.createPlan(payload)
     if (res.error) {
       alert(res.error)
     } else {
@@ -332,6 +362,28 @@ export default function SubscriptionsPage() {
                     </li>
                   )}
                 </ul>
+
+                {/* Module chips: which modules this plan enables. Missing config = all enabled. */}
+                <div className="mt-4">
+                  <div className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-1.5">Modules</div>
+                  <div className="flex flex-wrap gap-1.5">
+                    {MODULE_DEFS.filter((m) => moduleEnabled(plan.features, m.key)).map((m) => (
+                      <span
+                        key={m.key}
+                        className={`px-2 py-0.5 text-[11px] font-medium rounded-full border ${
+                          isFree
+                            ? 'bg-gray-100 text-gray-700 border-gray-200'
+                            : 'bg-indigo-50 text-indigo-700 border-indigo-200'
+                        }`}
+                      >
+                        {m.label}
+                      </span>
+                    ))}
+                    {!plan.features?.modules && (
+                      <span className="text-[11px] text-gray-400 italic">(no module config — all enabled)</span>
+                    )}
+                  </div>
+                </div>
 
                 <div className="mt-6 flex gap-2">
                   <button
@@ -539,6 +591,35 @@ export default function SubscriptionsPage() {
                       className="w-full border border-gray-300 rounded-md px-3 py-2"
                     />
                   </div>
+                </div>
+              </div>
+
+              <div className="bg-emerald-50 border border-emerald-200 rounded-lg p-4 space-y-3">
+                <h3 className="font-semibold text-emerald-900">Modules</h3>
+                <p className="text-xs text-emerald-800">
+                  Modules included in this plan. Tenants on this plan lose access to routes and UI of disabled modules.
+                </p>
+                <div className="grid grid-cols-2 gap-2">
+                  {MODULE_DEFS.map((m) => (
+                    <label key={m.key} className="flex items-center gap-2 text-sm">
+                      <input
+                        type="checkbox"
+                        checked={moduleEnabled(editingPlan.features, m.key)}
+                        onChange={(e) => {
+                          const current = editingPlan.features?.modules || Object.fromEntries(MODULE_DEFS.map((d) => [d.key, true]))
+                          setEditingPlan({
+                            ...editingPlan,
+                            features: {
+                              ...editingPlan.features,
+                              modules: { ...current, [m.key]: e.target.checked },
+                            },
+                          })
+                        }}
+                        className="h-4 w-4 text-emerald-600 border-gray-300 rounded"
+                      />
+                      <span>{m.label}</span>
+                    </label>
+                  ))}
                 </div>
               </div>
 

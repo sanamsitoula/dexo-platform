@@ -3,10 +3,13 @@ import {
   UnauthorizedException,
   ConflictException,
   BadRequestException,
+  HttpException,
   Logger,
 } from '@nestjs/common';
 import { JwtService } from '@nestjs/jwt';
 import * as bcrypt from 'bcryptjs';
+import * as crypto from 'crypto';
+import { generateTotpSecret, verifyTotp, buildOtpauthUrl } from './totp.util';
 import { ConfigService } from '@nestjs/config';
 import { PrismaService, AuditService, TenantMailService } from '@dexo/shared';
 import {
@@ -65,9 +68,25 @@ export class AuthService {
       if (tenant) tenantId = tenant.id;
     }
 
+    // Account lockout gate — before password verification so locked accounts
+    // cannot be brute-forced (returns 423 with remaining lock time).
+    const attemptCheck = await this.checkLoginAttempts(email);
+    if (!attemptCheck.allowed) {
+      throw new HttpException(
+        {
+          statusCode: 423,
+          error: 'Locked',
+          message: `Account is temporarily locked due to too many failed login attempts. Try again in ${attemptCheck.lockedForSeconds} seconds.`,
+          lockedForSeconds: attemptCheck.lockedForSeconds,
+        },
+        423,
+      );
+    }
+
     const user = await this.validateUser(email, password);
 
     if (!user) {
+      await this.recordFailedLogin(email);
       // Log failed login attempt with the email that was tried
       await this.audit.logAuthEvent(
         'user.failed_login',
@@ -95,6 +114,27 @@ export class AuthService {
       throw new UnauthorizedException('User does not belong to this tenant');
     }
 
+    await this.recordSuccessfulLogin(email);
+
+    // MFA gate: don't issue tokens yet — hand back a short-lived, mfa-scoped
+    // token that must be exchanged via POST /auth/mfa/verify.
+    if (user.mfaEnabled) {
+      const mfaToken = this.jwtService.sign(
+        { sub: user.id, email: user.email, scope: 'mfa' },
+        { expiresIn: '5m' },
+      );
+      return { mfaRequired: true, mfaToken };
+    }
+
+    return this.issueSessionTokens(user);
+  }
+
+  /**
+   * Issues the standard login response: JWT access token + opaque, DB-backed
+   * refresh token (rotation-capable). Response shape matches the historical
+   * login contract exactly.
+   */
+  private async issueSessionTokens(user: any) {
     const payload = {
       sub: user.id,
       email: user.email,
@@ -106,11 +146,7 @@ export class AuthService {
       expiresIn: this.configService.get('JWT_EXPIRATION') || '1h',
     });
 
-    const refreshToken = this.jwtService.sign(payload, {
-      secret:
-        this.configService.get('REFRESH_TOKEN_SECRET') || (this.jwtService as any).options.secret,
-      expiresIn: this.configService.get('REFRESH_TOKEN_EXPIRATION') || '7d',
-    });
+    const refreshToken = await this.createRefreshToken(user.id);
 
     await this.prisma.user.update({
       where: { id: user.id },
@@ -132,6 +168,40 @@ export class AuthService {
         isPlatformAdmin: user.isPlatformAdmin || false,
       },
     };
+  }
+
+  // ---------------------------------------------------------------------
+  // Opaque refresh tokens (rotation + revocation)
+  // ---------------------------------------------------------------------
+
+  private hashToken(token: string): string {
+    return crypto.createHash('sha256').update(token).digest('hex');
+  }
+
+  private refreshTokenTtlMs(): number {
+    const raw = this.configService.get('REFRESH_TOKEN_EXPIRATION') || '7d';
+    const m = /^(\d+)\s*([smhd])?$/.exec(String(raw).trim());
+    if (!m) return 7 * 24 * 3600 * 1000;
+    const mult: Record<string, number> = { s: 1000, m: 60000, h: 3600000, d: 86400000 };
+    return parseInt(m[1], 10) * (mult[m[2] || 's'] || 1000);
+  }
+
+  /** Creates and persists a new opaque refresh token; returns the plaintext. */
+  private async createRefreshToken(
+    userId: string,
+    meta?: { userAgent?: string; ip?: string },
+  ): Promise<string> {
+    const token = crypto.randomBytes(32).toString('hex');
+    await this.prisma.refreshToken.create({
+      data: {
+        userId,
+        tokenHash: this.hashToken(token),
+        expiresAt: new Date(Date.now() + this.refreshTokenTtlMs()),
+        userAgent: meta?.userAgent,
+        ip: meta?.ip,
+      },
+    });
+    return token;
   }
 
   async register(registerDto: RegisterDto) {
@@ -235,11 +305,7 @@ export class AuthService {
       expiresIn: this.configService.get('JWT_EXPIRATION') || '1h',
     });
 
-    const refreshToken = this.jwtService.sign(payload, {
-      secret:
-        this.configService.get('REFRESH_TOKEN_SECRET') || (this.jwtService as any).options.secret,
-      expiresIn: this.configService.get('REFRESH_TOKEN_EXPIRATION') || '7d',
-    });
+    const refreshToken = await this.createRefreshToken(user.id);
 
     const { passwordHash: _, ...result } = user;
 
@@ -296,37 +362,100 @@ export class AuthService {
   }
 
   async refreshToken(refreshToken: string) {
-    try {
-      const payload = this.jwtService.verify(refreshToken, {
-        secret:
-          this.configService.get('REFRESH_TOKEN_SECRET') || (this.jwtService as any).options.secret,
-      });
+    if (!refreshToken) throw new UnauthorizedException('Invalid refresh token');
 
-      const user = await this.prisma.user.findUnique({
-        where: { id: payload.sub },
-      });
+    let userId: string | null = null;
+    let rotatedFromId: string | null = null;
 
-      if (!user || user.status !== 'active') {
+    // 1) New-style opaque token: look up its sha256 in the RefreshToken table.
+    const stored = await this.prisma.refreshToken.findUnique({
+      where: { tokenHash: this.hashToken(refreshToken) },
+    });
+
+    if (stored) {
+      if (stored.revokedAt) {
+        // Reuse of a rotated/revoked token = likely theft → kill every session.
+        await this.prisma.refreshToken.updateMany({
+          where: { userId: stored.userId, revokedAt: null },
+          data: { revokedAt: new Date() },
+        });
+        this.logger.warn(`Refresh token reuse detected for user ${stored.userId} — all sessions revoked`);
+        await this.audit.logAuthEvent('user.refresh_token_reuse', stored.userId);
         throw new UnauthorizedException('Invalid refresh token');
       }
+      if (stored.expiresAt < new Date()) {
+        throw new UnauthorizedException('Invalid refresh token');
+      }
+      userId = stored.userId;
+      rotatedFromId = stored.id;
+    } else {
+      // 2) Legacy JWT refresh token (pre-rotation clients). Accept while it is
+      //    still cryptographically valid and migrate the client to an opaque
+      //    token in the response.
+      try {
+        const payload = this.jwtService.verify(refreshToken, {
+          secret:
+            this.configService.get('REFRESH_TOKEN_SECRET') ||
+            (this.jwtService as any).options.secret,
+        });
+        userId = payload.sub;
+      } catch {
+        throw new UnauthorizedException('Invalid refresh token');
+      }
+    }
 
-      const newPayload = {
-        sub: user.id,
-        email: user.email,
-        tenantId: user.tenantId,
-        isPlatformAdmin: user.isPlatformAdmin || false,
-      };
-
-      const accessToken = this.jwtService.sign(newPayload, {
-        expiresIn: this.configService.get('JWT_EXPIRATION') || '1h',
-      });
-
-      return {
-        accessToken,
-      };
-    } catch (error: any) {
+    const user = await this.prisma.user.findUnique({ where: { id: userId! } });
+    if (!user || user.status !== 'active') {
       throw new UnauthorizedException('Invalid refresh token');
     }
+
+    const newPayload = {
+      sub: user.id,
+      email: user.email,
+      tenantId: user.tenantId,
+      isPlatformAdmin: user.isPlatformAdmin || false,
+    };
+
+    const accessToken = this.jwtService.sign(newPayload, {
+      expiresIn: this.configService.get('JWT_EXPIRATION') || '1h',
+    });
+
+    // Rotation: revoke the presented opaque token and chain to its replacement.
+    const newRefreshToken = await this.createRefreshToken(user.id);
+    if (rotatedFromId) {
+      const replacement = await this.prisma.refreshToken.findUnique({
+        where: { tokenHash: this.hashToken(newRefreshToken) },
+        select: { id: true },
+      });
+      await this.prisma.refreshToken.update({
+        where: { id: rotatedFromId },
+        data: { revokedAt: new Date(), replacedById: replacement?.id },
+      });
+    }
+
+    // Backward compatible: old clients only read accessToken; new clients
+    // should persist the rotated refreshToken.
+    return {
+      accessToken,
+      refreshToken: newRefreshToken,
+    };
+  }
+
+  /** Revokes the presented refresh token (or every session with `all`). */
+  async logout(userId: string, refreshToken?: string, all = false) {
+    if (all) {
+      await this.prisma.refreshToken.updateMany({
+        where: { userId, revokedAt: null },
+        data: { revokedAt: new Date() },
+      });
+    } else if (refreshToken) {
+      await this.prisma.refreshToken.updateMany({
+        where: { userId, tokenHash: this.hashToken(refreshToken), revokedAt: null },
+        data: { revokedAt: new Date() },
+      });
+    }
+    await this.audit.logAuthEvent('user.logout', userId);
+    return { message: 'Logged out successfully' };
   }
 
   async getUserProfile(userId: string) {
@@ -623,55 +752,212 @@ export class AuthService {
     }
   }
 
+  // ---------------------------------------------------------------------
+  // Account lockout (DB-based: User.failedLoginCount / User.lockedUntil)
+  // ---------------------------------------------------------------------
+
   async checkLoginAttempts(
     email: string,
-  ): Promise<{ allowed: boolean; remainingAttempts?: number }> {
-    const _maxAttempts = parseInt(this.configService.get('MAX_LOGIN_ATTEMPTS') || '5', 10);
-    const lockoutDuration =
-      parseInt(this.configService.get('LOCKOUT_DURATION') || '900', 10) * 1000;
+  ): Promise<{ allowed: boolean; remainingAttempts?: number; lockedForSeconds?: number }> {
+    const maxAttempts = parseInt(this.configService.get('MAX_LOGIN_ATTEMPTS') || '5', 10);
 
-    // This would typically use Redis for rate limiting
-    // For now, we'll do a simplified version
+    const user = await this.prisma.user.findUnique({ where: { email } });
+    if (!user) return { allowed: true };
 
-    // Check if user is locked
-    const user = await this.prisma.user.findUnique({
-      where: { email },
+    if (user.lockedUntil && user.lockedUntil > new Date()) {
+      return {
+        allowed: false,
+        lockedForSeconds: Math.ceil((user.lockedUntil.getTime() - Date.now()) / 1000),
+      };
+    }
+
+    return {
+      allowed: true,
+      remainingAttempts: Math.max(1, maxAttempts - ((user.failedLoginCount || 0) % maxAttempts)),
+    };
+  }
+
+  async recordFailedLogin(email: string): Promise<void> {
+    const maxAttempts = parseInt(this.configService.get('MAX_LOGIN_ATTEMPTS') || '5', 10);
+    const baseLockSeconds = parseInt(this.configService.get('LOCKOUT_DURATION') || '900', 10);
+
+    const user = await this.prisma.user.findUnique({ where: { email } });
+    if (!user) return;
+
+    const failedLoginCount = (user.failedLoginCount || 0) + 1;
+    const data: any = { failedLoginCount };
+
+    if (failedLoginCount % maxAttempts === 0) {
+      // 5 failures → 15 min; each subsequent batch doubles: 30 min, 60 min, ...
+      const lockRound = failedLoginCount / maxAttempts; // 1, 2, 3, ...
+      const lockMs = baseLockSeconds * 1000 * Math.pow(2, lockRound - 1);
+      data.lockedUntil = new Date(Date.now() + lockMs);
+      this.logger.warn(`Account ${email} locked for ${lockMs / 60000} min after ${failedLoginCount} failed logins`);
+      await this.audit.logAuthEvent('user.account_locked', user.id, user.tenantId || undefined);
+    }
+
+    await this.prisma.user.update({ where: { id: user.id }, data });
+  }
+
+  async recordSuccessfulLogin(email: string): Promise<void> {
+    const user = await this.prisma.user.findUnique({ where: { email } });
+    if (!user) return;
+    if ((user.failedLoginCount || 0) > 0 || user.lockedUntil) {
+      await this.prisma.user.update({
+        where: { id: user.id },
+        data: { failedLoginCount: 0, lockedUntil: null },
+      });
+    }
+  }
+
+  // ---------------------------------------------------------------------
+  // TOTP MFA (RFC 6238, implemented in totp.util.ts with node:crypto)
+  // ---------------------------------------------------------------------
+
+  private hashBackupCode(code: string): string {
+    return crypto.createHash('sha256').update(code.toUpperCase().replace(/[\s-]/g, '')).digest('hex');
+  }
+
+  /** Step 1: generate a secret. Stored immediately but MFA stays OFF until enable. */
+  async setupMfa(userId: string) {
+    const user = await this.prisma.user.findUnique({ where: { id: userId } });
+    if (!user) throw new BadRequestException('User not found');
+    if (user.mfaEnabled) {
+      throw new BadRequestException('MFA is already enabled. Disable it before re-running setup.');
+    }
+
+    const secret = generateTotpSecret();
+    await this.prisma.user.update({
+      where: { id: userId },
+      data: { mfaSecret: secret, mfaEnabled: false },
     });
 
-    if (user && user.status === 'locked') {
-      // Check if lockout period has expired
-      if (user.updatedAt && new Date(user.updatedAt.getTime() + lockoutDuration) > new Date()) {
-        return { allowed: false };
-      } else {
-        // Unlock the user
+    return {
+      secret,
+      otpauthUrl: buildOtpauthUrl(secret, user.email, 'Dexo'),
+    };
+  }
+
+  /** Step 2: verify a live code and switch MFA on. Returns backup codes ONCE. */
+  async enableMfa(userId: string, code: string) {
+    const user = await this.prisma.user.findUnique({ where: { id: userId } });
+    if (!user || !user.mfaSecret) {
+      throw new BadRequestException('MFA setup has not been started. Call /auth/mfa/setup first.');
+    }
+    if (user.mfaEnabled) throw new BadRequestException('MFA is already enabled');
+    if (!verifyTotp(user.mfaSecret, code)) {
+      throw new BadRequestException('Invalid verification code');
+    }
+
+    // 8 backup codes: 10 hex chars each, shown once, stored sha256-hashed.
+    const backupCodes = Array.from({ length: 8 }, () =>
+      crypto.randomBytes(5).toString('hex').toUpperCase(),
+    );
+    await this.prisma.user.update({
+      where: { id: userId },
+      data: {
+        mfaEnabled: true,
+        recoveryCodes: JSON.stringify(backupCodes.map((c) => this.hashBackupCode(c))),
+      },
+    });
+    await this.audit.logAuthEvent('user.mfa_enabled', userId, user.tenantId || undefined);
+
+    return {
+      enabled: true,
+      backupCodes,
+      message: 'MFA enabled. Store these backup codes safely — they will not be shown again.',
+    };
+  }
+
+  /** Disable MFA with a live TOTP code or an unused backup code. */
+  async disableMfa(userId: string, code?: string, backupCode?: string) {
+    const user = await this.prisma.user.findUnique({ where: { id: userId } });
+    if (!user || !user.mfaEnabled) throw new BadRequestException('MFA is not enabled');
+
+    let verified = false;
+    if (code && user.mfaSecret && verifyTotp(user.mfaSecret, code)) verified = true;
+    if (!verified && backupCode) {
+      verified = this.consumeBackupCodeSync(user.recoveryCodes, backupCode).ok;
+    }
+    if (!verified) throw new BadRequestException('Invalid verification or backup code');
+
+    await this.prisma.user.update({
+      where: { id: userId },
+      data: { mfaEnabled: false, mfaSecret: null, recoveryCodes: null },
+    });
+    await this.audit.logAuthEvent('user.mfa_disabled', userId, user.tenantId || undefined);
+    return { enabled: false, message: 'MFA disabled' };
+  }
+
+  private consumeBackupCodeSync(
+    recoveryCodesJson: string | null,
+    backupCode: string,
+  ): { ok: boolean; remaining?: string[] } {
+    if (!recoveryCodesJson) return { ok: false };
+    let hashes: string[];
+    try {
+      hashes = JSON.parse(recoveryCodesJson);
+    } catch {
+      return { ok: false };
+    }
+    const hash = this.hashBackupCode(backupCode);
+    const idx = hashes.indexOf(hash);
+    if (idx === -1) return { ok: false };
+    hashes.splice(idx, 1);
+    return { ok: true, remaining: hashes };
+  }
+
+  /** Step 3 of an MFA login: exchange the 5-min mfaToken + TOTP/backup code for real tokens. */
+  async verifyMfaLogin(mfaToken: string, code?: string, backupCode?: string) {
+    let payload: any;
+    try {
+      payload = this.jwtService.verify(mfaToken);
+    } catch {
+      throw new UnauthorizedException('MFA session expired — please log in again');
+    }
+    if (payload.scope !== 'mfa') {
+      throw new UnauthorizedException('Invalid MFA token');
+    }
+
+    const user = await this.prisma.user.findUnique({ where: { id: payload.sub } });
+    if (!user || !user.mfaEnabled || !user.mfaSecret) {
+      throw new UnauthorizedException('Invalid MFA token');
+    }
+
+    let verified = false;
+    if (code && verifyTotp(user.mfaSecret, code)) verified = true;
+
+    if (!verified && backupCode) {
+      const result = this.consumeBackupCodeSync(user.recoveryCodes, backupCode);
+      if (result.ok) {
+        verified = true;
         await this.prisma.user.update({
           where: { id: user.id },
-          data: { status: 'active' },
+          data: { recoveryCodes: JSON.stringify(result.remaining) },
         });
       }
     }
 
-    return { allowed: true };
+    if (!verified) {
+      await this.audit.logAuthEvent('user.mfa_failed', user.id, user.tenantId || undefined);
+      throw new UnauthorizedException('Invalid MFA code');
+    }
+
+    const { passwordHash: _ph, ...safeUser } = user as any;
+    return this.issueSessionTokens(safeUser);
   }
 
-  async recordFailedLogin(_email: string): Promise<void> {
-    const _maxAttempts = parseInt(this.configService.get('MAX_LOGIN_ATTEMPTS') || '5', 10);
-
+  /** MFA status for the security settings pages. */
+  async getMfaStatus(userId: string) {
     const user = await this.prisma.user.findUnique({
-      where: { email: _email },
+      where: { id: userId },
+      select: { mfaEnabled: true, recoveryCodes: true },
     });
-
-    if (!user) return;
-
-    // This would use Redis for tracking attempts
-    // For now, simplified version
-
-    // If too many failed attempts, lock the account
-    // In production, use Redis to track attempts with expiration
-  }
-
-  async recordSuccessfulLogin(_email: string): Promise<void> {
-    // Clear failed login attempts
-    // In production, clear from Redis
+    if (!user) throw new BadRequestException('User not found');
+    let backupCodesRemaining = 0;
+    try {
+      backupCodesRemaining = user.recoveryCodes ? JSON.parse(user.recoveryCodes).length : 0;
+    } catch {}
+    return { mfaEnabled: user.mfaEnabled, backupCodesRemaining };
   }
 }

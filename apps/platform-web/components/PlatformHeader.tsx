@@ -54,6 +54,12 @@ export default function PlatformHeader() {
           <Link href="/docs" className="text-sm text-gray-700 hover:text-indigo-600 font-medium">
             Docs
           </Link>
+          <Link href="/blog" className="text-sm text-gray-700 hover:text-indigo-600 font-medium">
+            Blog
+          </Link>
+          <Link href="/marketplace" className="text-sm text-gray-700 hover:text-indigo-600 font-medium">
+            Marketplace
+          </Link>
           <Link href="/contact" className="text-sm text-gray-700 hover:text-indigo-600 font-medium">
             Contact
           </Link>

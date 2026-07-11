@@ -42,7 +42,7 @@ export default function DesignTemplatePreview({ template, size = 'md', showDetai
             className="flex-1 mx-3 h-3 rounded text-[8px] flex items-center px-2"
             style={{ background: tokens.colors.background, color: tokens.colors.textMuted }}
           >
-            {template.name.toLowerCase().replace(/\s+/g, '')}.dexo.app
+            {template.name.toLowerCase().replace(/\s+/g, '')}.onedexo.com
           </div>
         </div>
 

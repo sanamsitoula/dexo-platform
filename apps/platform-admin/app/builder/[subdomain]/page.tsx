@@ -124,7 +124,7 @@ export default function WebsiteBuilderPage() {
           <div>
             <h1 className="text-3xl font-bold text-gray-900">Website & App Builder</h1>
             <p className="mt-1 text-sm text-gray-500">
-              {tenant.name} · <span className="text-indigo-600">{subdomain}.dexo.app</span>
+              {tenant.name} · <span className="text-indigo-600">{subdomain}.onedexo.com</span>
             </p>
           </div>
           <div className="flex gap-2">

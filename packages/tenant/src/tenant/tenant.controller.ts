@@ -71,6 +71,18 @@ export class TenantController {
     return this.tenantService.publicSearch(q, limit ? parseInt(limit, 10) : 10);
   }
 
+  /**
+   * GET /tenants/resolve?host=<hostname> — resolve a tenant from any host:
+   * vrfitness.onedexo.com, ramgym.localhost:4005, or a verified custom domain
+   * like fitness.com. Used by web middleware and the mobile "connect by
+   * domain" flow. MUST be declared before `:id`.
+   */
+  @Get('resolve')
+  @ApiOperation({ summary: 'Public: resolve tenant by host (subdomain or custom domain)' })
+  async resolveHost(@Query('host') host: string) {
+    return this.tenantService.resolveByHost(host);
+  }
+
   @Get(':id/deletion-impact')
   @UseGuards(JwtAuthGuard)
   @ApiBearerAuth()

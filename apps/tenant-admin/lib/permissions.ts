@@ -16,6 +16,33 @@ export const PERMISSION_RESOURCES = [
 
 export const PERMISSION_ACTIONS = ['view', 'create', 'edit', 'delete', 'manage'] as const
 
+// Plan module key → permission resource. Resources not listed here
+// (subscriptions, roles, users, settings, reports) are never plan-gated.
+export const MODULE_RESOURCE_MAP: Record<string, string> = {
+  crm: 'crm',
+  blog: 'blog',
+  billing_invoice: 'billing',
+  attendance: 'attendance',
+  website_builder: 'website_builder',
+}
+
+/**
+ * Restrict the permission resource catalog to what the tenant's plan enables.
+ * `modules` comes from GET /subscriptions/tenant/:id/modules; pass null to
+ * fail open (all resources shown).
+ */
+export function resourcesForModules(
+  modules: Record<string, boolean> | null | undefined
+): readonly string[] {
+  if (!modules) return PERMISSION_RESOURCES
+  const disabled = new Set(
+    Object.entries(MODULE_RESOURCE_MAP)
+      .filter(([moduleKey]) => modules[moduleKey] === false)
+      .map(([, resource]) => resource)
+  )
+  return PERMISSION_RESOURCES.filter((r) => !disabled.has(r))
+}
+
 export function resourceLabel(resource: string): string {
   return resource.replace(/_/g, ' ')
 }

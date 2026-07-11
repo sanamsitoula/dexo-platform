@@ -25,6 +25,8 @@
       "@dexo/shared": ["./packages/shared/src"],
       "@dexo/ui": ["./packages/ui/src"],
       "@dexo/auth": ["./packages/auth/src"],
+      "@dexo/blog": ["./packages/blog/src"],
+      "@dexo/finance": ["./packages/finance/src"],
       "@dexo/tenant": ["./packages/tenant/src"],
       "@dexo/user": ["./packages/user/src"],
       "@dexo/role": ["./packages/role/src"],

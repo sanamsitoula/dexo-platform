@@ -77,8 +77,8 @@ export function parseSubdomain(hostname: string): string | null {
   const host = hostname.split(':')[0].toLowerCase();
   if (host === 'localhost' || host === '127.0.0.1' || host === 'dexo.localhost') return null;
   const parts = host.split('.');
-  // *.dexo.com → first part
-  if (parts.length >= 3 && parts.slice(-2).join('.') === 'dexo.com') {
+  // *.onedexo.com → first part
+  if (parts.length >= 3 && parts.slice(-2).join('.') === 'onedexo.com') {
     const sub = parts[0];
     if (sub && !['www', 'admin', 'api', 'cdn', 'docs', 'status', 'portal'].includes(sub)) {
       return sub;

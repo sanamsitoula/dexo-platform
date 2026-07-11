@@ -213,7 +213,7 @@ export default function BlogForm({
         <div className="bg-gray-50 p-4 rounded-lg border border-gray-200 mt-4">
           <p className="text-xs text-gray-400 uppercase tracking-wide mb-2">Google snippet preview</p>
           <p className="text-blue-700 text-lg leading-snug truncate">{values.metaTitle || values.title || 'Blog title'}</p>
-          <p className="text-green-700 text-sm">{subdomain}.dexo.com/blog/{previewSlug}</p>
+          <p className="text-green-700 text-sm">{subdomain}.onedexo.com/blog/{previewSlug}</p>
           <p className="text-gray-600 text-sm line-clamp-2">{values.metaDescription || values.excerpt || 'No description provided.'}</p>
         </div>
       </Card>

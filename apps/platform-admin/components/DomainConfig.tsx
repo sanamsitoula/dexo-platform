@@ -35,7 +35,7 @@ export function DomainConfig({ tenant, onSave }: DomainConfigProps) {
     }
   }
 
-  const platformDomain = process.env.NEXT_PUBLIC_PLATFORM_DOMAIN || 'dexo.com'
+  const platformDomain = process.env.NEXT_PUBLIC_PLATFORM_DOMAIN || 'onedexo.com'
 
   return (
     <form onSubmit={handleSubmit} className="space-y-6">

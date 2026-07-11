@@ -2,9 +2,11 @@ import { Controller, Get, Post, Put, Body, Param, Query, UseGuards, Req } from '
 import { JwtAuthGuard } from '@dexo/auth';
 import { InvoicesService } from './invoices.service';
 import { CbmsSyncService } from './cbms-sync.service';
+import { RequireModule } from '../../common/guards/module-access.guard';
 
 @Controller('finance/invoices')
 @UseGuards(JwtAuthGuard)
+@RequireModule('billing_invoice')
 export class InvoicesController {
   constructor(private invoicesService: InvoicesService, private cbmsSync: CbmsSyncService) {}
 

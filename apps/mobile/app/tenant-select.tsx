@@ -15,7 +15,25 @@ import { useRouter } from 'expo-router';
 import { useAuth } from '../lib/auth-context';
 import { useTenant, Tenant } from '../lib/tenant-context';
 import { tenantsApi } from '../lib/api';
+import { storage } from '../lib/storage';
 import { Colors, Spacing, BorderRadius, FontSize } from '../lib/theme';
+
+const FAVORITES_KEY = 'favoriteTenants';
+
+/**
+ * Normalize whatever the customer types into a host the API can resolve:
+ *   "https://vrfitness.onedexo.com/login" -> "vrfitness.onedexo.com"
+ *   "fitness.com"                          -> "fitness.com"
+ *   "vrfitness"                            -> "vrfitness" (bare slug)
+ */
+function normalizeHostInput(raw: string): string {
+  return raw
+    .trim()
+    .toLowerCase()
+    .replace(/^https?:\/\//, '')
+    .split('/')[0]
+    .split(':')[0];
+}
 
 // Demo businesses are ONLY used as a dev-time fallback when the API is
 // unreachable. In production (__DEV__ === false) we never show fake tenants —
@@ -38,6 +56,55 @@ export default function TenantSelectScreen() {
   const [search, setSearch] = useState('');
   const [refreshing, setRefreshing] = useState(false);
   const [selectedTenant, setSelectedTenant] = useState<Tenant | null>(null);
+  const [favorites, setFavorites] = useState<string[]>([]);
+  const [domainInput, setDomainInput] = useState('');
+  const [connecting, setConnecting] = useState(false);
+  const [connectError, setConnectError] = useState<string | null>(null);
+
+  useEffect(() => {
+    storage.getItem(FAVORITES_KEY).then((raw) => {
+      if (raw) {
+        try { setFavorites(JSON.parse(raw)); } catch { /* corrupt — ignore */ }
+      }
+    });
+  }, []);
+
+  async function toggleFavorite(subdomain: string) {
+    const next = favorites.includes(subdomain)
+      ? favorites.filter((s) => s !== subdomain)
+      : [...favorites, subdomain];
+    setFavorites(next);
+    await storage.setItem(FAVORITES_KEY, JSON.stringify(next));
+  }
+
+  /** Connect by any address: custom domain, platform subdomain, or bare slug. */
+  async function connectByDomain() {
+    const host = normalizeHostInput(domainInput);
+    if (!host) return;
+    setConnecting(true);
+    setConnectError(null);
+    try {
+      const res = await tenantsApi.resolveHost(host);
+      if (res.data && !res.error) {
+        const t: any = res.data;
+        await pickTenant({
+          id: t.id,
+          name: t.name,
+          subdomain: t.subdomain,
+          domain: t.domain,
+          domainCode: t.domainType,
+          primaryColor: t.branding?.colorPrimary || t.branding?.primaryColor,
+          logo: t.branding?.logo,
+        } as Tenant);
+      } else {
+        setConnectError(`No business found at "${host}". Check the address and try again.`);
+      }
+    } catch {
+      setConnectError('Could not reach the server. Check your connection.');
+    } finally {
+      setConnecting(false);
+    }
+  }
 
   useEffect(() => {
     if (isAuthenticated) {
@@ -127,9 +194,13 @@ export default function TenantSelectScreen() {
     router.replace('/(auth)/login')
   }
 
-  const filtered = tenants.filter((t) =>
-    !search || t.name.toLowerCase().includes(search.toLowerCase())
-  )
+  const filtered = tenants
+    .filter((t) => !search || t.name.toLowerCase().includes(search.toLowerCase()))
+    .sort((a, b) => {
+      const af = favorites.includes(a.subdomain) ? 0 : 1;
+      const bf = favorites.includes(b.subdomain) ? 0 : 1;
+      return af - bf || a.name.localeCompare(b.name);
+    })
 
   return (
     <View style={styles.container}>
@@ -153,6 +224,32 @@ export default function TenantSelectScreen() {
           onChangeText={setSearch}
         />
       </View>
+
+      {/* Connect directly by domain — vrfitness.onedexo.com, fitness.com, or a bare slug */}
+      <View style={styles.connectBox}>
+        <Ionicons name="globe-outline" size={20} color={Colors.textLight} />
+        <TextInput
+          style={styles.searchInput}
+          placeholder="yourgym.com or name.onedexo.com"
+          placeholderTextColor={Colors.textLight}
+          autoCapitalize="none"
+          autoCorrect={false}
+          keyboardType="url"
+          value={domainInput}
+          onChangeText={(v) => { setDomainInput(v); setConnectError(null); }}
+          onSubmitEditing={connectByDomain}
+        />
+        <TouchableOpacity
+          style={[styles.connectBtn, (!domainInput.trim() || connecting) && { opacity: 0.5 }]}
+          onPress={connectByDomain}
+          disabled={!domainInput.trim() || connecting}
+        >
+          {connecting
+            ? <ActivityIndicator size="small" color={Colors.white} />
+            : <Text style={styles.connectBtnText}>Connect</Text>}
+        </TouchableOpacity>
+      </View>
+      {connectError && <Text style={styles.connectError}>{connectError}</Text>}
 
       {loading ? (
         <View style={styles.center}>
@@ -191,7 +288,7 @@ export default function TenantSelectScreen() {
               <View style={styles.tenantInfo}>
                 <Text style={styles.tenantName}>{item.name}</Text>
                 <Text style={styles.tenantSubdomain}>
-                  {item.subdomain}.dexo.app
+                  {item.subdomain}.onedexo.com
                 </Text>
                 {item.domainCode && (
                   <View style={styles.industryBadge}>
@@ -201,6 +298,17 @@ export default function TenantSelectScreen() {
                   </View>
                 )}
               </View>
+              <TouchableOpacity
+                onPress={() => toggleFavorite(item.subdomain)}
+                hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+                style={styles.favoriteBtn}
+              >
+                <Ionicons
+                  name={favorites.includes(item.subdomain) ? 'star' : 'star-outline'}
+                  size={20}
+                  color={favorites.includes(item.subdomain) ? '#F59E0B' : Colors.textLight}
+                />
+              </TouchableOpacity>
               <Ionicons name="chevron-forward" size={20} color={Colors.textLight} />
             </TouchableOpacity>
           )}
@@ -245,6 +353,27 @@ const styles = StyleSheet.create({
     borderColor: Colors.border,
   },
   searchInput: { flex: 1, paddingVertical: Spacing.sm, fontSize: FontSize.md, color: Colors.text, marginLeft: Spacing.sm },
+  connectBox: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: Colors.white,
+    marginHorizontal: Spacing.lg,
+    marginBottom: Spacing.md,
+    paddingHorizontal: Spacing.md,
+    borderRadius: BorderRadius.md,
+    borderWidth: 1,
+    borderColor: Colors.border,
+  },
+  connectBtn: {
+    backgroundColor: Colors.primary,
+    paddingHorizontal: Spacing.md,
+    paddingVertical: Spacing.sm,
+    borderRadius: BorderRadius.sm,
+    marginLeft: Spacing.sm,
+  },
+  connectBtnText: { color: Colors.white, fontSize: FontSize.sm, fontWeight: '600' },
+  connectError: { color: '#DC2626', fontSize: FontSize.xs, marginHorizontal: Spacing.lg, marginTop: -Spacing.sm, marginBottom: Spacing.sm },
+  favoriteBtn: { marginRight: Spacing.sm },
   list: { paddingHorizontal: Spacing.lg, paddingBottom: Spacing.xl },
   listHeader: { fontSize: FontSize.xs, color: Colors.textSecondary, marginBottom: Spacing.sm, textTransform: 'uppercase', letterSpacing: 1 },
   tenantCard: {

@@ -2,9 +2,11 @@ import { Body, Controller, Delete, Get, Param, Post, Put, Query, Req, UseGuards 
 import { JwtAuthGuard, PlatformAdminGuard } from '@dexo/auth';
 import { AttendanceDevicesService } from './attendance-devices.service';
 import { AttendanceReportsService } from './attendance-reports.service';
+import { RequireModule } from '../../common/guards/module-access.guard';
 
 @Controller('attendance-devices')
 @UseGuards(JwtAuthGuard)
+@RequireModule('attendance')
 export class AttendanceDevicesController {
   constructor(private devices: AttendanceDevicesService) {}
 
@@ -69,6 +71,7 @@ export class AttendanceDevicesController {
 
 @Controller('attendance-logs')
 @UseGuards(JwtAuthGuard)
+@RequireModule('attendance')
 export class AttendanceLogsController {
   constructor(private devices: AttendanceDevicesService) {}
 
@@ -85,6 +88,7 @@ export class AttendanceLogsController {
 
 @Controller('attendance-reports')
 @UseGuards(JwtAuthGuard)
+@RequireModule('attendance')
 export class AttendanceReportsController {
   constructor(private reports: AttendanceReportsService) {}
 
