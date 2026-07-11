@@ -1,7 +1,7 @@
 import type { NextRequest } from 'next/server';
 import { NextResponse } from 'next/server';
 
-const PLATFORM_DOMAIN = process.env.PLATFORM_DOMAIN || 'dexo.com';
+const PLATFORM_DOMAIN = process.env.PLATFORM_DOMAIN || 'onedexo.com';
 const RESERVED = new Set(['www', 'admin', 'api', 'cdn', 'docs', 'status', 'portal']);
 
 export interface TenantMiddlewareOptions {
