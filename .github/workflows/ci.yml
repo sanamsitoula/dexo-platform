@@ -92,4 +92,4 @@ jobs:
           port: ${{ secrets.AZURE_VM_SSH_PORT }}
           script_stop: true
           script: |
-            bash /opt/dexo-platform/scripts/deploy.sh
+            bash /var/www/dexo-platform/scripts/deploy.sh

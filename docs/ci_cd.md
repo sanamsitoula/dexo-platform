@@ -24,7 +24,7 @@ git push origin main
 └────────────────────────────────────────────────────────────────────────┘
         │  SSH (appleboy/ssh-action)
         ▼
-┌────────────────────────── Azure VM (/opt/dexo-platform) ─────────────────┐
+┌──────────────────────── Azure VM (/var/www/dexo-platform) ───────────────┐
 │  scripts/deploy.sh:                                                      │
 │    git fetch + reset --hard origin/main                                  │
 │    npm ci                                                                │
@@ -84,7 +84,7 @@ just automates redeploys of code that's already running there.
 ```bash
 # On the VM, once:
 sudo npm install -g pm2
-cd /opt/dexo-platform          # or wherever you cloned the repo
+cd /var/www/dexo-platform      # or wherever you cloned the repo
 git checkout main
 npm ci
 npx prisma generate
@@ -102,6 +102,8 @@ On your own machine (not the VM):
 ```bash
 ssh-keygen -t ed25519 -f deploy_key -C "github-actions-deploy" -N ""
 ```
+
+
 Append `deploy_key.pub` to `~/.ssh/authorized_keys` for the deploy user on
 the VM. Keep `deploy_key` (the private half) — it goes into a GitHub secret
 next, never into the repo.
@@ -127,8 +129,8 @@ warning); the deploy step only ever pulls code, it never touches `.env`.
 ### 4. Confirm the deploy path matches
 
 `ci.yml`'s deploy step and `scripts/deploy.sh`'s default both assume the repo
-lives at `/opt/dexo-platform` on the VM. If yours is elsewhere, either move
-it there or override both: the workflow's `script:` line and
+lives at `/var/www/dexo-platform` on the VM. If yours is elsewhere, either
+move it there or override both: the workflow's `script:` line and
 `DEXO_DEPLOY_PATH` env var read by `deploy.sh`.
 
 ## Verifying a deploy

@@ -8,7 +8,7 @@
 # ==============================================================================
 set -euo pipefail
 
-PROJECT_ROOT="${DEXO_DEPLOY_PATH:-/opt/dexo-platform}"
+PROJECT_ROOT="${DEXO_DEPLOY_PATH:-/var/www/dexo-platform}"
 BRANCH="${DEXO_DEPLOY_BRANCH:-main}"
 
 cd "$PROJECT_ROOT"
