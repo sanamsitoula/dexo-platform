@@ -132,3 +132,242 @@ export async function submitContactForm(subdomain: string, data: {
   if (!res.ok) throw new Error('Failed to submit')
   return await res.json()
 }
+
+// ---------------------------------------------------------------------
+// Ecommerce — auth token (same localStorage mechanism as apps/tenant-app's
+// lib/api.ts: a customer logs in via /auth/login and the JWT is reused for
+// cart/checkout calls, which require JwtAuthGuard).
+// ---------------------------------------------------------------------
+const TOKEN_KEY = 'dexo_token'
+export const getToken = (): string | null => (typeof window !== 'undefined' ? localStorage.getItem(TOKEN_KEY) : null)
+export const setToken = (t: string) => { if (typeof window !== 'undefined') localStorage.setItem(TOKEN_KEY, t) }
+export const clearToken = () => { if (typeof window !== 'undefined') localStorage.removeItem(TOKEN_KEY) }
+
+/** Log an existing customer in (used at checkout to merge the guest cart + place the order). */
+export async function loginCustomer(subdomain: string, email: string, password: string): Promise<{ ok: true; token: string } | { ok: false; error: string }> {
+  try {
+    const res = await fetch(`${API_BASE_URL}/auth/login`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ email, password, subdomain }),
+    })
+    const body = await res.json().catch(() => ({}))
+    if (!res.ok) return { ok: false, error: body.message || `Login failed (${res.status})` }
+    if (!body.accessToken) return { ok: false, error: 'No access token returned' }
+    setToken(body.accessToken)
+    return { ok: true, token: body.accessToken }
+  } catch (e: any) {
+    return { ok: false, error: e?.message || 'Network error' }
+  }
+}
+
+function authHeaders(): Record<string, string> {
+  const token = getToken()
+  return token ? { Authorization: `Bearer ${token}` } : {}
+}
+
+// ---------------------------------------------------------------------
+// Ecommerce — public storefront browsing (no auth)
+// ---------------------------------------------------------------------
+export interface ProductCategory {
+  id: string
+  name: string
+  slug: string
+  parentId: string | null
+}
+
+export interface ProductVariant {
+  id: string
+  sku: string
+  attributes: any
+  priceOverride: number | null
+  barcode: string | null
+}
+
+export interface Product {
+  id: string
+  sku: string
+  name: string
+  slug: string
+  description: string | null
+  images: string[] | null
+  sellingPrice: number
+  taxRatePercent: number
+  isFeatured: boolean
+  category?: ProductCategory | null
+  brand?: { id: string; name: string; logoUrl: string | null } | null
+  variants: ProductVariant[]
+}
+
+/** Public category list for the storefront (no auth). */
+export async function getCategories(subdomain: string): Promise<ProductCategory[]> {
+  try {
+    const res = await fetch(`${API_BASE_URL}/ecommerce/public/${subdomain}/categories`, { cache: 'no-store' })
+    if (!res.ok) return []
+    return await res.json()
+  } catch {
+    return []
+  }
+}
+
+/** Public product listing for the storefront (no auth). */
+export async function getProducts(subdomain: string, params?: { categoryId?: string; brandId?: string; q?: string; featured?: boolean }): Promise<Product[]> {
+  try {
+    const qs = new URLSearchParams()
+    if (params?.categoryId) qs.set('categoryId', params.categoryId)
+    if (params?.brandId) qs.set('brandId', params.brandId)
+    if (params?.q) qs.set('q', params.q)
+    if (params?.featured) qs.set('featured', 'true')
+    const suffix = qs.toString() ? `?${qs.toString()}` : ''
+    const res = await fetch(`${API_BASE_URL}/ecommerce/public/${subdomain}/products${suffix}`, { cache: 'no-store' })
+    if (!res.ok) return []
+    return await res.json()
+  } catch {
+    return []
+  }
+}
+
+/** Public product detail by slug (no auth). */
+export async function getProductBySlug(subdomain: string, slug: string): Promise<Product | null> {
+  try {
+    const res = await fetch(`${API_BASE_URL}/ecommerce/public/${subdomain}/products/${slug}`, { cache: 'no-store' })
+    if (!res.ok) return null
+    return await res.json()
+  } catch {
+    return null
+  }
+}
+
+// ---------------------------------------------------------------------
+// Ecommerce — cart, checkout & orders (require a logged-in customer JWT).
+// Guests build their cart client-side (see lib/guestCart.ts) and only need
+// to authenticate at the checkout step, where the guest cart is replayed
+// into the backend cart via addToCart() before calling checkout().
+// ---------------------------------------------------------------------
+export interface CartItemDto {
+  id: string
+  productId: string
+  variantId: string | null
+  quantity: number
+  unitPrice: number
+  product: Product
+  variant: ProductVariant | null
+}
+
+export interface CartDto {
+  id: string
+  status: string
+  currency: string
+  items: CartItemDto[]
+}
+
+export async function getCart(): Promise<CartDto | null> {
+  try {
+    const res = await fetch(`${API_BASE_URL}/ecommerce/cart`, { headers: { ...authHeaders() }, cache: 'no-store' })
+    if (!res.ok) return null
+    return await res.json()
+  } catch {
+    return null
+  }
+}
+
+export async function addToCart(dto: { productId: string; variantId?: string; quantity: number }): Promise<{ ok: true; cart: CartDto } | { ok: false; error: string }> {
+  try {
+    const res = await fetch(`${API_BASE_URL}/ecommerce/cart/items`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', ...authHeaders() },
+      body: JSON.stringify(dto),
+    })
+    const body = await res.json().catch(() => ({}))
+    if (!res.ok) return { ok: false, error: body.message || `HTTP ${res.status}` }
+    return { ok: true, cart: body }
+  } catch (e: any) {
+    return { ok: false, error: e?.message || 'Network error' }
+  }
+}
+
+export async function updateCartItem(itemId: string, quantity: number): Promise<{ ok: boolean; error?: string }> {
+  try {
+    const res = await fetch(`${API_BASE_URL}/ecommerce/cart/items/${itemId}`, {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json', ...authHeaders() },
+      body: JSON.stringify({ quantity }),
+    })
+    if (!res.ok) {
+      const body = await res.json().catch(() => ({}))
+      return { ok: false, error: body.message || `HTTP ${res.status}` }
+    }
+    return { ok: true }
+  } catch (e: any) {
+    return { ok: false, error: e?.message || 'Network error' }
+  }
+}
+
+export async function removeCartItem(itemId: string): Promise<{ ok: boolean; error?: string }> {
+  try {
+    const res = await fetch(`${API_BASE_URL}/ecommerce/cart/items/${itemId}`, {
+      method: 'DELETE',
+      headers: { ...authHeaders() },
+    })
+    if (!res.ok) {
+      const body = await res.json().catch(() => ({}))
+      return { ok: false, error: body.message || `HTTP ${res.status}` }
+    }
+    return { ok: true }
+  } catch (e: any) {
+    return { ok: false, error: e?.message || 'Network error' }
+  }
+}
+
+export interface CheckoutDto {
+  shippingAddress?: Record<string, any>
+  couponCode?: string
+  paymentMethod?: 'COD' | 'PREPAID'
+  customerEmail?: string
+  customerPhone?: string
+  customerName?: string
+}
+
+export async function checkout(dto: CheckoutDto): Promise<{ ok: true; order: any } | { ok: false; error: string }> {
+  try {
+    const res = await fetch(`${API_BASE_URL}/ecommerce/checkout`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', ...authHeaders() },
+      body: JSON.stringify(dto),
+    })
+    const body = await res.json().catch(() => ({}))
+    if (!res.ok) return { ok: false, error: body.message || `HTTP ${res.status}` }
+    return { ok: true, order: body }
+  } catch (e: any) {
+    return { ok: false, error: e?.message || 'Network error' }
+  }
+}
+
+export async function getMyOrders(): Promise<any[]> {
+  try {
+    const res = await fetch(`${API_BASE_URL}/ecommerce/orders?mine=true`, { headers: { ...authHeaders() }, cache: 'no-store' })
+    if (!res.ok) return []
+    return await res.json()
+  } catch {
+    return []
+  }
+}
+
+/** Confirms a PREPAID order's payment — stubbed here as a demo "CASH" provider
+ * so the checkout flow completes without a real payment gateway redirect. */
+export async function confirmDemoPayment(orderId: string): Promise<{ ok: boolean; error?: string }> {
+  try {
+    const res = await fetch(`${API_BASE_URL}/ecommerce/orders/${orderId}/confirm-payment`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', ...authHeaders() },
+      body: JSON.stringify({ providerType: 'CASH', providerTxnId: `DEMO-${orderId}` }),
+    })
+    if (!res.ok) {
+      const body = await res.json().catch(() => ({}))
+      return { ok: false, error: body.message || `HTTP ${res.status}` }
+    }
+    return { ok: true }
+  } catch (e: any) {
+    return { ok: false, error: e?.message || 'Network error' }
+  }
+}

@@ -1,22 +1,26 @@
 import Link from 'next/link';
 import type { SiteTheme } from '@/lib/site-theme';
+import CartBadge from './CartBadge';
 
 /**
  * Shared template-aware navigation for all public pages. Renders the nav
  * variant of the tenant's chosen design family (centered / minimal /
  * bottom-bar / classic) so inner pages match the homepage.
  */
-export default function SiteNav({ theme, name, active, memberLoginUrl }: {
+export default function SiteNav({ theme, name, active, memberLoginUrl, showShop }: {
   theme: SiteTheme;
   name: string;
   active?: string;
   memberLoginUrl?: string;
+  /** Ecommerce-domain tenants only — adds a Shop link + cart badge. */
+  showShop?: boolean;
 }) {
   const t = theme;
   const nav = t.tpl?.navigationStyle || 'classic';
   const links: Array<[href: string, label: string]> = [
     ['/about', 'About'],
     ['/services', 'Services'],
+    ...(showShop ? ([['/shop', 'Shop']] as Array<[string, string]>) : []),
     ['/book', 'Book'],
     ['/contact', 'Contact'],
   ];
@@ -31,6 +35,7 @@ export default function SiteNav({ theme, name, active, memberLoginUrl }: {
       {label}
     </Link>
   ));
+  const cartBadge = showShop ? <CartBadge /> : null;
   const cta = (
     <Link
       href="/register"
@@ -55,7 +60,7 @@ export default function SiteNav({ theme, name, active, memberLoginUrl }: {
       <nav className="px-6 py-5 text-center border-b" style={{ borderColor: 'var(--site-border)' }}>
         <Link href="/" className="text-xl font-bold tracking-[0.25em] uppercase">{name}</Link>
         <div className="mt-3 flex justify-center items-center gap-5 text-xs tracking-widest uppercase">
-          {linkEls}{login}{cta}
+          {linkEls}{cartBadge}{login}{cta}
         </div>
       </nav>
     );
@@ -64,7 +69,7 @@ export default function SiteNav({ theme, name, active, memberLoginUrl }: {
     return (
       <nav className="flex items-center justify-between px-6 py-4 border-b-4" style={{ borderColor: 'var(--site-text)' }}>
         <Link href="/" className="text-xl font-black uppercase">{name}</Link>
-        <div className="flex gap-4 text-sm font-bold uppercase items-center">{linkEls}{login}{cta}</div>
+        <div className="flex gap-4 text-sm font-bold uppercase items-center">{linkEls}{cartBadge}{login}{cta}</div>
       </nav>
     );
   }
@@ -72,7 +77,7 @@ export default function SiteNav({ theme, name, active, memberLoginUrl }: {
     return (
       <nav className="flex items-center justify-between px-6 py-4 max-w-4xl mx-auto">
         <Link href="/" className="text-lg font-bold">{name}</Link>
-        <div className="flex gap-5 text-sm items-center">{linkEls}{login}{cta}</div>
+        <div className="flex gap-5 text-sm items-center">{linkEls}{cartBadge}{login}{cta}</div>
       </nav>
     );
   }
@@ -80,7 +85,7 @@ export default function SiteNav({ theme, name, active, memberLoginUrl }: {
   return (
     <nav className="flex items-center justify-between px-6 py-4 max-w-6xl mx-auto">
       <Link href="/" className="text-xl font-extrabold" style={{ color: 'var(--site-primary)' }}>{name}</Link>
-      <div className="flex gap-4 text-sm items-center">{linkEls}{login}{cta}</div>
+      <div className="flex gap-4 text-sm items-center">{linkEls}{cartBadge}{login}{cta}</div>
     </nav>
   );
 }

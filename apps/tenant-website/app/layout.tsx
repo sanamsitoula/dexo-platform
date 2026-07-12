@@ -2,7 +2,10 @@
 import './globals.css';
 import { headers } from 'next/headers';
 import { FloatingWhatsApp } from '@/components/FloatingWhatsApp';
+import ShoppingAssistantWidget from '@/components/ShoppingAssistantWidget';
+import ChatwootWidget from '@/components/ChatwootWidget';
 import { getSiteTheme, themeVars } from '@/lib/site-theme';
+import { isEcommerceDomainCode } from '@/lib/domainType';
 
 export const metadata = {
   title: 'Tenant Website',
@@ -110,6 +113,11 @@ export default async function RootLayout({ children }: { children: React.ReactNo
   // — server and client — through CSS variables.
   const theme = await getSiteTheme(slug, ctx.colorPrimary, ctx.colorAccent);
 
+  // Ecommerce-only widget: gate on domain type so gyms/salons/etc. don't get
+  // a shopping assistant bubble they have no products for.
+  const domainType = await resolveDomainType(slug, process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000');
+  const showShoppingAssistant = isEcommerceDomainCode(domainType);
+
   return (
     <html lang="en">
       <body
@@ -121,6 +129,8 @@ export default async function RootLayout({ children }: { children: React.ReactNo
       >
         {children}
         <FloatingWhatsApp subdomain={slug} />
+        {showShoppingAssistant && <ShoppingAssistantWidget />}
+        <ChatwootWidget subdomain={slug} />
       </body>
     </html>
   );

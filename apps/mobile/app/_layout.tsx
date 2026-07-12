@@ -59,6 +59,11 @@ function RootLayoutNav() {
       <Stack.Screen name="my-membership" />
       <Stack.Screen name="workout-log" />
       <Stack.Screen name="diet-log" />
+      <Stack.Screen name="shop" />
+      <Stack.Screen name="cart" />
+      <Stack.Screen name="checkout" />
+      <Stack.Screen name="orders" />
+      <Stack.Screen name="shop-assistant" />
     </Stack>
   );
 }

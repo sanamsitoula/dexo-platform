@@ -8,19 +8,32 @@ import { useEffect, useState } from 'react';
 import { View, ActivityIndicator, Text } from 'react-native';
 import { Colors, FontSize } from '../../lib/theme';
 import { storage } from '../../lib/storage';
+import { ecommerceApi } from '../../lib/api';
 
 export default function TabLayout() {
   const { user } = useAuth();
   const { tenant } = useTenant();
   const [roleCode, setRoleCode] = useState<string>('CUSTOMER');
   const [isLoading, setIsLoading] = useState(true);
+  const [cartCount, setCartCount] = useState(0);
 
   const domainCode = tenant?.domainCode || 'FITNESS_CENTER';
+  const isEcommerce = domainCode?.toUpperCase().includes('ECOMMERCE') || domainCode?.toUpperCase().includes('SHOP');
   const primaryColor = tenant?.primaryColor || Colors.primary;
 
   useEffect(() => {
     loadRoleInfo();
   }, [user]);
+
+  useEffect(() => {
+    if (!isEcommerce || !user) return;
+    ecommerceApi.cart.get().then((res) => {
+      const count = Array.isArray(res.data?.items)
+        ? res.data.items.reduce((s: number, i: any) => s + i.quantity, 0)
+        : 0;
+      setCartCount(count);
+    }).catch(() => {});
+  }, [isEcommerce, user]);
 
   async function loadRoleInfo() {
     try {
@@ -67,6 +80,7 @@ export default function TabLayout() {
       trainers: 'person-outline',
       portfolio: 'briefcase-outline',
       packages: 'cube-outline',
+      shop: 'bag-handle-outline',
       billing: 'card-outline',
       payments: 'card-outline',
       notifications: 'notifications-outline',

@@ -306,6 +306,57 @@ export const branchReportsApi = {
   },
 };
 
+export const ecommerceApi = {
+  products: {
+    /** Public storefront browse — no auth required. */
+    list: (subdomain: string, params?: { categoryId?: string; brandId?: string; q?: string; featured?: boolean }) => {
+      const searchParams = new URLSearchParams();
+      if (params?.categoryId) searchParams.append('categoryId', params.categoryId);
+      if (params?.brandId) searchParams.append('brandId', params.brandId);
+      if (params?.q) searchParams.append('q', params.q);
+      if (params?.featured) searchParams.append('featured', 'true');
+      const q = searchParams.toString();
+      return fetchApi<any[]>(`/ecommerce/public/${subdomain}/products${q ? `?${q}` : ''}`);
+    },
+    bySlug: (subdomain: string, slug: string) =>
+      fetchApi<any>(`/ecommerce/public/${subdomain}/products/${slug}`),
+  },
+  categories: {
+    list: (subdomain: string) => fetchApi<any[]>(`/ecommerce/public/${subdomain}/categories`),
+  },
+  cart: {
+    get: () => fetchApi<any>('/ecommerce/cart'),
+    addItem: (data: { productId: string; variantId?: string; quantity: number }) =>
+      fetchApi<any>('/ecommerce/cart/items', { method: 'POST', body: JSON.stringify(data) }),
+    updateItem: (itemId: string, quantity: number) =>
+      fetchApi<any>(`/ecommerce/cart/items/${itemId}`, { method: 'PUT', body: JSON.stringify({ quantity }) }),
+    removeItem: (itemId: string) => fetchApi<any>(`/ecommerce/cart/items/${itemId}`, { method: 'DELETE' }),
+  },
+  checkout: {
+    create: (data: {
+      shippingAddress?: any;
+      couponCode?: string;
+      paymentMethod?: 'COD' | 'PREPAID';
+      providerType?: string;
+      customerEmail?: string;
+      customerPhone?: string;
+      customerName?: string;
+    }) => fetchApi<any>('/ecommerce/checkout', { method: 'POST', body: JSON.stringify(data) }),
+  },
+  orders: {
+    list: (mine = true) => fetchApi<any[]>(`/ecommerce/orders${mine ? '?mine=true' : ''}`),
+    byId: (id: string) => fetchApi<any>(`/ecommerce/orders/${id}`),
+  },
+};
+
+export const aiApi = {
+  chat: (message: string, agentKey = 'ecommerce.shopper') =>
+    fetchApi<{ reply: string; toolCalls?: any }>('/ai/chat', {
+      method: 'POST',
+      body: JSON.stringify({ agentKey, message }),
+    }),
+};
+
 export const fitnessApi = {
   members: {
     list: (params?: any) => {
