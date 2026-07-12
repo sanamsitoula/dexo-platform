@@ -524,6 +524,7 @@ Both guides are also published on the platform site at **http://localhost:3001/d
 | [docs/azurevm.md](./docs/azurevm.md) | Azure VM production deployment runbook (DNS, nginx install, SSL, verification/troubleshooting) |
 | [docs/EMAIL_SYSTEM.md](./docs/EMAIL_SYSTEM.md) | Global email hierarchy (Tenant → Global → System Default), provider-agnostic, super-admin configurable, no redeploy |
 | [docs/CHATWOOT_INTEGRATION.md](./docs/CHATWOOT_INTEGRATION.md) | Self-hosted Chatwoot messaging — two-tier inboxes (customer↔tenant, tenant↔platform), provisioning, widgets |
+| [docs/ci_cd.md](./docs/ci_cd.md) | CI/CD pipeline — GitHub Actions typecheck/build/migrations → automated PM2/SSH deploy to the Azure VM |
 | [REMAINING_WORK.md](./REMAINING_WORK.md) | Session-by-session audit of what's done vs open across the whole platform |
 | [todo.md](./todo.md) | Longer-horizon feature backlog (incl. planned Asset Management module) |
 
