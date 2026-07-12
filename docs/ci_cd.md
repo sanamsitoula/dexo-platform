@@ -81,6 +81,15 @@ Follow `docs/azurevm.md` through nginx + SSL first (DNS, nginx install,
 certs) — this pipeline assumes the VM already serves traffic manually and
 just automates redeploys of code that's already running there.
 
+Before the first build, make sure `.env` on the VM sets
+`NEXT_PUBLIC_API_URL` to the real public API domain (e.g.
+`https://api.onedexo.com`, matching `infra/nginx/dexo.conf`'s `api.`
+server block) — see `.env.example`. This gets baked into every
+frontend's browser bundle **at build time**, not read at runtime, so
+if it's missing at this point every browser ends up calling
+`http://localhost:4000` (the visitor's own machine) instead of your
+API, with no build error to warn you.
+
 ```bash
 # On the VM, once:
 sudo npm install -g pm2
