@@ -393,6 +393,41 @@ type / tenant**, not just fitness.
 
 ---
 
+## 🌱 Database seeding
+
+`scripts/seed/index.ts` is the **single** seed pipeline in this repo — every
+step lives under `scripts/seed/`, numbered in the order it must run (each
+step only depends on tables populated by steps before it). See that file's
+header comment for the exact order. It replaced several conflicting,
+duplicate legacy scripts (`prisma/seed.ts`, `prisma/seeds/`, assorted
+root-level `seed-*.ts` files) that used to define inconsistent plans,
+domains, and tenant data — see `CREDENTIALS.md` for that history.
+
+| Command | What it does |
+|---|---|
+| `npm run db:seed` (alias: `npm run db:seed:v5`) | Runs the full master pipeline against the current DB. **Idempotent** — safe to re-run any time; every step upserts or find-then-creates, nothing does an unconditional `deleteMany`. |
+| `npm run db:seed:clean` | **Removes** all seeded data (in FK-safe reverse order) without touching the schema. Use before a full reseed if you want a guaranteed-empty starting point. |
+| `npm run db:seed:fresh` | `db:seed:clean` + `db:seed` in one shot — wipes seeded data and reseeds from scratch, on the **existing** schema/database (no migration reset). |
+| `npm run db:migrate:fresh` | For a genuinely fresh install: `prisma migrate reset --force` (drops and recreates the schema from migrations) + `db:seed`. This is the destructive one — only use it when you actually want the database recreated, not just re-seeded. |
+| `npm run db:seed:fitness` / `db:seed:restaurant` | Re-run just one tenant's seed step (`vrfitness` / `spicegarden`) standalone. |
+| `npm run db:seed:fitness-full` | Tops up every fitness-domain table to ≥10 rows for `vrfitness` (members, trainers, classes, bookings, workout/diet plans, assessments, badges, referrals, equipment, attendance, invoices). |
+| `npm run db:seed:ecommerce-demo -- --tenant=<subdomain>` | Seeds ~50 demo storefront products + stock for any tenant by subdomain (also runs automatically for `vrfitness`/`spicegarden` as part of the master pipeline). |
+| `npm run db:verify:fitness` | Sanity-checks the fitness demo data row counts after seeding. |
+
+**What's covered today:** platform reference data (languages, currencies,
+system permissions/roles/notification templates), all 12 domain templates,
+the two demo tenants (`vrfitness`, `spicegarden`) with full role/branch/user
+sets, accounting (chart of accounts + fiscal periods), fitness/restaurant
+demo data, billing/subscription demo data, marketplace demo data, and demo
+ecommerce products — roughly 50 of the schema's ~140 models, most seeded to
+well over 10 rows each. Models not yet covered by a dedicated step are
+mostly child/detail tables created as nested rows of an already-seeded
+parent (e.g. invoice line items, cart items) rather than fully separate
+gaps — if you add a new top-level module, add its seed as the next numbered
+step in `scripts/seed/` and wire it into `index.ts`'s `main()`.
+
+---
+
 ## 🎯 Creating a new tenant
 
 ### Via Platform Admin (recommended)
