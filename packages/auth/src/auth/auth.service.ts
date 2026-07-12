@@ -225,8 +225,6 @@ export class AuthService {
       userTenantId = this.configService.get('DEFAULT_TENANT_ID');
     }
 
-    const verificationToken = this.generateVerificationToken();
-
     const user = await this.prisma.user.create({
       data: {
         email,
@@ -238,6 +236,9 @@ export class AuthService {
         status: 'pending_verification',
       },
     });
+
+    // Needs user.id, so generated after create() — see generateVerificationToken() for why.
+    const verificationToken = this.generateVerificationToken(user.id, user.email);
 
     // Assign a tenant role appropriate to how the user signed up. Customers
     // (MEMBER) and trainers must NOT get the admin/owner role — only true
@@ -328,6 +329,14 @@ export class AuthService {
         .sendWelcome(userTenantId, user.email, firstName || 'there')
         .catch((err) => this.logger.warn(`Welcome email failed: ${err?.message}`));
     }
+
+    // Verification email — required before this account can log in in
+    // production (see the pending_verification gate in login()). Sent
+    // regardless of tenant so platform-level signups verify too.
+    const verifyLink = `${this.configService.get('FRONTEND_URL') || 'http://localhost:3001'}/verify-email?token=${verificationToken}`;
+    this.tenantMail
+      .sendVerificationEmail(userTenantId ?? null, user.email, firstName || 'there', verifyLink)
+      .catch((err) => this.logger.warn(`Verification email failed: ${err?.message}`));
 
     return {
       accessToken,
@@ -511,7 +520,7 @@ export class AuthService {
       },
     );
 
-    const resetLink = `${this.configService.get('FRONTEND_URL') || 'http://localhost:3000'}/reset-password?token=${resetToken}`;
+    const resetLink = `${this.configService.get('FRONTEND_URL') || 'http://localhost:3001'}/reset-password?token=${resetToken}`;
 
     // Send via the user's tenant SMTP (platform SMTP fallback). Best-effort so
     // the endpoint stays constant-time-ish and never leaks config problems.
@@ -634,14 +643,15 @@ export class AuthService {
       },
     );
 
-    const _verificationLink = `${this.configService.get('FRONTEND_URL') || 'http://localhost:3000'}/verify-email?token=${verificationToken}`;
+    const verificationLink = `${this.configService.get('FRONTEND_URL') || 'http://localhost:3001'}/verify-email?token=${verificationToken}`;
 
-    // Queue verification email
-    // await this.emailService.sendTemplateEmail('email-verification', user.email, { verificationLink });
+    this.tenantMail
+      .sendVerificationEmail(user.tenantId ?? null, user.email, user.firstName || 'there', verificationLink)
+      .catch((err) => this.logger.warn(`Resend verification email failed: ${err?.message}`));
 
     return {
       message: 'If an account exists, a verification email has been sent.',
-      verificationToken, // Only for development
+      ...(process.env.NODE_ENV !== 'production' ? { verificationToken } : {}), // dev convenience only
     };
   }
 
@@ -677,9 +687,20 @@ export class AuthService {
     };
   }
 
-  private generateVerificationToken(): string {
-    return (
-      Math.random().toString(36).substring(2, 15) + Math.random().toString(36).substring(2, 15)
+  /**
+   * A signed, stateless JWT that `verifyEmail()` can validate on its own
+   * (payload.type === 'email_verification', 24h expiry) — the same shape
+   * `resendVerificationEmail` already produced. `register()` previously
+   * generated an unrelated random string here, which `verifyEmail()` could
+   * never actually verify (jwtService.verify() on a non-JWT string always
+   * throws) — every new signup was permanently stuck in
+   * `pending_verification` in production with no way out. Fixed by
+   * generating the real token type from the start.
+   */
+  private generateVerificationToken(userId: string, email: string): string {
+    return this.jwtService.sign(
+      { sub: userId, email, type: 'email_verification' },
+      { secret: this.configService.get('JWT_SECRET') || 'secret', expiresIn: '24h' },
     );
   }
 

@@ -335,6 +335,22 @@ export class TenantMailService {
     });
   }
 
+  async sendVerificationEmail(tenantId: string | null, to: string, firstName: string, verifyLink: string) {
+    const brand = await this.tenantName(tenantId);
+    return this.send(tenantId, {
+      to,
+      subject: `Verify your ${brand} email`,
+      text: `Hi ${firstName},\n\nPlease verify your email to activate your account:\n${verifyLink}\n\nThis link expires in 24 hours.`,
+      html: this.shell(
+        'Verify your email',
+        `<p style="color:#374151;line-height:1.6">Hi ${firstName}, welcome to ${brand}! Verify your email to activate your account. This link expires in <b>24 hours</b>.</p>
+         <p style="margin:24px 0"><a href="${verifyLink}" style="background:#111827;color:#fff;text-decoration:none;padding:12px 24px;border-radius:999px;font-weight:bold">Verify email</a></p>
+         <p style="color:#6b7280;font-size:13px">If you didn't create this account, you can safely ignore this email.</p>`,
+        brand,
+      ),
+    });
+  }
+
   async sendTest(tenantId: string, to: string) {
     const brand = await this.tenantName(tenantId);
     return this.send(tenantId, {
