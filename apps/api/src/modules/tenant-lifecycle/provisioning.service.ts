@@ -157,7 +157,7 @@ export class ProvisioningService {
         {
           name: 'finance_manager',
           description: 'Billing, invoicing and revenue reporting',
-          permissions: ['billing:*', 'reports:*'],
+          permissions: ['billing:*', 'reports:*', 'ecommerce:view_financials'],
         },
         {
           name: 'customer_support',
@@ -172,7 +172,7 @@ export class ProvisioningService {
         {
           name: 'picker_packer',
           description: 'Warehouse fulfillment only — no financial or customer data access',
-          permissions: ['ecommerce:view'],
+          permissions: ['ecommerce:view', 'ecommerce:pick'],
         },
       );
     }

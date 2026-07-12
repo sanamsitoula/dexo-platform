@@ -42,6 +42,7 @@ import { AttendanceDevicesModule } from './modules/attendance-devices/attendance
 import { AiGatewayModule } from './modules/ai-gateway/ai-gateway.module';
 import { PlatformEmailModule } from './modules/platform-email/platform-email.module';
 import { FitnessAiModule } from './modules/fitness/ai-integration/fitness-ai.module';
+import { EcommerceAiModule } from './modules/ecommerce/ai-integration/ecommerce-ai.module';
 import { TenantStatusMiddleware } from './common/middleware/tenant-status.middleware';
 
 @Module({
@@ -92,6 +93,7 @@ import { TenantStatusMiddleware } from './common/middleware/tenant-status.middle
     SalonModule,
     SchoolModule,
     EcommerceModule,
+    EcommerceAiModule,
     WebhooksModule,
     AiGatewayModule,
     TenantMailApiModule,

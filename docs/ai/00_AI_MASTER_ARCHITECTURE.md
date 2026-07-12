@@ -222,9 +222,46 @@ Each of these is real, scoped work — not fabricated as done:
 | 17 Deployment | **Not started** — no separate deploy considerations exist yet since the runtime is in-process with the API; `ANTHROPIC_API_KEY` is the only new env var |
 | 18 Roadmap | This table |
 
+## Reference integration: Ecommerce
+
+`apps/api/src/modules/ecommerce/ai-integration/` is now built, following the
+exact same five-folder + `OnModuleInit` pattern as Fitness, and proves the
+architecture generalizes beyond a single module:
+
+- `ecommerce.staff` — one staff persona (rather than fitness's five; the
+  ecommerce tool surface is small enough that a single permission-gated
+  agent is clearer than several thin ones) with ~17 tools wrapping real
+  `EcommerceService` methods: catalog search/detail, inventory
+  (`getStockLevels`/`getLowStockProducts`/`adjustStock`, the last gated on
+  `ecommerce:pick`), orders (`getOrder`/`listOrders`/`updateOrderStatus`/
+  `cancelOrder`), customers (`findCustomers`/`customerOrderHistory`),
+  shipments (`createShipment`/`updateShipmentStatus`, both gated on
+  `ecommerce:pick`), and dashboard (`dashboardSummary` with revenue
+  stripped out, plus a separate `revenueSummary` gated on
+  `ecommerce:view_financials`) — registered under `moduleKey: "ecommerce"`.
+- `ecommerce.shopper` — the customer-facing persona, registered under a
+  **separate** `moduleKey: "ecommerce-self"`
+  (`tools/customer-self-tools.ts`), following the same structural-isolation
+  rule as `fitness-self`: no tool takes a `customerId`; every one resolves
+  `ctx.userId` to the caller's own `Customer` record via
+  `EcommerceService.getCustomerForUserId`, and order/shipment lookups
+  (`myOrderStatus`/`trackMyShipment`) additionally verify server-side that
+  the order belongs to that resolved customer before returning anything.
+  Includes full cart tools (`myCart`/`addToCart`/`updateCartItem`/
+  `removeCartItem`), catalog browsing (`browseCategories`/`browseProducts`/
+  `getProductDetail`, active-products-only), and own order history.
+- One wired workflow, `runLowStockDigest` — manually triggered via
+  `POST /api/ecommerce/ai/workflows/low-stock-digest`, same "no surprise
+  emails without an explicit recipient" pattern as fitness's
+  `runMembershipExpiryCheck`.
+- Two knowledge chunks are marked explicitly as generic placeholders
+  (return policy, shipping/payment methods) since the platform has no
+  per-tenant policy configuration for these yet — the prompts tell both
+  agents to treat them as illustrative, not enforceable, and to defer to
+  the actual store for a definitive answer.
+
 ## Next module to integrate
 
-Ecommerce is the natural second reference (real services already exist —
-see `docs/ECOMMERCE_MODULE.md`) and would prove the pattern generalizes
-beyond fitness: `apps/api/src/modules/ecommerce/ai-integration/` following
-the exact same five folders and `OnModuleInit` registration shown above.
+With Fitness and Ecommerce both proven, any remaining domain module (e.g.
+whatever CRM/booking/services module comes next) should follow the same
+five-folder + `OnModuleInit` + staff/self module-key split shown above.

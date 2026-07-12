@@ -1,23 +1,44 @@
 import { Injectable, BadRequestException, NotFoundException, ConflictException } from '@nestjs/common';
 import { PrismaService } from '@dexo/shared';
 import { WebhooksService } from '../webhooks/webhooks.service';
+import { EcommerceLedgerService } from './ecommerce-ledger.service';
+import { PaymentGatewayService } from '../payment-gateway/payment-gateway.service';
 
 /**
  * Ecommerce domain service — Catalog, Inventory, Cart, Checkout, Shipment.
  *
- * Finance integration (Invoice + GL posting on order placement) is
- * deliberately NOT wired yet — see docs/ECOMMERCE_MODULE.md "Roadmap". Stock
- * is deducted synchronously at checkout via StockItem + StockLedgerEntry, the
- * same audit-trail pattern used by the rest of the platform's finance ledger.
+ * Finance integration: checkout creates an Invoice linked to the SalesOrder
+ * and posts a GL journal entry via EcommerceLedgerService (revenue + VAT +
+ * COGS where cost data is available) — see ecommerce-ledger.service.ts.
+ * COD orders post immediately (DR Accounts Receivable, since cash isn't
+ * collected until delivery). PREPAID orders defer GL posting until the
+ * payment gateway callback confirms payment (confirmPayment()) — the
+ * Invoice is still created at checkout time so an order always has a
+ * paper trail, but GL revenue is recognized only once cash is confirmed
+ * received (DR Cash/Bank).
+ *
+ * Payment gateway wiring: PREPAID checkout calls
+ * PaymentGatewayService.initPayment and returns the redirect/session
+ * details to the caller; confirmPayment() calls verifyPayment and, on
+ * success, marks the order + invoice paid and triggers ledger posting.
+ *
+ * Stock is deducted synchronously at checkout via StockItem +
+ * StockLedgerEntry, the same audit-trail pattern used by the rest of the
+ * platform's finance ledger.
  *
  * Checkout/status changes emit generic webhook events (order.created,
- * order.status_changed, order.cancelled, shipment.created,
- * shipment.status_changed, product.low_stock) via WebhooksService — the same
- * "plug and play" bus any other module can use.
+ * order.status_changed, order.cancelled, order.payment_confirmed,
+ * shipment.created, shipment.status_changed, product.low_stock) via
+ * WebhooksService — the same "plug and play" bus any other module can use.
  */
 @Injectable()
 export class EcommerceService {
-  constructor(private prisma: PrismaService, private webhooks: WebhooksService) {}
+  constructor(
+    private prisma: PrismaService,
+    private webhooks: WebhooksService,
+    private ledger: EcommerceLedgerService,
+    private paymentGateway: PaymentGatewayService,
+  ) {}
 
   private async assertExists<T extends { findFirst: (args: any) => Promise<any> }>(
     model: T,
@@ -107,6 +128,26 @@ export class EcommerceService {
     const product = await this.prisma.product.findFirst({
       where: { id, tenantId },
       include: { category: true, brand: true, variants: true, stockItems: { include: { warehouse: true } } },
+    });
+    if (!product) throw new NotFoundException('Product not found');
+    return product;
+  }
+
+  /** Lookup by exact SKU — used by the staff AI tool ("search products by SKU"). */
+  async findProductBySku(tenantId: string, sku: string) {
+    const product = await this.prisma.product.findFirst({
+      where: { tenantId, sku },
+      include: { category: true, brand: true, variants: true },
+    });
+    if (!product) throw new NotFoundException('Product not found for that SKU');
+    return product;
+  }
+
+  /** Active-only product detail — used by the customer-self AI tool, never exposes inactive/draft products. */
+  async getActiveProduct(tenantId: string, id: string) {
+    const product = await this.prisma.product.findFirst({
+      where: { id, tenantId, isActive: true },
+      include: { category: true, brand: true, variants: true },
     });
     if (!product) throw new NotFoundException('Product not found');
     return product;
@@ -363,6 +404,45 @@ export class EcommerceService {
     });
   }
 
+  /**
+   * Resolves the signed-in user (by userId, from AiContext) to their own
+   * Customer record — used by the ecommerce-self AI tools so a tool never
+   * has to accept a customerId argument from the model. Customer has no
+   * direct userId FK (matched by email, same as getOrCreateCustomerForUser),
+   * so this looks up the User row first.
+   */
+  async getCustomerForUserId(tenantId: string, userId: string) {
+    const user = await this.prisma.user.findUnique({ where: { id: userId } });
+    if (!user?.email) throw new NotFoundException('No user/email found for the current account');
+    return this.getOrCreateCustomerForUser(tenantId, {
+      id: user.id,
+      email: user.email,
+      firstName: user.firstName ?? undefined,
+      lastName: user.lastName ?? undefined,
+      phone: user.phone ?? undefined,
+    });
+  }
+
+  /** Staff lookup — find customers by name/email/mobile (e.g. "find this customer's order history"). */
+  async findCustomers(tenantId: string, search?: string) {
+    return this.prisma.customer.findMany({
+      where: {
+        tenantId,
+        ...(search
+          ? {
+              OR: [
+                { name: { contains: search, mode: 'insensitive' as const } },
+                { email: { contains: search, mode: 'insensitive' as const } },
+                { mobile: { contains: search, mode: 'insensitive' as const } },
+              ],
+            }
+          : {}),
+      },
+      orderBy: { createdAt: 'desc' },
+      take: 25,
+    });
+  }
+
   // ---------------------------------------------------------------------
   // Cart
   // ---------------------------------------------------------------------
@@ -431,7 +511,22 @@ export class EcommerceService {
     return `ORD-${ym}-${String(count + 1).padStart(5, '0')}`;
   }
 
-  async checkout(tenantId: string, customerId: string, dto: { shippingAddress?: any; couponCode?: string; paymentMethod?: 'COD' | 'PREPAID' }) {
+  async checkout(
+    tenantId: string,
+    customerId: string,
+    dto: {
+      shippingAddress?: any;
+      couponCode?: string;
+      paymentMethod?: 'COD' | 'PREPAID';
+      providerType?: string;
+      successUrl?: string;
+      failureUrl?: string;
+      cancelUrl?: string;
+      customerEmail?: string;
+      customerPhone?: string;
+      customerName?: string;
+    },
+  ) {
     const cart = await this.getOrCreateCart(tenantId, customerId);
     if (!cart.items.length) throw new BadRequestException('Cart is empty');
 
@@ -535,7 +630,97 @@ export class EcommerceService {
       customerId,
     });
 
-    return order;
+    // Finance: create the Invoice for every order up front (paper trail
+    // regardless of payment timing).
+    const orderWithItems = order as any as {
+      id: string; orderNumber: string; customerId: string | null; subtotal: any;
+      discountTotal: any; taxTotal: any; grandTotal: any; currency: string;
+      paymentMethod: 'COD' | 'PREPAID'; items: any[];
+    };
+    await this.ledger.createInvoiceForOrder(tenantId, { ...orderWithItems, customerId });
+
+    if (order.paymentMethod === 'COD') {
+      // Revenue is recognized at the point of sale even though cash is
+      // collected on delivery — DR Accounts Receivable, not Cash.
+      void this.ledger.postSaleRevenue(tenantId, orderWithItems, { cashCollected: false });
+      return order;
+    }
+
+    // PREPAID: hand off to the payment gateway. GL posting + Invoice
+    // paid-status are deferred to confirmPayment() once the gateway
+    // confirms the payment actually happened.
+    if (!dto.providerType) {
+      // No gateway selected — order stays PENDING until the caller wires
+      // one up client-side (e.g. via the ecommerce checkout UI's provider
+      // picker). Returning the order as-is keeps checkout non-blocking.
+      return order;
+    }
+
+    try {
+      const payment = await this.paymentGateway.initPayment(tenantId, dto.providerType, {
+        orderId: order.id,
+        amount: Number(order.grandTotal),
+        currency: order.currency || 'NPR',
+        description: `Order ${order.orderNumber}`,
+        customerEmail: dto.customerEmail,
+        customerPhone: dto.customerPhone,
+        customerName: dto.customerName,
+        successUrl: dto.successUrl || '',
+        failureUrl: dto.failureUrl || '',
+        cancelUrl: dto.cancelUrl,
+      });
+      return { ...order, payment };
+    } catch (e: any) {
+      // Payment init failing shouldn't lose the order/stock deduction —
+      // surface the error alongside the order so the client can retry
+      // payment separately (order stays PENDING).
+      return { ...order, paymentError: e?.message || 'Payment initialization failed' };
+    }
+  }
+
+  /**
+   * Verifies a PREPAID order's payment with the gateway. On success: marks
+   * the order CONFIRMED, the linked Invoice PAID, and posts the GL revenue
+   * entry (DR Cash/Bank this time, not AR). Idempotent — EcommerceLedgerService
+   * won't double-post if called more than once for the same order (e.g. a
+   * retried webhook).
+   */
+  async confirmPayment(
+    tenantId: string,
+    orderId: string,
+    providerType: string,
+    verify: { providerTxnId: string; amount?: number; rawParams?: Record<string, any> },
+  ) {
+    const order = await this.assertExists(this.prisma.salesOrder, tenantId, orderId, 'Order');
+    const items = await this.prisma.salesOrderItem.findMany({ where: { orderId } });
+
+    const result = await this.paymentGateway.verifyPayment(tenantId, providerType, {
+      providerTxnId: verify.providerTxnId,
+      orderId,
+      amount: verify.amount ?? Number(order.grandTotal),
+      rawParams: verify.rawParams,
+    });
+
+    if (result.status === 'COMPLETED') {
+      const updated = await this.prisma.salesOrder.update({
+        where: { id: orderId },
+        data: { status: order.status === 'PENDING' ? 'CONFIRMED' : order.status },
+      });
+      await this.ledger.markInvoicePaid(tenantId, orderId);
+      void this.ledger.postSaleRevenue(
+        tenantId,
+        { ...updated, items } as any,
+        { cashCollected: true, bank: providerType !== 'CASH' },
+      );
+      void this.webhooks.emit(tenantId, 'order.payment_confirmed', {
+        orderId,
+        orderNumber: order.orderNumber,
+        providerType,
+        providerTxnId: verify.providerTxnId,
+      });
+    }
+
+    return result;
   }
 
   async listOrders(tenantId: string, customerId?: string) {
@@ -549,6 +734,31 @@ export class EcommerceService {
   async getOrder(tenantId: string, id: string) {
     const order = await this.prisma.salesOrder.findFirst({
       where: { id, tenantId },
+      include: { items: { include: { product: true } }, shipments: true },
+    });
+    if (!order) throw new NotFoundException('Order not found');
+    return order;
+  }
+
+  /** Staff lookup — accepts either the SalesOrder.id or its human-facing orderNumber (e.g. "ORD-202607-00012"). */
+  async findOrderByIdOrNumber(tenantId: string, idOrNumber: string) {
+    const order = await this.prisma.salesOrder.findFirst({
+      where: { tenantId, OR: [{ id: idOrNumber }, { orderNumber: idOrNumber }] },
+      include: { items: { include: { product: true } }, shipments: true },
+    });
+    if (!order) throw new NotFoundException('Order not found');
+    return order;
+  }
+
+  /**
+   * Self-scoped order lookup — verifies the order actually belongs to
+   * `customerId` before returning it, so the ecommerce-self AI tools can
+   * never be used to read another customer's order by guessing/enumerating
+   * an id. Used for "my order status" and "track my shipment".
+   */
+  async getOwnOrder(tenantId: string, customerId: string, orderId: string) {
+    const order = await this.prisma.salesOrder.findFirst({
+      where: { id: orderId, tenantId, customerId },
       include: { items: { include: { product: true } }, shipments: true },
     });
     if (!order) throw new NotFoundException('Order not found');
@@ -582,6 +792,13 @@ export class EcommerceService {
     }
     const cancelled = await this.prisma.salesOrder.update({ where: { id }, data: { status: 'CANCELLED' } });
     void this.webhooks.emit(tenantId, 'order.cancelled', { orderId: id, orderNumber: order.orderNumber });
+
+    // Finance: reverse any GL posting and mark the Invoice cancelled.
+    void this.ledger.reverseSaleRevenue(tenantId, id, order.orderNumber);
+    if (order.invoiceId) {
+      void this.prisma.invoice.update({ where: { id: order.invoiceId }, data: { paymentStatus: 'CANCELLED', isActive: false } }).catch(() => undefined);
+    }
+
     return cancelled;
   }
 
@@ -627,6 +844,20 @@ export class EcommerceService {
     }
     void this.webhooks.emit(tenantId, 'shipment.status_changed', { shipmentId: id, orderId: shipment.orderId, status });
     return shipment;
+  }
+
+  /** Used by the controller to decide whether to strip financial figures from the dashboard summary. See PermissionGuard for the same resource:action matching logic. */
+  async hasPermission(userId: string, permission: string): Promise<boolean> {
+    const [requiredResource, requiredAction] = permission.split(':');
+    const userRoles = await this.prisma.userRoles.findMany({ where: { userId }, include: { role: true } });
+    return userRoles.some(({ role }) => {
+      const perms = (role.permissions as string[] | null) || [];
+      return perms.some((perm) => {
+        const [permResource, permAction] = perm.split(':');
+        return (permResource === '*' || permResource === requiredResource)
+          && (permAction === '*' || permAction === requiredAction);
+      });
+    });
   }
 
   // ---------------------------------------------------------------------

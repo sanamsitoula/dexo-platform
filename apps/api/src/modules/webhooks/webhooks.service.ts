@@ -1,4 +1,5 @@
 import { Injectable, Logger, BadRequestException, NotFoundException } from '@nestjs/common';
+import { Cron, CronExpression } from '@nestjs/schedule';
 import { PrismaService } from '@dexo/shared';
 import * as crypto from 'crypto';
 import axios from 'axios';
@@ -11,10 +12,15 @@ import axios from 'axios';
  * type, signing the body with HMAC-SHA256 so the receiver can verify it came
  * from OneDexo, and logs every attempt to WebhookDelivery for observability.
  *
- * v1 scope: synchronous best-effort delivery (5s timeout), one attempt, no
- * retry queue — see docs/ECOMMERCE_MODULE.md "Roadmap" for the planned
- * retry-with-backoff worker.
+ * Retry-with-backoff: a failed delivery is marked RETRYING with a
+ * `nextRetryAt` (1m / 5m / 30m / 2h after attempts 1-4); a @Cron sweep every
+ * minute (retrySweep) picks up anything due and redelivers. After 5 failed
+ * attempts a delivery is marked DEAD and stops retrying (visible in
+ * /deliveries for the tenant to investigate).
  */
+const RETRY_BACKOFF_MINUTES = [1, 5, 30, 120]; // delay before attempt 2, 3, 4, 5
+const MAX_ATTEMPTS = 5;
+
 @Injectable()
 export class WebhooksService {
   private readonly logger = new Logger(WebhooksService.name);
@@ -42,12 +48,17 @@ export class WebhooksService {
   }
 
   private async deliver(endpoint: any, eventType: string, payload: Record<string, any>) {
+    const delivery = await this.prisma.webhookDelivery.create({
+      data: { endpointId: endpoint.id, eventType, payload, status: 'PENDING', attempts: 0 },
+    });
+    await this.attempt(delivery.id, endpoint, eventType, payload, 0);
+  }
+
+  /** Performs one delivery attempt and schedules the next retry on failure. `priorAttempts` is the count before this attempt. */
+  private async attempt(deliveryId: string, endpoint: any, eventType: string, payload: Record<string, any>, priorAttempts: number) {
     const body = JSON.stringify({ event: eventType, data: payload, sentAt: new Date().toISOString() });
     const signature = this.sign(endpoint.secret, body);
-
-    const delivery = await this.prisma.webhookDelivery.create({
-      data: { endpointId: endpoint.id, eventType, payload, status: 'PENDING', attempts: 1 },
-    });
+    const attemptNo = priorAttempts + 1;
 
     try {
       const res = await axios.post(endpoint.url, body, {
@@ -56,22 +67,59 @@ export class WebhooksService {
         validateStatus: () => true,
       });
       const success = res.status >= 200 && res.status < 300;
-      await this.prisma.webhookDelivery.update({
-        where: { id: delivery.id },
-        data: {
-          status: success ? 'SUCCESS' : 'FAILED',
-          responseStatus: res.status,
-          deliveredAt: success ? new Date() : null,
-          lastError: success ? null : `HTTP ${res.status}`,
-        },
-      });
+      if (success) {
+        await this.prisma.webhookDelivery.update({
+          where: { id: deliveryId },
+          data: { status: 'SUCCESS', responseStatus: res.status, deliveredAt: new Date(), attempts: attemptNo, lastError: null, nextRetryAt: null },
+        });
+        return;
+      }
+      await this.scheduleRetryOrGiveUp(deliveryId, attemptNo, `HTTP ${res.status}`, res.status);
     } catch (e) {
-      await this.prisma.webhookDelivery.update({
-        where: { id: delivery.id },
-        data: { status: 'FAILED', lastError: (e as Error).message },
-      });
-      this.logger.warn(`Webhook delivery failed for ${endpoint.url} (${eventType}): ${(e as Error).message}`);
+      await this.scheduleRetryOrGiveUp(deliveryId, attemptNo, (e as Error).message);
+      this.logger.warn(`Webhook delivery failed for ${endpoint.url} (${eventType}), attempt ${attemptNo}: ${(e as Error).message}`);
     }
+  }
+
+  private async scheduleRetryOrGiveUp(deliveryId: string, attemptNo: number, lastError: string, responseStatus?: number) {
+    if (attemptNo >= MAX_ATTEMPTS) {
+      await this.prisma.webhookDelivery.update({
+        where: { id: deliveryId },
+        data: { status: 'DEAD', attempts: attemptNo, lastError, responseStatus, nextRetryAt: null },
+      });
+      return;
+    }
+    const delayMinutes = RETRY_BACKOFF_MINUTES[attemptNo - 1] ?? RETRY_BACKOFF_MINUTES[RETRY_BACKOFF_MINUTES.length - 1];
+    await this.prisma.webhookDelivery.update({
+      where: { id: deliveryId },
+      data: {
+        status: 'RETRYING',
+        attempts: attemptNo,
+        lastError,
+        responseStatus,
+        nextRetryAt: new Date(Date.now() + delayMinutes * 60_000),
+      },
+    });
+  }
+
+  /** Runs every minute; redelivers anything due for retry. Best-effort — a failure here just leaves the row for the next sweep. */
+  @Cron(CronExpression.EVERY_MINUTE)
+  async retrySweep() {
+    const due = await this.prisma.webhookDelivery.findMany({
+      where: { status: 'RETRYING', nextRetryAt: { lte: new Date() } },
+      include: { endpoint: true },
+      take: 100,
+    });
+    if (!due.length) return;
+
+    await Promise.all(
+      due.map((d) => {
+        if (!d.endpoint.isActive) {
+          return this.prisma.webhookDelivery.update({ where: { id: d.id }, data: { status: 'DEAD', lastError: 'Endpoint deactivated', nextRetryAt: null } });
+        }
+        return this.attempt(d.id, d.endpoint, d.eventType, d.payload as Record<string, any>, d.attempts);
+      }),
+    );
   }
 
   // ---------------------------------------------------------------------

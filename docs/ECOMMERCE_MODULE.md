@@ -51,8 +51,8 @@ Authenticated (`/api/ecommerce`, `@RequireModule('ecommerce')`):
 `categories`, `brands`, `products`, `products/:id/variants`, `attributes`,
 `attributes/:id/values`, `warehouses`, `stock`, `stock/adjust`, `stock/low`,
 `cart`, `cart/items`, `checkout`, `orders`, `orders/:id/status`,
-`orders/:id/cancel`, `orders/:id/shipment`, `shipments/:id/status`,
-`dashboard/summary`.
+`orders/:id/cancel`, `orders/:id/confirm-payment`, `orders/:id/shipment`,
+`shipments/:id/status`, `dashboard/summary`.
 
 Public storefront (`/api/ecommerce/public/:subdomain/...`, no auth):
 `categories`, `products`, `products/:slug`.
@@ -63,12 +63,16 @@ Beyond the universal `admin`/`staff`/`customer`: `ecommerce_manager`,
 `sales_manager`, `inventory_manager`, `finance_manager`, `customer_support`,
 `seo_content_manager`, `picker_packer`.
 
-**Known limitation**: permissions are resource-level (`ecommerce:view` /
-`:create` / `:edit` / `:delete`), not action-subtype-level. `picker_packer`
-today gets `ecommerce:view`, which technically exposes cost price and
-customer data alongside pick lists — a true separation needs a finer
-permission grammar (`ecommerce:pick`, `ecommerce:view_financials`, ...). See
-`docs/RBAC_ARCHITECTURE.md`.
+**Done**: finer-grained action permissions `ecommerce:pick` (gates
+`stock/adjust`, `orders/:id/shipment`, `shipments/:id/status` via
+`@RequirePermission`/`PermissionGuard`, see `packages/shared/src/guards/permission.guard.ts`)
+and `ecommerce:view_financials` (gates `totalRevenue` on
+`dashboard/summary` — stripped server-side in the controller when the
+caller lacks it) now exist and are seeded onto the `finance_manager`
+(`view_financials`) and `picker_packer` (`pick`) roles in
+`ProvisioningService`. Still resource-level for everything else
+(`ecommerce:view`/`:create`/`:edit`/`:delete`); a full permission-grammar
+overhaul remains future work. See `docs/RBAC_ARCHITECTURE.md`.
 
 **Not built** (real Purchase module doesn't exist yet, so these roles from
 the original enterprise spec are deferred): Purchase Manager, a standalone
@@ -95,10 +99,18 @@ strings, not a closed enum.
 - Tenant manages endpoints at `/api/webhooks` (list/create/update/delete,
   `/deliveries` for audit history, `/:id/test` to send a synthetic ping).
 - Delivery: HMAC-SHA256 signs the JSON body (`X-Dexo-Signature` header),
-  5s timeout, one attempt, every attempt logged to `WebhookDelivery`.
-- **Roadmap**: retry-with-backoff worker (currently best-effort, no retry
-  queue), a UI in tenant-admin's Settings → Integrations page (API exists,
-  UI doesn't yet).
+  5s timeout, every attempt logged to `WebhookDelivery`.
+- **Done**: retry-with-backoff — a failed delivery is marked `RETRYING`
+  with `nextRetryAt` (1m / 5m / 30m / 2h after attempts 1-4), and a
+  `@Cron(EVERY_MINUTE)` sweep (`WebhooksService.retrySweep`, reusing the
+  existing `@nestjs/schedule` `ScheduleModule` already registered in
+  `app.module.ts` — no new queue library) redelivers anything due. After 5
+  attempts a delivery is marked `DEAD` and stops retrying (visible via
+  `/deliveries`). Schema: added `RETRYING`/`DEAD` to `WebhookDeliveryStatus`
+  and a nullable `WebhookDelivery.nextRetryAt DateTime?` column (migration
+  needed, see below).
+- **Roadmap**: a UI in tenant-admin's Settings → Integrations page (API
+  exists, UI doesn't yet).
 
 ## SEO
 
@@ -125,11 +137,23 @@ generate a PO into).
 ## Payments
 
 `SalesOrder.paymentMethod` (`COD` | `PREPAID`) exists; checkout accepts it.
+
+**Done**: `PaymentGatewayService` (`initPayment`/`verifyPayment`) is now
+wired into ecommerce checkout — a `PREPAID` order with a `providerType`
+calls `initPayment` and returns the redirect/session payload alongside the
+order (checkout still succeeds and the order is created even if gateway
+init fails — the client can retry payment separately). A new
+`POST /orders/:id/confirm-payment` endpoint calls `verifyPayment`; on a
+`COMPLETED` result it marks the order confirmed, the linked `Invoice` paid,
+and triggers ledger posting (DR Cash/Bank instead of AR). COD orders skip
+the gateway entirely and post revenue immediately (DR Accounts
+Receivable).
+
 **Not built**: an actual COD reconciliation workflow (marking COD collected
 on delivery), multi-currency with live exchange-rate conversion (currency is
-stored per-order but not auto-converted), a real payment gateway integration
-for ecommerce checkout (eSewa/Khalti/Stripe exist elsewhere on the platform
-but aren't wired into this checkout flow yet).
+stored per-order but not auto-converted), gateway webhook/IPN handling
+(only the explicit client-initiated `confirm-payment` callback exists —
+no server-to-server webhook receiver per provider).
 
 ## Explicitly out of scope for v1 (roadmap, not started)
 
@@ -149,8 +173,46 @@ shipped as shallow stubs:
   (`scripts/nginx-tenant-sync.ts`), but nothing triggers it automatically on
   tenant activation yet.
 - **Exception workflows**: out-of-stock-during-picking substitution/refund
-  flow, fraud/manual-review hold, return→GL-reversal flow.
-- **Finance integration**: SalesOrder doesn't create an Invoice/JournalEntry
-  yet (see the note at the top of `ecommerce.service.ts`) — mirror the
-  `FitnessFinanceService` deferred-revenue pattern when this is built.
+  flow, fraud/manual-review hold. (Cancel→GL-reversal is now built — see
+  Finance integration below.)
+- **Finance integration — done**: `EcommerceLedgerService`
+  (`apps/api/src/modules/ecommerce/ecommerce-ledger.service.ts`) creates an
+  `Invoice` (linked via `SalesOrder.invoiceId`, unique 1:1 FK — already
+  existed on the schema, no migration needed for that relation) at
+  checkout, and posts a journal entry through the canonical
+  `apps/api/src/modules/finance/journal.service.ts` /
+  `accounts.service.ts` stack: DR Cash/Bank (PREPAID, once payment is
+  verified) or DR Accounts Receivable (COD, posted immediately) · CR Sales
+  Revenue · CR Output VAT, plus a COGS leg (DR COGS · CR Inventory) when
+  every sold item has a positive `Product.costPrice` on record (skipped
+  entirely, not partially posted, if cost data is incomplete for any line).
+  Mirrors `GymLedgerService`'s pattern: idempotent on
+  `(referenceType, referenceId)` via `alreadyPosted`, `resolveAccounts`
+  account-code lookups, `$transaction`-wrapped posting, and — critically —
+  never throws into the checkout path (accounting failures are logged and
+  skipped, not surfaced as checkout errors). `cancelOrder` posts a mirrored
+  reversing entry (debit/credit swapped) with the same idempotency guard
+  (`ECOMMERCE_SALE_REVERSAL` reference type) so a retried cancel never
+  double-reverses, and marks the Invoice `CANCELLED`.
+  **Not built**: a partial-refund (vs. full cancel) reversal path, and a
+  return→restock workflow beyond the existing `SALE_RETURN` stock ledger
+  reason.
 - **Multi-vendor marketplace** (Vendor/Supplier external role implies this).
+
+## Migrations needed (schema changed, not yet migrated — do not run
+`prisma migrate` blindly; review then run in each environment)
+
+Two schema changes in this pass, not yet applied to any database:
+1. `WebhookDeliveryStatus` enum: added `RETRYING`, `DEAD`.
+2. `WebhookDelivery.nextRetryAt DateTime?` (nullable, new index
+   `@@index([nextRetryAt])`).
+
+No SalesOrder/Invoice schema change was needed — `SalesOrder.invoiceId`
+already existed. Run:
+
+```
+npx prisma migrate dev --name webhook_retry_backoff
+```
+
+(or the environment's equivalent `migrate deploy` flow) before deploying
+this branch.

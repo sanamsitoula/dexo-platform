@@ -1,6 +1,6 @@
 import { Controller, Get, Post, Put, Delete, Body, Param, Query, UseGuards, Req } from '@nestjs/common';
 import { JwtAuthGuard } from '@dexo/auth';
-import { RequireModule } from '@dexo/shared';
+import { RequireModule, RequirePermission } from '@dexo/shared';
 import { EcommerceService } from './ecommerce.service';
 
 /**
@@ -105,6 +105,7 @@ export class EcommerceController {
   }
 
   @Post('stock/adjust')
+  @RequirePermission('ecommerce:pick')
   adjustStock(@Req() req: any, @Body() dto: any) {
     return this.ecommerce.adjustStock(req.user.tenantId, { ...dto, reason: dto.reason || 'ADJUSTMENT' });
   }
@@ -193,20 +194,48 @@ export class EcommerceController {
     return this.ecommerce.cancelOrder(req.user.tenantId, id);
   }
 
+  /**
+   * Confirms a PREPAID order's payment against the gateway (esewa/khalti/
+   * connectips/fonepay/stripe/paypal — whatever PaymentGatewayService has
+   * configured for this tenant). Called by the storefront's payment
+   * return page after the customer completes the gateway redirect flow.
+   * On success this marks the order + invoice paid and posts the GL entry.
+   */
+  @Post('orders/:id/confirm-payment')
+  confirmPayment(
+    @Req() req: any,
+    @Param('id') id: string,
+    @Body() dto: { providerType: string; providerTxnId: string; amount?: number; rawParams?: Record<string, any> },
+  ) {
+    return this.ecommerce.confirmPayment(req.user.tenantId, id, dto.providerType, dto);
+  }
+
   // ---- Shipments ----
   @Post('orders/:id/shipment')
+  @RequirePermission('ecommerce:pick')
   createShipment(@Req() req: any, @Param('id') id: string, @Body() dto: any) {
     return this.ecommerce.createShipment(req.user.tenantId, id, dto);
   }
 
   @Put('shipments/:id/status')
+  @RequirePermission('ecommerce:pick')
   updateShipmentStatus(@Req() req: any, @Param('id') id: string, @Body() dto: { status: string }) {
     return this.ecommerce.updateShipmentStatus(req.user.tenantId, id, dto.status);
   }
 
   // ---- Dashboard ----
+  // Financial figures (totalRevenue) are gated behind ecommerce:view_financials
+  // so picker_packer / customer_support roles (which only have ecommerce:view)
+  // can't see revenue through the dashboard summary — see
+  // EcommerceService.getDashboardSummary, which strips totalRevenue when the
+  // caller lacks the permission.
   @Get('dashboard/summary')
-  getDashboardSummary(@Req() req: any) {
-    return this.ecommerce.getDashboardSummary(req.user.tenantId);
+  async getDashboardSummary(@Req() req: any) {
+    const summary = await this.ecommerce.getDashboardSummary(req.user.tenantId);
+    if (req.user.isPlatformAdmin || !req.user.tenantId) return summary;
+    const hasFinancials = await this.ecommerce.hasPermission(req.user.id, 'ecommerce:view_financials');
+    if (hasFinancials) return summary;
+    const { totalRevenue, ...rest } = summary;
+    return rest;
   }
 }
