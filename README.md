@@ -547,6 +547,43 @@ docker stop dexo-postgres dexo-redis dexo-minio dexo-mailhog
 
 ---
 
+## 🧯 Troubleshooting a clean build
+
+If `npm run build` (or `scripts/deploy.sh`) fails with `Cannot find module '@dexo/...'`
+on a **fresh** `npm ci` (no leftover `node_modules`/`dist`), the cause is almost
+always a missing internal workspace dependency: every `packages/*` (and `apps/*`)
+directory that `import`s from another `@dexo/*` package **must** list that package
+in its own `package.json` `dependencies` (e.g. `"@dexo/shared": "*"`), even though
+the code compiles fine locally. Turbo's build order (`turbo.json`'s
+`dependsOn: ["^build"]`) is derived entirely from `package.json`, not from source
+imports — a missing entry means Turbo has no edge telling it to build that
+dependency first, so on a clean install it can build in the wrong order and fail
+to resolve types. Locally this is usually masked by stale `dist/`/`.tsbuildinfo`
+files or Turbo's cache from a previous correct build.
+
+Fix: add the missing `"@dexo/<pkg>": "*"` entry to the failing package's
+`dependencies`. To check the whole repo at once:
+```bash
+for pkg in packages/*/ apps/*/; do
+  name=$(node -pe "require('./${pkg}package.json').name" 2>/dev/null)
+  [ -z "$name" ] && continue
+  for dep in $(grep -rhoE "from ['\"]@dexo/[a-zA-Z0-9_-]+" "${pkg}src" 2>/dev/null | sed -E "s/from ['\"]//" | sort -u); do
+    [ "$dep" != "$name" ] && ! grep -q "\"$dep\"" "${pkg}package.json" 2>/dev/null && echo "MISSING: $name -> $dep"
+  done
+done
+```
+If the build still fails after all dependencies are declared correctly, clear
+stale build state before re-running (safe — only removes generated compiler
+output, never source, `.env`, or the database):
+```bash
+rm -rf .turbo
+find packages apps -maxdepth 2 -name dist -type d -exec rm -rf {} +
+find packages apps -maxdepth 2 -name "*.tsbuildinfo" -delete
+find apps -maxdepth 2 -name ".next" -type d -exec rm -rf {} +
+```
+
+---
+
 ## 🙏 Credits & Third-Party Software
 
 OneDexo builds on and integrates with the following open-source projects:
@@ -566,4 +603,4 @@ Proprietary and Confidential © Dexo Platform Team.
 
 ---
 
-**Version:** v5.0 · **Status:** Core platform complete · **Last updated:** 2026-07-11
+**Version:** v5.0 · **Status:** Core platform complete · **Last updated:** 2026-07-12
