@@ -125,11 +125,14 @@ The v5 pipeline is idempotent, so you can also just re-run
 - These credentials are created by `scripts/seed/00-platform.ts` and the
   `03-tenants/*.ts` seeders. Changing a password in the DB will be overwritten
   on the next seed run.
-- The legacy root-level seed scripts (`seed-demo-users.ts`,
-  `seed-fitness-center-runner.ts`, `seed-branches-and-oauth.ts`,
-  `seed-platform-admin.ts`) still exist for backward compatibility. The v5
-  pipeline (`scripts/seed/index.ts`) is the canonical one — prefer
-  `npm run db:seed:v5`.
+- `scripts/seed/index.ts` (`npm run db:seed` / `npm run db:seed:v5` — both run
+  the same pipeline) is the **only** seed entrypoint in this repo. The old
+  `prisma/seed.ts`, `prisma/seeds/`, and root-level `seed-*.ts` scripts have
+  been removed — they defined conflicting duplicate data (three different
+  plan taxonomies, three different "fitness" tenant subdomains) and one was
+  destructive (`deleteMany()` on core tables, never gated behind a flag).
+  See `README.md`'s "Troubleshooting a clean build" section and
+  `scripts/seed/index.ts`'s header comment for the current step order.
 - Never commit real secrets. `.env` and `.env.*` (except `.env.example`) are
   gitignored.
 

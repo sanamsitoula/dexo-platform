@@ -1,35 +1,23 @@
 /**
- * Demo/dummy ecommerce product seeder.
+ * Dexo v5 - 09: Demo ecommerce products (opt-in per tenant)
  *
  * OPT-IN ONLY. This is intentionally separate from
  * ProvisioningService.seedEcommerceDefaults(), which deliberately does NOT
  * create demo products for real tenants (see that method's comment). This
- * script exists purely to populate a demo/sandbox tenant's storefront with
+ * seeder exists purely to populate a demo/sandbox tenant's storefront with
  * ~50 browsable products so a customer demo has real data to click through.
  *
- * Usage:
- *   ts-node --transpile-only prisma/seeds/seed-ecommerce-demo-products.ts --tenant=<subdomain>
- *   TENANT_SUBDOMAIN=<subdomain> ts-node --transpile-only prisma/seeds/seed-ecommerce-demo-products.ts
+ * Called by index.ts's main pipeline for the two seeded demo tenants
+ * (vrfitness, spicegarden). Also runnable standalone for any other tenant:
+ *   ts-node --transpile-only scripts/seed/09-ecommerce-demo.ts --tenant=<subdomain>
+ *   TENANT_SUBDOMAIN=<subdomain> ts-node --transpile-only scripts/seed/09-ecommerce-demo.ts
  *
- * `<subdomain>` may also be a tenant id (uuid) — the script falls back to an
- * id lookup if no tenant matches the subdomain.
+ * `<subdomain>` may also be a tenant id (uuid) — falls back to an id lookup
+ * if no tenant matches the subdomain.
  */
 import { PrismaClient, Prisma } from '@prisma/client';
 
 const prisma = new PrismaClient();
-
-function getTenantIdentifier(): string {
-  const argFlag = process.argv.find((a) => a.startsWith('--tenant='));
-  const fromArg = argFlag ? argFlag.split('=')[1] : undefined;
-  const identifier = fromArg || process.env.TENANT_SUBDOMAIN || process.env.TENANT_ID;
-  if (!identifier) {
-    console.error(
-      'Missing tenant identifier. Pass --tenant=<subdomain> or set TENANT_SUBDOMAIN / TENANT_ID env var.',
-    );
-    process.exit(1);
-  }
-  return identifier;
-}
 
 function slugify(value: string): string {
   return value
@@ -130,24 +118,16 @@ const PRODUCT_TEMPLATES: Array<{ name: string; category: string; min: number; ma
   { name: 'Mystery of the Silent Harbor (Novel)', category: 'books', min: 9.99, max: 19.99 },
 ];
 
-async function main() {
-  const identifier = getTenantIdentifier();
-  console.log(`Looking up tenant by subdomain "${identifier}"...`);
+export async function seed09EcommerceDemo(tenantIdentifier: string) {
+  console.log(`  → 09-ecommerce-demo (${tenantIdentifier})`);
 
-  let tenant = await prisma.tenant.findUnique({ where: { subdomain: identifier } });
+  let tenant = await prisma.tenant.findUnique({ where: { subdomain: tenantIdentifier } });
   if (!tenant) {
-    tenant = await prisma.tenant.findUnique({ where: { id: identifier } }).catch(() => null);
+    tenant = await prisma.tenant.findUnique({ where: { id: tenantIdentifier } }).catch(() => null);
   }
-
   if (!tenant) {
-    console.error(`No tenant found for identifier "${identifier}". Aborting.`);
-    process.exit(1);
+    throw new Error(`No tenant found for identifier "${tenantIdentifier}".`);
   }
-
-  console.log(`Found tenant: ${tenant.name} (${tenant.id})`);
-  const settings = (tenant.settings ?? {}) as Record<string, any>;
-  console.log('Tenant settings.branding:', JSON.stringify(settings.branding ?? {}, null, 2));
-  console.log('Tenant settings.domainType:', settings.domainType ?? '(not set)');
 
   // 1. Ensure default warehouse exists (find-or-create, mirrors seedEcommerceDefaults' 'MAIN' code)
   let warehouse = await prisma.warehouse.findFirst({
@@ -157,15 +137,10 @@ async function main() {
     warehouse = await prisma.warehouse.create({
       data: { tenantId: tenant.id, name: 'Main Warehouse', code: 'MAIN', isDefault: true },
     });
-    console.log(`Created default warehouse "MAIN" (${warehouse.id})`);
-  } else {
-    console.log(`Using existing warehouse "MAIN" (${warehouse.id})`);
   }
 
   // 2. Upsert categories
   const categoryBySlug = new Map<string, { id: string }>();
-  let categoriesCreated = 0;
-  let categoriesUpdated = 0;
   for (const cat of CATEGORIES) {
     const existing = await prisma.productCategory.findUnique({
       where: { tenantId_slug: { tenantId: tenant.id, slug: cat.slug } },
@@ -176,37 +151,29 @@ async function main() {
         data: { name: cat.name },
       });
       categoryBySlug.set(cat.slug, updated);
-      categoriesUpdated++;
     } else {
       const created = await prisma.productCategory.create({
         data: { tenantId: tenant.id, name: cat.name, slug: cat.slug },
       });
       categoryBySlug.set(cat.slug, created);
-      categoriesCreated++;
     }
   }
-  console.log(`Categories: ${categoriesCreated} created, ${categoriesUpdated} updated`);
 
   // 3. Upsert brands (no unique constraint on name, so find-first-by-name-then-create)
   const brands: { id: string; name: string }[] = [];
-  let brandsCreated = 0;
-  let brandsUpdated = 0;
   for (const brandName of BRAND_NAMES) {
     const existing = await prisma.brand.findFirst({
       where: { tenantId: tenant.id, name: brandName },
     });
     if (existing) {
       brands.push(existing);
-      brandsUpdated++;
     } else {
       const created = await prisma.brand.create({
         data: { tenantId: tenant.id, name: brandName },
       });
       brands.push(created);
-      brandsCreated++;
     }
   }
-  console.log(`Brands: ${brandsCreated} created, ${brandsUpdated} updated`);
 
   // 4. Build 50 product definitions (cycle templates + a variant suffix so we hit exactly 50)
   const TOTAL_PRODUCTS = 50;
@@ -227,8 +194,6 @@ async function main() {
 
   let productsCreated = 0;
   let productsUpdated = 0;
-  let stockCreated = 0;
-  let stockUpdated = 0;
 
   for (const def of productDefs) {
     const skuNum = String(def.index + 1).padStart(4, '0');
@@ -293,7 +258,6 @@ async function main() {
         where: { id: existingStock.id },
         data: { quantityOnHand },
       });
-      stockUpdated++;
     } else {
       await prisma.stockItem.create({
         data: {
@@ -304,24 +268,31 @@ async function main() {
           quantityReserved: 0,
         },
       });
-      stockCreated++;
     }
   }
 
-  console.log('--- Demo ecommerce product seed summary ---');
-  console.log(`Tenant: ${tenant.name} (${tenant.id})`);
-  console.log(`Categories: ${categoriesCreated} created, ${categoriesUpdated} updated`);
-  console.log(`Brands: ${brandsCreated} created, ${brandsUpdated} updated`);
-  console.log(`Products: ${productsCreated} created, ${productsUpdated} updated (total ${productDefs.length})`);
-  console.log(`Stock items: ${stockCreated} created, ${stockUpdated} updated`);
-  console.log('Done.');
+  console.log(`    ${productsCreated} products created, ${productsUpdated} updated (${tenant.name})`);
 }
 
-main()
-  .catch((e) => {
-    console.error('Error seeding demo ecommerce products:', e);
+function getCliTenantIdentifier(): string {
+  const argFlag = process.argv.find((a) => a.startsWith('--tenant='));
+  const fromArg = argFlag ? argFlag.split('=')[1] : undefined;
+  const identifier = fromArg || process.env.TENANT_SUBDOMAIN || process.env.TENANT_ID;
+  if (!identifier) {
+    console.error(
+      'Missing tenant identifier. Pass --tenant=<subdomain> or set TENANT_SUBDOMAIN / TENANT_ID env var.',
+    );
     process.exit(1);
-  })
-  .finally(async () => {
-    await prisma.$disconnect();
-  });
+  }
+  return identifier;
+}
+
+if (require.main === module) {
+  seed09EcommerceDemo(getCliTenantIdentifier())
+    .then(() => process.exit(0))
+    .catch((e) => {
+      console.error('Error seeding demo ecommerce products:', e);
+      process.exit(1);
+    })
+    .finally(() => prisma.$disconnect());
+}

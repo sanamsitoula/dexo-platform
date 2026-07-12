@@ -1,5 +1,12 @@
 # 🚀 How to Run Dexo Platform - Complete Guide
 
+> ⚠️ **Superseded.** This is the pre-v5 guide; several commands below
+> (`prisma/seed.ts`, `seed-fitness-center-runner.ts`, `seed-branches-and-oauth.ts`,
+> `scripts/seed-domains-complete.js`) reference seed scripts that no longer
+> exist — they were retired in favor of the single `scripts/seed/index.ts`
+> pipeline (`npm run db:seed:v5`). Use **[RUN_GUIDE_v5.md](./RUN_GUIDE_v5.md)**
+> instead; this file is kept for historical reference only.
+
 ## 📋 Table of Contents
 1. [Prerequisites](#prerequisites)
 2. [Quick Start (One Command)](#quick-start)

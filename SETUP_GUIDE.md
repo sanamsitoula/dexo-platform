@@ -1,5 +1,11 @@
 # Dexo Platform — Setup and Run Guide
 
+> ⚠️ **Superseded.** This is a pre-v5 guide; its `prisma/seed.ts` references
+> a script that no longer exists — it was retired in favor of the single
+> `scripts/seed/index.ts` pipeline (`npm run db:seed` / `npm run db:seed:v5`).
+> Use **[RUN_GUIDE_v5.md](./RUN_GUIDE_v5.md)** instead; this file is kept for
+> historical reference only.
+
 ## What Has Been Implemented
 
 ### Core Architecture

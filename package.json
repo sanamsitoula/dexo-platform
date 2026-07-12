@@ -26,20 +26,19 @@
     "db:generate": "prisma generate",
     "db:push": "prisma db push",
     "db:migrate": "prisma migrate dev",
-    "db:seed": "ts-node prisma/seed.ts",
+    "db:seed": "ts-node --transpile-only scripts/seed/index.ts",
     "db:seed:v5": "ts-node --transpile-only scripts/seed/index.ts",
-    "db:seed:demo": "ts-node --transpile-only seed-demo-users.ts",
     "db:seed:clean": "ts-node --transpile-only scripts/seed/clean.ts",
     "db:seed:fresh": "npm run db:seed:clean && npm run db:seed",
     "db:seed:fitness": "ts-node --transpile-only scripts/seed/03-tenants/fitness-center.ts",
     "db:seed:fitness-full": "ts-node --transpile-only scripts/seed/06-fitness-full-demo.ts",
     "db:verify:fitness": "node scripts/verify-fitness-seed.js",
     "db:seed:restaurant": "ts-node --transpile-only scripts/seed/03-tenants/restaurant.ts",
-    "db:seed:ecommerce-demo": "ts-node --transpile-only prisma/seeds/seed-ecommerce-demo-products.ts",
+    "db:seed:ecommerce-demo": "ts-node --transpile-only scripts/seed/09-ecommerce-demo.ts",
     "db:migrate:fresh": "npx prisma migrate reset --force && npm run db:seed",
     "db:studio": "prisma studio",
     "db:reset": "prisma migrate reset",
-    "setup": "npm install && npm run db:generate && npm run db:push && npm run db:seed && npm run db:seed:demo",
+    "setup": "npm install && npm run db:generate && npm run db:push && npm run db:seed",
     "docker:up": "docker-compose up -d",
     "docker:down": "docker-compose down",
     "docker:logs": "docker-compose logs -f",
@@ -84,7 +83,7 @@
     "npm": ">=9.0.0"
   },
   "prisma": {
-    "seed": "ts-node --transpile-only prisma/seed.ts"
+    "seed": "ts-node --transpile-only scripts/seed/index.ts"
   },
   "dependencies": {
     "@nestjs/axios": "^4.0.1",
