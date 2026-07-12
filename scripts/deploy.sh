@@ -26,6 +26,9 @@ npx prisma generate
 echo "==> Applying database migrations..."
 npx prisma migrate deploy
 
+echo "==> Clearing Turbo build cache (avoids stale artifacts from before source changes)..."
+rm -rf .turbo node_modules/.cache/turbo packages/*/.turbo apps/*/.turbo
+
 echo "==> Building all workspaces..."
 NEXT_TELEMETRY_DISABLED=1 npm run build
 
