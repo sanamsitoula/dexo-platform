@@ -1,6 +1,7 @@
-import { Injectable } from '@nestjs/common';
+import { Injectable, Logger } from '@nestjs/common';
 import { PrismaService } from '@dexo/shared';
 import { SlugService } from './slug.service';
+import { ChatwootService } from '../chatwoot/chatwoot.service';
 
 export interface CreateTenantInput {
   slug: string;
@@ -29,9 +30,12 @@ export interface ProvisionResult {
 
 @Injectable()
 export class ProvisioningService {
+  private readonly logger = new Logger(ProvisioningService.name);
+
   constructor(
     private readonly prisma: PrismaService,
     private readonly slugService: SlugService,
+    private readonly chatwoot: ChatwootService,
   ) {}
 
   async provisionTenant(input: CreateTenantInput): Promise<ProvisionResult> {
@@ -82,6 +86,18 @@ export class ProvisioningService {
     await this.prisma.tenantLifecycle.update({
       where: { tenantId: tenant.id },
       data: { status: 'ACTIVE', provisionedAt: new Date(), sslStatus: 'ACTIVE' },
+    });
+
+    // Chatwoot Tier-1 inbox (customer <-> tenant) + Tier-2 contact (tenant
+    // owner <-> platform) — best-effort: Chatwoot being unconfigured or
+    // unreachable must never fail tenant provisioning. Platform admin can
+    // re-provision from tenant-admin's Chat settings later.
+    this.chatwoot.provisionTenantInbox(tenant.id).catch((err) => {
+      this.logger.warn(`Chatwoot inbox provisioning skipped for ${input.slug}: ${err?.message}`);
+    });
+    const ownerName = [input.ownerFirstName, input.ownerLastName].filter(Boolean).join(' ') || input.name;
+    this.chatwoot.registerTenantOwnerAsContact(tenant.id, ownerName, input.ownerEmail).catch((err) => {
+      this.logger.warn(`Chatwoot owner-contact registration skipped for ${input.slug}: ${err?.message}`);
     });
 
     const platformDomain = process.env.PLATFORM_DOMAIN || 'onedexo.com';

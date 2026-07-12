@@ -3,6 +3,7 @@ import { headers } from 'next/headers';
 import UserMenu from '@/components/UserMenu';
 import ModuleNav from '@/components/ModuleNav';
 import AiAssistant from '@/components/AiAssistant';
+import ChatwootPlatformWidget from '@/components/ChatwootPlatformWidget';
 
 const PLATFORM_DOMAIN = process.env.NEXT_PUBLIC_PLATFORM_DOMAIN || 'onedexo.com';
 
@@ -79,6 +80,7 @@ export default function AdminLayout({ children }: { children: ReactNode }) {
         <div className="p-6">{children}</div>
       </main>
       <AiAssistant />
+      <ChatwootPlatformWidget />
     </div>
   );
 }

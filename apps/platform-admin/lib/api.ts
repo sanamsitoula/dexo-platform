@@ -786,3 +786,18 @@ export const platformEmailApi = {
   test: (to: string) => fetchApi<{ success: boolean; error?: string }>('/platform-email/test', { method: 'POST', body: JSON.stringify({ to }) }),
   logs: (limit = 50) => fetchApi<any[]>(`/platform-email/logs?limit=${limit}`),
 }
+
+// Chatwoot (github.com/chatwoot/chatwoot) — self-hosted messaging connection.
+// Tier 1 (customer<->tenant) inboxes are auto-provisioned per tenant; this
+// page manages the connection itself + the single Tier 2 (tenant<->platform) inbox.
+export const chatwootApi = {
+  get: () => fetchApi<any>('/chatwoot/config'),
+  save: (data: {
+    baseUrl?: string;
+    apiAccessToken?: string;
+    platformAccountId?: number;
+    isEnabled?: boolean;
+  }) => fetchApi<any>('/chatwoot/config', { method: 'PUT', body: JSON.stringify(data) }),
+  test: () => fetchApi<{ success: boolean; error?: string }>('/chatwoot/test', { method: 'POST' }),
+  provisionPlatformInbox: () => fetchApi<any>('/chatwoot/provision-platform-inbox', { method: 'POST' }),
+}

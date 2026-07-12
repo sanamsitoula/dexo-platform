@@ -523,6 +523,7 @@ Both guides are also published on the platform site at **http://localhost:3001/d
 | [docs/CUSTOM_DOMAINS.md](./docs/CUSTOM_DOMAINS.md) | Custom domain DNS setup (Namecheap/Hostinger/Mercantile/own VM) + nginx automation |
 | [docs/azurevm.md](./docs/azurevm.md) | Azure VM production deployment runbook (DNS, nginx install, SSL, verification/troubleshooting) |
 | [docs/EMAIL_SYSTEM.md](./docs/EMAIL_SYSTEM.md) | Global email hierarchy (Tenant → Global → System Default), provider-agnostic, super-admin configurable, no redeploy |
+| [docs/CHATWOOT_INTEGRATION.md](./docs/CHATWOOT_INTEGRATION.md) | Self-hosted Chatwoot messaging — two-tier inboxes (customer↔tenant, tenant↔platform), provisioning, widgets |
 | [REMAINING_WORK.md](./REMAINING_WORK.md) | Session-by-session audit of what's done vs open across the whole platform |
 | [todo.md](./todo.md) | Longer-horizon feature backlog (incl. planned Asset Management module) |
 
@@ -542,6 +543,19 @@ stop.bat
 # To also stop the Docker infra services:
 docker stop dexo-postgres dexo-redis dexo-minio dexo-mailhog
 ```
+
+---
+
+## 🙏 Credits & Third-Party Software
+
+OneDexo builds on and integrates with the following open-source projects:
+
+- **[Chatwoot](https://github.com/chatwoot/chatwoot)** (AGPL-3.0) — self-hosted
+  multi-tenant customer messaging, integrated as its own service and embedded
+  via its widget SDK. Not modified or redistributed as part of this codebase
+  — see [docs/CHATWOOT_INTEGRATION.md](./docs/CHATWOOT_INTEGRATION.md) and
+  `docker-compose.chatwoot.yml`. All credit for Chatwoot itself to its
+  authors and contributors.
 
 ---
 

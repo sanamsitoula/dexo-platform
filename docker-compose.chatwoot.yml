@@ -1,0 +1,114 @@
+# ============================================================================
+# Chatwoot — self-hosted, opt-in messaging service (github.com/chatwoot/chatwoot)
+#
+# Chatwoot is Ruby on Rails + Vue, a genuinely separate service from the rest
+# of this (all-Node) monorepo — it does NOT run in-process with the API. It
+# gets its own Postgres + Redis so it's fully isolated from dexo-postgres/
+# dexo-redis (no shared state, no version coupling, no risk to platform data
+# if Chatwoot needs a DB reset).
+#
+# Start alongside the platform stack:
+#   docker compose -f docker-compose.yml -f docker-compose.chatwoot.yml up -d
+#
+# First boot: run `docker compose ... exec chatwoot-app bundle exec rails
+# db:chatwoot_prepare` once, then create the platform's own account via the
+# Chatwoot setup wizard at http://localhost:3200 — the resulting Account ID
+# + a Platform API Access Token (Profile Settings -> Access Token, or a
+# Platform App token for full API access) go into GLOBAL_SMTP-style env vars
+# consumed by apps/api/src/modules/chatwoot — see docs/CHATWOOT_INTEGRATION.md.
+# ============================================================================
+
+services:
+  chatwoot-postgres:
+    image: postgres:16-alpine
+    container_name: dexo-chatwoot-postgres
+    restart: unless-stopped
+    profiles: ["chatwoot"]
+    environment:
+      POSTGRES_USER: chatwoot
+      POSTGRES_PASSWORD: chatwoot
+      POSTGRES_DB: chatwoot
+    ports:
+      - "5434:5432"
+    volumes:
+      - chatwoot_postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U chatwoot"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  chatwoot-redis:
+    image: redis:7-alpine
+    container_name: dexo-chatwoot-redis
+    restart: unless-stopped
+    profiles: ["chatwoot"]
+    ports:
+      - "6380:6379"
+    command: redis-server --appendonly yes
+    volumes:
+      - chatwoot_redis_data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  chatwoot-app:
+    image: chatwoot/chatwoot:latest
+    container_name: dexo-chatwoot-app
+    restart: unless-stopped
+    profiles: ["chatwoot"]
+    depends_on:
+      chatwoot-postgres:
+        condition: service_healthy
+      chatwoot-redis:
+        condition: service_healthy
+    ports:
+      - "3200:3000"
+    environment:
+      RAILS_ENV: production
+      NODE_ENV: production
+      INSTALLATION_ENV: docker
+      SECRET_KEY_BASE: ${CHATWOOT_SECRET_KEY_BASE:-change_me_generate_with_rails_secret}
+      FRONTEND_URL: ${CHATWOOT_FRONTEND_URL:-http://localhost:3200}
+      DEFAULT_LOCALE: en
+      POSTGRES_HOST: chatwoot-postgres
+      POSTGRES_USERNAME: chatwoot
+      POSTGRES_PASSWORD: chatwoot
+      POSTGRES_DATABASE: chatwoot
+      REDIS_URL: redis://chatwoot-redis:6379
+      # Chatwoot's own outbound mail — reuse the platform's global SMTP so
+      # there's only one provider to manage (see docs/EMAIL_SYSTEM.md).
+      SMTP_ADDRESS: ${GLOBAL_SMTP_HOST:-}
+      SMTP_PORT: ${GLOBAL_SMTP_PORT:-587}
+      SMTP_USERNAME: ${GLOBAL_SMTP_USER:-}
+      SMTP_PASSWORD: ${GLOBAL_SMTP_PASSWORD:-}
+      SMTP_DOMAIN: onedexo.com
+      MAILER_SENDER_EMAIL: ${GLOBAL_SMTP_FROM_EMAIL:-noreply@onedexo.com}
+    command: bundle exec rails s -p 3000 -b 0.0.0.0
+
+  chatwoot-sidekiq:
+    image: chatwoot/chatwoot:latest
+    container_name: dexo-chatwoot-sidekiq
+    restart: unless-stopped
+    profiles: ["chatwoot"]
+    depends_on:
+      chatwoot-postgres:
+        condition: service_healthy
+      chatwoot-redis:
+        condition: service_healthy
+    environment:
+      RAILS_ENV: production
+      SECRET_KEY_BASE: ${CHATWOOT_SECRET_KEY_BASE:-change_me_generate_with_rails_secret}
+      FRONTEND_URL: ${CHATWOOT_FRONTEND_URL:-http://localhost:3200}
+      POSTGRES_HOST: chatwoot-postgres
+      POSTGRES_USERNAME: chatwoot
+      POSTGRES_PASSWORD: chatwoot
+      POSTGRES_DATABASE: chatwoot
+      REDIS_URL: redis://chatwoot-redis:6379
+    command: bundle exec sidekiq -C config/sidekiq.yml
+
+volumes:
+  chatwoot_postgres_data:
+  chatwoot_redis_data:

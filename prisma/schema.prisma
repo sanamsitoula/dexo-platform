@@ -360,6 +360,7 @@ model Tenant {
   webhookEndpoints       WebhookEndpoint[]
   moduleOverrides        TenantModuleOverride[]
   aiInteractionLogs      AiInteractionLog[]
+  chatwootConfig         TenantChatwootConfig?
 
   @@index([subdomain])
   @@index([domain])
@@ -4070,4 +4071,53 @@ model PlatformEmailLog {
   @@index([tenantId])
   @@index([status])
   @@index([createdAt])
+}
+
+// =====================================================
+// CHATWOOT INTEGRATION (self-hosted, github.com/chatwoot/chatwoot)
+// =====================================================
+// Three-tier messaging flow:
+//   Tier 1  Customer <-> Tenant   — one Chatwoot Website inbox PER TENANT
+//           (TenantChatwootConfig), embedded via the tenant's own widget
+//           script on tenant-website/tenant-app. Gym customer <-> gym
+//           owner/trainer, etc.
+//   Tier 2  Tenant <-> Platform   — a SINGLE platform-wide Website inbox
+//           (PlatformChatwootConfig.platformInboxId) embedded in
+//           tenant-admin. Gym owner <-> platform support/owner.
+// Chatwoot itself is the source of truth for conversations/messages/agents —
+// these models only store the connection + per-tenant inbox mapping needed
+// to provision and embed it. See docs/CHATWOOT_INTEGRATION.md.
+
+model PlatformChatwootConfig {
+  id String @id @default(uuid())
+
+  baseUrl          String // e.g. https://chatwoot.onedexo.com
+  apiAccessToken   String? // platform-level API access token (masked in API responses)
+  platformAccountId Int?   // the Chatwoot "account" every tenant inbox is created under
+  platformInboxId   Int?   // the single Tier-2 inbox: tenant owners <-> platform
+  platformWebsiteToken String? // widget script token for the Tier-2 inbox
+  isEnabled        Boolean @default(false)
+
+  lastTestedAt   DateTime?
+  lastTestStatus String?
+  lastTestError  String?
+
+  updatedBy String?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+model TenantChatwootConfig {
+  id       String @id @default(uuid())
+  tenant   Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  tenantId String @unique
+
+  inboxId       Int?    // Chatwoot inbox id for this tenant's Tier-1 (customer<->tenant) inbox
+  websiteToken  String? // widget script token for this tenant's inbox
+  contactEmail  String? // tenant owner's email, registered as a Tier-2 contact under the platform inbox
+
+  provisionedAt DateTime?
+  lastError     String?
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
 }

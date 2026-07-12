@@ -41,6 +41,7 @@ import { TenantMailApiModule } from './modules/tenant-mail/tenant-mail.module';
 import { AttendanceDevicesModule } from './modules/attendance-devices/attendance-devices.module';
 import { AiGatewayModule } from './modules/ai-gateway/ai-gateway.module';
 import { PlatformEmailModule } from './modules/platform-email/platform-email.module';
+import { ChatwootModule } from './modules/chatwoot/chatwoot.module';
 import { FitnessAiModule } from './modules/fitness/ai-integration/fitness-ai.module';
 import { EcommerceAiModule } from './modules/ecommerce/ai-integration/ecommerce-ai.module';
 import { TenantStatusMiddleware } from './common/middleware/tenant-status.middleware';
@@ -98,6 +99,7 @@ import { TenantStatusMiddleware } from './common/middleware/tenant-status.middle
     AiGatewayModule,
     TenantMailApiModule,
     PlatformEmailModule,
+    ChatwootModule,
     AttendanceDevicesModule,
     BusinessTemplateModule,
     TenantLifecycleModule,
