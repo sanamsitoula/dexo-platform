@@ -1,14 +1,12 @@
 import './globals.css';
 import { headers } from 'next/headers';
-import { Inter, Space_Grotesk, JetBrains_Mono } from 'next/font/google';
+import { inter, grotesk, jbMono } from '@dexo/ui';
 import BottomNav from './_components/BottomNav';
 import AuthGate from './_components/AuthGate';
 
 // DEXO brand type stack — Inter for UI, Space Grotesk for display numerals and
 // titles, JetBrains Mono for codes/IDs (brand/Brand/04-typography.md).
-const inter = Inter({ subsets: ['latin'], variable: '--font-inter', display: 'swap' });
-const grotesk = Space_Grotesk({ subsets: ['latin'], weight: ['500', '700'], variable: '--font-grotesk', display: 'swap' });
-const jbMono = JetBrains_Mono({ subsets: ['latin'], weight: ['400', '700'], variable: '--font-jbmono', display: 'swap' });
+// Self-hosted, see packages/ui/src/fonts.ts.
 
 export const metadata = {
   title: 'Fitness App',
