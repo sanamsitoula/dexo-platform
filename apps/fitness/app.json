@@ -1,0 +1,23 @@
+{
+  "expo": {
+    "name": "Dexo Fitness",
+    "slug": "dexo-fitness",
+    "version": "1.0.0",
+    "orientation": "portrait",
+    "scheme": "dexofitness",
+    "userInterfaceStyle": "light",
+    "newArchEnabled": true,
+    "ios": {
+      "supportsTablet": true,
+      "bundleIdentifier": "com.dexo.fitness"
+    },
+    "android": {
+      "adaptiveIcon": {
+        "backgroundColor": "#2563EB"
+      },
+      "package": "com.dexo.fitness"
+    },
+    "plugins": ["expo-router"],
+    "platforms": ["ios", "android", "web"]
+  }
+}

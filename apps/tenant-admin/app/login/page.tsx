@@ -2,13 +2,13 @@
 
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
-
-const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000';
+import { tenantApi } from '../../lib/api';
+import { resolveTenantAdminSubdomain } from '../../lib/subdomain';
 
 export default function LoginPage() {
   const router = useRouter();
-  const [email, setEmail] = useState('admin@vrfitness.com');
-  const [password, setPassword] = useState('Admin123!');
+  const [email, setEmail] = useState('');
+  const [password, setPassword] = useState('');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -17,19 +17,13 @@ export default function LoginPage() {
     setLoading(true);
     setError(null);
     try {
-      const res = await fetch(`${API_URL}/api/auth/login`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ email, password }),
-        credentials: 'include',
-      });
-      if (!res.ok) {
-        const err = await res.json().catch(() => ({}));
-        throw new Error(err.message || `Login failed (${res.status})`);
-      }
-      const data = await res.json();
+      // Resolved from the "admin.<tenant>.<domain>" host we're actually being
+      // visited on and sent to the backend so login is scoped to THIS
+      // tenant — previously omitted entirely, which let any valid user from
+      // any tenant log into any other tenant's admin panel.
+      const tenantSlug = resolveTenantAdminSubdomain();
+      const data = await tenantApi.login(tenantSlug, email, password);
       const role = data?.user?.role || data?.user?.userRoles?.[0]?.role?.code || 'OWNER';
-      const tenantSlug = data?.user?.tenant?.subdomain || 'vrfitness';
       localStorage.setItem('token', data.accessToken);
       // Subdomain-scoped key that lib/api.ts reads first (multi-tenant safe).
       localStorage.setItem(`tenant-token-${tenantSlug}`, data.accessToken);
@@ -84,9 +78,6 @@ export default function LoginPage() {
           </button>
           <a href="/forgot-password" className="block text-center text-sm text-gray-500 hover:text-gray-700">Forgot password?</a>
         </form>
-        <div className="mt-6 text-xs text-gray-400 text-center">
-          Demo: admin@vrfitness.com / Admin123!
-        </div>
       </div>
     </div>
   );

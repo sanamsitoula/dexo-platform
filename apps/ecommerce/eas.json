@@ -1,0 +1,18 @@
+@generated: expo-cli
+# EAS Build configuration
+# To start a build: eas build --profile development
+
+build:
+  development:
+    developmentClient: true
+    distribution: "internal"
+    channel: "development"
+    env:
+      EX_DEV_CLIENT_NETWORK_INSPECTOR: "true"
+  preview:
+    distribution: "internal"
+    channel: "preview"
+    env:
+      EX_DEV_CLIENT_NETWORK_INSPECTOR: "true"
+  production:
+    channel: "production"

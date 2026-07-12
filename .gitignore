@@ -217,3 +217,7 @@ maximum
 *.pfx
 *.p12
 azure/key.pem
+
+# Android/Gradle build artifacts (per-developer, huge, breaks git on Windows path limits)
+.gradle-home/
+apps/mobile/android/

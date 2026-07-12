@@ -96,14 +96,48 @@ export async function registerMember(data: {
   }
 }
 
-export async function getTenantBlogs(subdomain: string) {
+export interface BlogSummary {
+  id: string
+  title: string
+  slug: string
+  excerpt: string | null
+  featuredImage: string | null
+  publishedAt: string | null
+  author: { id: string; firstName: string; lastName: string; avatarUrl: string | null }
+  category: { id: string; name: string } | null
+}
+
+export interface BlogDetail extends BlogSummary {
+  content: string
+  metaTitle: string | null
+  metaDescription: string | null
+  viewCount: number
+  tenant: { id: string; name: string; subdomain: string | null } | null
+}
+
+export async function getTenantBlogs(subdomain: string, params?: { page?: number; limit?: number }): Promise<{ data: BlogSummary[]; meta: { total: number; page: number; limit: number; totalPages: number } }> {
   try {
-    const res = await fetch(`${API_BASE_URL}/blogs?subdomain=${subdomain}`)
-    if (!res.ok) return []
-    const data = await res.json()
-    return data.data || []
+    const qs = new URLSearchParams({ subdomain })
+    if (params?.page) qs.set('page', String(params.page))
+    if (params?.limit) qs.set('limit', String(params.limit))
+    const res = await fetch(`${API_BASE_URL}/blogs?${qs.toString()}`, { cache: 'no-store' })
+    if (!res.ok) return { data: [], meta: { total: 0, page: 1, limit: params?.limit || 10, totalPages: 0 } }
+    return await res.json()
   } catch {
-    return []
+    return { data: [], meta: { total: 0, page: 1, limit: params?.limit || 10, totalPages: 0 } }
+  }
+}
+
+/** Public blog detail by slug (no auth). Slugs are globally unique, so this is
+ * inherently tenant-safe — but callers should still confirm `tenant.subdomain`
+ * matches the current site before rendering, in case of a stale/foreign link. */
+export async function getBlogBySlug(slug: string): Promise<BlogDetail | null> {
+  try {
+    const res = await fetch(`${API_BASE_URL}/blogs/${slug}`, { cache: 'no-store' })
+    if (!res.ok) return null
+    return await res.json()
+  } catch {
+    return null
   }
 }
 
@@ -353,14 +387,142 @@ export async function getMyOrders(): Promise<any[]> {
   }
 }
 
-/** Confirms a PREPAID order's payment — stubbed here as a demo "CASH" provider
- * so the checkout flow completes without a real payment gateway redirect. */
-export async function confirmDemoPayment(orderId: string): Promise<{ ok: boolean; error?: string }> {
+export async function getOrder(orderId: string): Promise<any | null> {
+  try {
+    const res = await fetch(`${API_BASE_URL}/ecommerce/orders/${orderId}`, { headers: { ...authHeaders() }, cache: 'no-store' })
+    if (!res.ok) return null
+    return await res.json()
+  } catch {
+    return null
+  }
+}
+
+// ---------------------------------------------------------------------
+// Payment gateway — real provider wiring for PREPAID checkout.
+// ---------------------------------------------------------------------
+
+/** Provider types actually implemented by the backend (payment-gateway/providers).
+ * Khalti has no provider class yet, so it's intentionally excluded here. */
+const IMPLEMENTED_PROVIDER_TYPES = ['ESEWA', 'FONEPAY', 'CONNECTIPS', 'STRIPE', 'PAYPAL']
+
+/** All provider types the backend knows how to run, filtered to ones with a real implementation. */
+export async function getAvailableProviders(): Promise<string[]> {
+  try {
+    const res = await fetch(`${API_BASE_URL}/payment-gateway/providers`, { cache: 'no-store' })
+    if (!res.ok) return []
+    const body = await res.json()
+    const providers: string[] = body?.providers || []
+    return providers.filter((p) => IMPLEMENTED_PROVIDER_TYPES.includes(p))
+  } catch {
+    return []
+  }
+}
+
+export interface TenantPaymentProvider {
+  type: string
+  name: string
+  isDefault: boolean
+}
+
+/** Public (no-auth) list of a tenant's ACTIVE payment providers — used to decide
+ * whether to offer "Pay now" at checkout and which provider to default to. */
+export async function getTenantAvailableProviders(tenantId: string): Promise<TenantPaymentProvider[]> {
+  try {
+    const res = await fetch(`${API_BASE_URL}/payment-gateway/tenant/${tenantId}/available`, { cache: 'no-store' })
+    if (!res.ok) return []
+    const providers: TenantPaymentProvider[] = await res.json()
+    return providers.filter((p) => IMPLEMENTED_PROVIDER_TYPES.includes(p.type))
+  } catch {
+    return []
+  }
+}
+
+export interface PaymentInitResult {
+  paymentUrl?: string
+  paymentToken?: string
+  paymentMethod?: string
+  providerTxnId?: string
+  formData?: Record<string, string>
+  qrCodeUrl?: string
+}
+
+/** Initializes a payment with the tenant's configured provider. successUrl/failureUrl/cancelUrl
+ * should point at /checkout/callback with orderId + providerType + amount in the query string,
+ * since eSewa/Fonepay/ConnectIPS verification is keyed off our own orderId+amount (not gateway
+ * echo params), while Stripe/PayPal echo their own session_id/token params on return. */
+export async function initPayment(dto: {
+  providerType: string
+  orderId: string
+  amount: number
+  successUrl: string
+  failureUrl: string
+  cancelUrl?: string
+}): Promise<{ ok: true; data: PaymentInitResult } | { ok: false; error: string }> {
+  try {
+    const res = await fetch(`${API_BASE_URL}/payment-gateway/init`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', ...authHeaders() },
+      body: JSON.stringify({
+        providerType: dto.providerType,
+        orderId: dto.orderId,
+        amount: dto.amount,
+        currency: 'NPR',
+        successUrl: dto.successUrl,
+        failureUrl: dto.failureUrl,
+        cancelUrl: dto.cancelUrl,
+      }),
+    })
+    const body = await res.json().catch(() => ({}))
+    if (!res.ok) return { ok: false, error: body.message || `HTTP ${res.status}` }
+    return { ok: true, data: body }
+  } catch (e: any) {
+    return { ok: false, error: e?.message || 'Network error' }
+  }
+}
+
+export interface PaymentVerifyResult {
+  success: boolean
+  providerTxnId: string
+  status: 'COMPLETED' | 'FAILED' | 'PENDING' | 'CANCELLED' | 'AMBIGUOUS'
+  amount?: number
+  message?: string
+}
+
+/** Verifies a payment after the gateway redirects back to /checkout/callback. */
+export async function verifyPayment(dto: {
+  providerType: string
+  providerTxnId: string
+  orderId: string
+  amount?: number
+  rawParams?: Record<string, any>
+}): Promise<{ ok: true; data: PaymentVerifyResult } | { ok: false; error: string }> {
+  try {
+    const res = await fetch(`${API_BASE_URL}/payment-gateway/verify`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', ...authHeaders() },
+      body: JSON.stringify(dto),
+    })
+    const body = await res.json().catch(() => ({}))
+    if (!res.ok) return { ok: false, error: body.message || `HTTP ${res.status}` }
+    return { ok: true, data: body }
+  } catch (e: any) {
+    return { ok: false, error: e?.message || 'Network error' }
+  }
+}
+
+/** Finalizes a PREPAID order after a successful gateway verification — marks the
+ * order + invoice paid on the backend. */
+export async function confirmPayment(orderId: string, dto: {
+  providerType: string
+  providerTxnId: string
+  amount?: number
+  rawParams?: Record<string, any>
+}): Promise<{ ok: boolean; error?: string }> {
   try {
     const res = await fetch(`${API_BASE_URL}/ecommerce/orders/${orderId}/confirm-payment`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json', ...authHeaders() },
-      body: JSON.stringify({ providerType: 'CASH', providerTxnId: `DEMO-${orderId}` }),
+      body: JSON.stringify(dto),
     })
     if (!res.ok) {
       const body = await res.json().catch(() => ({}))

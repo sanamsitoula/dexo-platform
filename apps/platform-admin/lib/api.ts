@@ -787,6 +787,50 @@ export const platformEmailApi = {
   logs: (limit = 50) => fetchApi<any[]>(`/platform-email/logs?limit=${limit}`),
 }
 
+// Cross-tenant ecommerce visibility (platform-admin oversight, read-only —
+// see AdminEcommerceController on the API side).
+export const ecommerceAdminApi = {
+  getSummary: () =>
+    fetchApi<{
+      totalStores: number
+      tenantsWithEcommerceEnabled: number
+      totalProducts: number
+      totalOrders: number
+      totalRevenue: number
+      perTenant: { tenantId: string; tenantName: string; productCount: number; orderCount: number; revenue: number }[]
+    }>('/admin/ecommerce/summary'),
+
+  getTenantProducts: (tenantId: string) =>
+    fetchApi<any[]>(`/admin/ecommerce/tenants/${tenantId}/products`),
+
+  getTenantOrders: (tenantId: string) =>
+    fetchApi<any[]>(`/admin/ecommerce/tenants/${tenantId}/orders`),
+
+  getTenantDashboard: (tenantId: string) =>
+    fetchApi<{ productCount: number; lowStockCount: number; orderCount: number; pendingOrders: number; totalRevenue: number }>(
+      `/admin/ecommerce/tenants/${tenantId}/dashboard`,
+    ),
+}
+
+// Tenant module overrides — explicit platform-admin grant/restriction per
+// tenant per module, taking precedence over the subscription plan (see
+// TenantLifecycleController's module-overrides routes).
+export const moduleOverridesApi = {
+  list: (tenantId: string) =>
+    fetchApi<{ id: string; tenantId: string; moduleKey: string; enabled: boolean; reason: string | null; setBy: string | null }[]>(
+      `/tenants/${tenantId}/module-overrides`,
+    ),
+
+  set: (tenantId: string, moduleKey: string, enabled: boolean, reason?: string) =>
+    fetchApi<any>(`/tenants/${tenantId}/module-overrides/${moduleKey}`, {
+      method: 'PUT',
+      body: JSON.stringify({ enabled, reason }),
+    }),
+
+  remove: (tenantId: string, moduleKey: string) =>
+    fetchApi<any>(`/tenants/${tenantId}/module-overrides/${moduleKey}`, { method: 'DELETE' }),
+}
+
 // Chatwoot (github.com/chatwoot/chatwoot) — self-hosted messaging connection.
 // Tier 1 (customer<->tenant) inboxes are auto-provisioned per tenant; this
 // page manages the connection itself + the single Tier 2 (tenant<->platform) inbox.

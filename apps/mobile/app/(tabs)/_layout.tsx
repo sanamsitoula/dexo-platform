@@ -1,14 +1,14 @@
 import { Tabs } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
-import { useAuth } from '../../lib/auth-context';
-import { useTenant } from '../../lib/tenant-context';
-import { useDomainMenus } from '../../lib/domain-menus';
-import { useDomainTheme } from '../../lib/domain-theme';
+import { useAuth } from '@dexo/mobile-core/lib/auth-context';
+import { useTenant } from '@dexo/mobile-core/lib/tenant-context';
+import { useDomainMenus } from '@dexo/mobile-core/lib/domain-menus';
+import { useDomainTheme } from '@dexo/mobile-core/lib/domain-theme';
 import { useEffect, useState } from 'react';
 import { View, ActivityIndicator, Text } from 'react-native';
-import { Colors, FontSize } from '../../lib/theme';
-import { storage } from '../../lib/storage';
-import { ecommerceApi } from '../../lib/api';
+import { Colors, FontSize } from '@dexo/mobile-core/lib/theme';
+import { storage } from '@dexo/mobile-core/lib/storage';
+import { ecommerceApi } from '@dexo/mobile-core/lib/api';
 
 export default function TabLayout() {
   const { user } = useAuth();

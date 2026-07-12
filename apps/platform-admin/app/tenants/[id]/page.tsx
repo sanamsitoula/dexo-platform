@@ -5,6 +5,7 @@ import { useParams, useRouter } from 'next/navigation'
 import { tenantsApi, usersApi, subscriptionsApi } from '@/lib/api'
 import { TenantBrandingConfig } from '@/components/TenantBrandingConfig'
 import { DomainConfig } from '@/components/DomainConfig'
+import { TenantModulesConfig } from '@/components/TenantModulesConfig'
 
 export default function TenantDetailPage() {
   const { id } = useParams() as { id: string }
@@ -13,7 +14,7 @@ export default function TenantDetailPage() {
   const [users, setUsers] = useState<any[]>([])
   const [subscription, setSubscription] = useState<any>(null)
   const [loading, setLoading] = useState(true)
-  const [activeTab, setActiveTab] = useState<'overview' | 'branding' | 'analytics' | 'domains'>('overview')
+  const [activeTab, setActiveTab] = useState<'overview' | 'branding' | 'analytics' | 'domains' | 'modules'>('overview')
 
   useEffect(() => {
     if (!id) return
@@ -106,6 +107,16 @@ export default function TenantDetailPage() {
           >
             Domains
           </button>
+          <button
+            onClick={() => setActiveTab('modules')}
+            className={`py-4 px-1 border-b-2 font-medium text-sm ${
+              activeTab === 'modules'
+                ? 'border-blue-500 text-blue-600'
+                : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
+            }`}
+          >
+            Modules
+          </button>
         </nav>
       </div>
 
@@ -140,6 +151,10 @@ export default function TenantDetailPage() {
 
       {activeTab === 'domains' && (
         <DomainConfig tenant={tenant} onSave={handleSaveSettings} />
+      )}
+
+      {activeTab === 'modules' && (
+        <TenantModulesConfig tenantId={id as string} />
       )}
     </div>
   )

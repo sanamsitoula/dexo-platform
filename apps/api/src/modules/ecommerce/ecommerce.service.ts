@@ -726,9 +726,57 @@ export class EcommerceService {
   async listOrders(tenantId: string, customerId?: string) {
     return this.prisma.salesOrder.findMany({
       where: { tenantId, customerId: customerId || undefined },
+      include: { items: { include: { product: true } }, shipments: true, customer: true },
+      orderBy: { placedAt: 'desc' },
+    });
+  }
+
+  /**
+   * Per-customer spend rollup for tenant-admin's CRM/customer view. "Total
+   * spent" only counts orders that represent committed revenue (excludes
+   * CANCELLED/REFUNDED so a failed checkout doesn't inflate lifetime value).
+   */
+  async listCustomersWithSpend(tenantId: string) {
+    const customers = await this.prisma.customer.findMany({ where: { tenantId } });
+    const orders = await this.prisma.salesOrder.findMany({
+      where: { tenantId, customerId: { not: null } },
+      select: { customerId: true, grandTotal: true, status: true, placedAt: true },
+    });
+
+    const byCustomer = new Map<string, { totalSpent: number; orderCount: number; lastOrderAt: Date | null }>();
+    for (const order of orders) {
+      if (!order.customerId) continue;
+      if (['CANCELLED', 'REFUNDED'].includes(order.status)) continue;
+      const entry = byCustomer.get(order.customerId) || { totalSpent: 0, orderCount: 0, lastOrderAt: null };
+      entry.totalSpent += Number(order.grandTotal);
+      entry.orderCount += 1;
+      if (!entry.lastOrderAt || order.placedAt > entry.lastOrderAt) entry.lastOrderAt = order.placedAt;
+      byCustomer.set(order.customerId, entry);
+    }
+
+    return customers
+      .map((c) => ({
+        id: c.id,
+        name: c.name,
+        email: c.email,
+        mobile: c.mobile,
+        totalSpent: byCustomer.get(c.id)?.totalSpent ?? 0,
+        orderCount: byCustomer.get(c.id)?.orderCount ?? 0,
+        lastOrderAt: byCustomer.get(c.id)?.lastOrderAt ?? null,
+      }))
+      .sort((a, b) => b.totalSpent - a.totalSpent);
+  }
+
+  async getCustomerWithSpend(tenantId: string, customerId: string) {
+    const customer = await this.assertExists(this.prisma.customer, tenantId, customerId, 'Customer');
+    const orders = await this.prisma.salesOrder.findMany({
+      where: { tenantId, customerId },
       include: { items: { include: { product: true } }, shipments: true },
       orderBy: { placedAt: 'desc' },
     });
+    const completedOrders = orders.filter((o) => !['CANCELLED', 'REFUNDED'].includes(o.status));
+    const totalSpent = completedOrders.reduce((s, o) => s + Number(o.grandTotal), 0);
+    return { ...customer, totalSpent, orderCount: completedOrders.length, orders };
   }
 
   async getOrder(tenantId: string, id: string) {

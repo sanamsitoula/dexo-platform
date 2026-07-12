@@ -179,6 +179,17 @@ export class EcommerceController {
     return this.ecommerce.listOrders(req.user.tenantId, customerId);
   }
 
+  // ---- Customers (CRM: per-customer spend) ----
+  @Get('customers')
+  listCustomers(@Req() req: any) {
+    return this.ecommerce.listCustomersWithSpend(req.user.tenantId);
+  }
+
+  @Get('customers/:id')
+  getCustomer(@Req() req: any, @Param('id') id: string) {
+    return this.ecommerce.getCustomerWithSpend(req.user.tenantId, id);
+  }
+
   @Get('orders/:id')
   getOrder(@Req() req: any, @Param('id') id: string) {
     return this.ecommerce.getOrder(req.user.tenantId, id);

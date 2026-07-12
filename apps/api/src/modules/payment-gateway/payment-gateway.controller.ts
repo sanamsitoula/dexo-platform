@@ -24,6 +24,21 @@ export class PaymentGatewayController {
     return this.paymentGatewayService.getTenantProviders(req.user.tenantId);
   }
 
+  /**
+   * Public (no-auth) list of a tenant's ACTIVE payment providers, for the
+   * customer-facing storefront to decide which "pay now" options to offer at
+   * checkout. Returns only what a guest needs — type, display name, and
+   * whether it's the tenant's default — never credentials.
+   */
+  @Get('tenant/:tenantId/available')
+  @ApiOperation({ summary: 'Get tenant active payment providers (public, no credentials)' })
+  async getAvailableTenantProviders(@Param('tenantId') tenantId: string) {
+    const providers = await this.paymentGatewayService.getTenantProviders(tenantId);
+    return providers
+      .filter((p: any) => p.status === 'ACTIVE')
+      .map((p: any) => ({ type: p.type, name: p.name, isDefault: p.isDefault }));
+  }
+
   @Post('tenant/providers')
   @UseGuards(JwtAuthGuard)
   @ApiBearerAuth()

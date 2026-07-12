@@ -17,6 +17,12 @@ const HREF_MODULE_MAP: Record<string, string> = {
   '/attendance': 'attendance',
   '/website': 'website_builder',
   '/announcements': 'announcements',
+  '/products': 'ecommerce',
+  '/products/categories': 'ecommerce',
+  '/products/brands': 'ecommerce',
+  '/orders': 'ecommerce',
+  '/customers': 'ecommerce',
+  '/inventory': 'ecommerce',
 };
 
 /**

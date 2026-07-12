@@ -56,7 +56,8 @@
     "apps/tenant-website",
     "apps/tenant-admin",
     "apps/tenant-app",
-    "apps/mobile",
+    "apps/fitness",
+    "apps/ecommerce",
     "packages/*"
   ],
   "devDependencies": {

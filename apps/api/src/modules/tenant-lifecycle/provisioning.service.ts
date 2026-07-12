@@ -1,7 +1,10 @@
 import { Injectable, Logger } from '@nestjs/common';
-import { PrismaService } from '@dexo/shared';
+import * as bcrypt from 'bcryptjs';
+import { PrismaService, TenantMailService } from '@dexo/shared';
+import { ConfigService } from '@nestjs/config';
 import { SlugService } from './slug.service';
 import { ChatwootService } from '../chatwoot/chatwoot.service';
+import { DomainProvisioningService } from '../domain/domain-provisioning.service';
 
 export interface CreateTenantInput {
   slug: string;
@@ -36,12 +39,20 @@ export class ProvisioningService {
     private readonly prisma: PrismaService,
     private readonly slugService: SlugService,
     private readonly chatwoot: ChatwootService,
+    private readonly tenantMail: TenantMailService,
+    private readonly configService: ConfigService,
+    private readonly domainProvisioning: DomainProvisioningService,
   ) {}
 
   async provisionTenant(input: CreateTenantInput): Promise<ProvisionResult> {
     const slugValidation = await this.slugService.validateSlug(input.slug);
     if (!slugValidation.available) {
       throw new Error(`Slug not available: ${slugValidation.reason}`);
+    }
+
+    const existingOwner = await this.prisma.user.findUnique({ where: { email: input.ownerEmail } });
+    if (existingOwner) {
+      throw new Error(`An account with email ${input.ownerEmail} already exists`);
     }
 
     const tenant = await this.prisma.tenant.create({
@@ -88,6 +99,51 @@ export class ProvisioningService {
       data: { status: 'ACTIVE', provisionedAt: new Date(), sslStatus: 'ACTIVE' },
     });
 
+    const platformDomain = process.env.PLATFORM_DOMAIN || 'onedexo.com';
+    const adminUrl = `http://admin.${input.slug}.${platformDomain}`;
+
+    // Create the tenant owner's login account and grant it the tenant's
+    // admin role, so they can log into tenant-admin immediately — tenant
+    // provisioning used to only create the tenant/roles/onboarding shell,
+    // leaving every new tenant with zero users able to log in.
+    const saltRounds = parseInt(this.configService.get('BCRYPT_SALT_ROUNDS') || '10', 10);
+    const passwordHash = await bcrypt.hash(input.ownerPassword, saltRounds);
+    const owner = await this.prisma.user.create({
+      data: {
+        email: input.ownerEmail,
+        passwordHash,
+        firstName: input.ownerFirstName || input.name,
+        lastName: input.ownerLastName || '',
+        tenantId: tenant.id,
+        status: 'active',
+      },
+    });
+    const adminRole = await this.prisma.role.findFirst({ where: { tenantId: tenant.id, name: 'admin' } });
+    if (adminRole) {
+      await this.prisma.userRoles.create({
+        data: { userId: owner.id, roleId: adminRole.id, assignedById: owner.id },
+      });
+    } else {
+      this.logger.warn(`No admin role found for tenant ${input.slug} — owner created without a role`);
+    }
+
+    this.tenantMail
+      .sendTenantAdminWelcome(tenant.id, owner.email, owner.firstName || 'there', adminUrl)
+      .catch((err) => this.logger.warn(`Tenant admin welcome email failed for ${input.slug}: ${err?.message}`));
+
+    // Link the tenant to its business-type Domain record (TenantDomain +
+    // TenantEnabledModule rows) and seed domain-specific defaults — for
+    // FITNESS_CENTER this creates the HQ branch + starter membership plans
+    // that member signup/checkin/mobile onboarding all depend on. Without
+    // this, tenants provisioned here had no TenantDomain row at all, silently
+    // breaking anything downstream keyed off it (fitness member auto-create,
+    // domain-menus). DomainRole/DomainModule seeding inside quickSetup is a
+    // no-op today (DomainRole table is empty) — role seeding is still handled
+    // by seedDefaultRoles() above, so there's no duplicate-role risk.
+    if (input.domainType) {
+      await this.domainProvisioning.quickSetup(tenant.id, owner.id, input.domainType);
+    }
+
     // Chatwoot Tier-1 inbox (customer <-> tenant) + Tier-2 contact (tenant
     // owner <-> platform) — best-effort: Chatwoot being unconfigured or
     // unreachable must never fail tenant provisioning. Platform admin can
@@ -100,7 +156,6 @@ export class ProvisioningService {
       this.logger.warn(`Chatwoot owner-contact registration skipped for ${input.slug}: ${err?.message}`);
     });
 
-    const platformDomain = process.env.PLATFORM_DOMAIN || 'onedexo.com';
     return {
       tenantId: tenant.id,
       subdomain: input.slug,

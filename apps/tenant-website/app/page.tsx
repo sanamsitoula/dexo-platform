@@ -1,8 +1,11 @@
 import Link from 'next/link';
 import { headers } from 'next/headers';
-import { getFitnessInfo, getFitnessPlans, getTenantBySubdomain, type FitnessInfo, type FitnessPlan } from '@/lib/api';
+import { getFitnessInfo, getFitnessPlans, getTenantBySubdomain, getCategories, getProducts, type FitnessInfo, type FitnessPlan } from '@/lib/api';
 import { getTemplate } from '@dexo/shared/src/themes';
 import TemplateHome from '@/components/TemplateHome';
+import EcommerceHome from '@/components/EcommerceHome';
+import { getSiteTheme } from '@/lib/site-theme';
+import { isEcommerceDomainCode } from '@/lib/domainType';
 import { memberPortalUrl } from '@/lib/portal';
 
 function resolveSubdomain(): string {
@@ -66,10 +69,31 @@ function TemplatePlans({ plans, color, name }: { plans: FitnessPlan[]; color: st
 
 export default async function Home() {
   const subdomain = resolveSubdomain();
-  const [info, plans, tenant] = await Promise.all([
+  const tenant = await getTenantBySubdomain(subdomain);
+  const domainCode = (tenant?.settings as any)?.domainCode || (tenant?.settings as any)?.theme || tenant?.domainCode;
+
+  if (isEcommerceDomainCode(domainCode)) {
+    const [theme, categories, featured, latest] = await Promise.all([
+      getSiteTheme(subdomain),
+      getCategories(subdomain),
+      getProducts(subdomain, { featured: true }),
+      getProducts(subdomain),
+    ]);
+    return (
+      <EcommerceHome
+        theme={theme}
+        name={tenant?.name || 'Store'}
+        tagline={(tenant?.settings as any)?.branding?.tagline}
+        categories={categories}
+        featured={featured}
+        latest={latest}
+      />
+    );
+  }
+
+  const [info, plans] = await Promise.all([
     getFitnessInfo(subdomain),
     getFitnessPlans(subdomain),
-    getTenantBySubdomain(subdomain),
   ]);
   const t = info || FALLBACK;
   // Canonical member-portal host: portal.<tenant>.onedexo.com (see lib/portal.ts).

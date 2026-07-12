@@ -21,6 +21,7 @@ export default function SiteNav({ theme, name, active, memberLoginUrl, showShop 
     ['/about', 'About'],
     ['/services', 'Services'],
     ...(showShop ? ([['/shop', 'Shop']] as Array<[string, string]>) : []),
+    ['/blog', 'Blog'],
     ['/book', 'Book'],
     ['/contact', 'Contact'],
   ];
@@ -35,7 +36,14 @@ export default function SiteNav({ theme, name, active, memberLoginUrl, showShop 
       {label}
     </Link>
   ));
-  const cartBadge = showShop ? <CartBadge /> : null;
+  const cartBadge = showShop ? (
+    <>
+      <Link href="/orders" className="opacity-75 hover:opacity-100" aria-label="Your orders">
+        📦
+      </Link>
+      <CartBadge />
+    </>
+  ) : null;
   const cta = (
     <Link
       href="/register"

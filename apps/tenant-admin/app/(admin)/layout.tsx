@@ -25,6 +25,17 @@ const NAV_SECTIONS: { heading: string; items: { href: string; label: string }[] 
     ],
   },
   {
+    heading: 'Store',
+    items: [
+      { href: '/products', label: 'Products' },
+      { href: '/products/categories', label: 'Categories' },
+      { href: '/products/brands', label: 'Brands' },
+      { href: '/orders', label: 'Orders' },
+      { href: '/customers', label: 'Customers' },
+      { href: '/inventory', label: 'Inventory' },
+    ],
+  },
+  {
     heading: 'Finance',
     items: [
       { href: '/finance', label: 'Finance' },
@@ -46,6 +57,7 @@ const NAV_SECTIONS: { heading: string; items: { href: string; label: string }[] 
       { href: '/users', label: 'Users' },
       { href: '/roles', label: 'Roles' },
       { href: '/settings', label: 'Gym Settings' },
+      { href: '/settings/payments', label: 'Payments' },
       { href: '/website', label: 'Website Builder' },
       { href: '/domain', label: 'Domain' },
       { href: '/onboarding', label: 'Onboarding' },

@@ -7,11 +7,12 @@ import { EcommerceController } from './ecommerce.controller';
 import { EcommerceLedgerService } from './ecommerce-ledger.service';
 import { EcommercePublicService } from './ecommerce-public.service';
 import { EcommercePublicController } from './ecommerce-public.controller';
+import { AdminEcommerceController } from './admin-ecommerce.controller';
 
 @Module({
   imports: [PrismaModule, WebhooksModule, PaymentGatewayModule],
   providers: [EcommerceService, EcommercePublicService, EcommerceLedgerService],
-  controllers: [EcommerceController, EcommercePublicController],
+  controllers: [EcommerceController, EcommercePublicController, AdminEcommerceController],
   exports: [EcommerceService, EcommerceLedgerService],
 })
 export class EcommerceModule {}

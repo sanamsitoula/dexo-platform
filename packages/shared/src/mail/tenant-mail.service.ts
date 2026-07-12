@@ -302,6 +302,24 @@ export class TenantMailService {
 </div></body></html>`;
   }
 
+  /** Sent once to a tenant's owner right after their tenant is provisioned — distinct copy from
+   *  member-facing sendWelcome() since the recipient is a business admin, not a gym/store customer. */
+  async sendTenantAdminWelcome(tenantId: string, to: string, firstName: string, adminUrl: string) {
+    const brand = await this.tenantName(tenantId);
+    return this.send(tenantId, {
+      to,
+      subject: `Welcome to ${brand} — your dashboard is ready 🎉`,
+      text: `Hi ${firstName},\n\nYour ${brand} account has been created and your admin dashboard is ready.\n\nLog in here: ${adminUrl}\n\nFrom there you can manage your team, content, and customers.`,
+      html: this.shell(
+        `Welcome, ${firstName}!`,
+        `<p style="color:#374151;line-height:1.6">Your <strong>${brand}</strong> admin dashboard is ready. Log in to manage your team, content, and customers.</p>
+         <p style="margin:24px 0"><a href="${adminUrl}" style="background:#dc2626;color:#fff;text-decoration:none;padding:12px 24px;border-radius:999px;font-weight:bold">Log in →</a></p>
+         <p style="color:#6b7280;font-size:13px">If the button doesn't work, open: ${adminUrl}</p>`,
+        brand,
+      ),
+    });
+  }
+
   async sendWelcome(tenantId: string, to: string, firstName: string, appUrl?: string) {
     const brand = await this.tenantName(tenantId);
     const link = appUrl || process.env.TENANT_APP_URL || 'http://localhost:4007';

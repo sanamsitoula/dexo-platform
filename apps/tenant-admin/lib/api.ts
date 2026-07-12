@@ -592,6 +592,121 @@ export const blogCategoryApi = {
   remove: (s: string, id: string) => fetchApi<{ message: string }>(`/blog-categories/${id}`, s, { method: 'DELETE' }),
 }
 
+// Ecommerce API (tenant-scoped) — categories, brands, products, variants,
+// warehouses, stock, orders, shipments, dashboard.
+export const ecommerceApi = {
+  categories: {
+    list: (s: string) => fetchApi<any[]>('/ecommerce/categories', s),
+    create: (s: string, data: { name: string; slug?: string; parentId?: string }) =>
+      fetchApi<any>('/ecommerce/categories', s, { method: 'POST', body: JSON.stringify(data) }),
+    update: (s: string, id: string, data: { name?: string; slug?: string; parentId?: string | null }) =>
+      fetchApi<any>(`/ecommerce/categories/${id}`, s, { method: 'PUT', body: JSON.stringify(data) }),
+    remove: (s: string, id: string) => fetchApi<{ message: string }>(`/ecommerce/categories/${id}`, s, { method: 'DELETE' }),
+  },
+
+  brands: {
+    list: (s: string) => fetchApi<any[]>('/ecommerce/brands', s),
+    create: (s: string, data: { name: string; logoUrl?: string }) =>
+      fetchApi<any>('/ecommerce/brands', s, { method: 'POST', body: JSON.stringify(data) }),
+    remove: (s: string, id: string) => fetchApi<{ message: string }>(`/ecommerce/brands/${id}`, s, { method: 'DELETE' }),
+  },
+
+  products: {
+    list: (s: string, params?: { categoryId?: string; brandId?: string; q?: string }) => {
+      const p = new URLSearchParams()
+      if (params?.categoryId) p.append('categoryId', params.categoryId)
+      if (params?.brandId) p.append('brandId', params.brandId)
+      if (params?.q) p.append('q', params.q)
+      const qs = p.toString() ? `?${p.toString()}` : ''
+      return fetchApi<any[]>(`/ecommerce/products${qs}`, s)
+    },
+    getById: (s: string, id: string) => fetchApi<any>(`/ecommerce/products/${id}`, s),
+    create: (s: string, data: any) => fetchApi<any>('/ecommerce/products', s, { method: 'POST', body: JSON.stringify(data) }),
+    update: (s: string, id: string, data: any) => fetchApi<any>(`/ecommerce/products/${id}`, s, { method: 'PUT', body: JSON.stringify(data) }),
+    remove: (s: string, id: string) => fetchApi<{ message: string }>(`/ecommerce/products/${id}`, s, { method: 'DELETE' }),
+  },
+
+  warehouses: {
+    list: (s: string) => fetchApi<any[]>('/ecommerce/warehouses', s),
+    create: (s: string, data: { name: string; code?: string; address?: string; isDefault?: boolean }) =>
+      fetchApi<any>('/ecommerce/warehouses', s, { method: 'POST', body: JSON.stringify(data) }),
+  },
+
+  stock: {
+    list: (s: string, warehouseId?: string) =>
+      fetchApi<any[]>(`/ecommerce/stock${warehouseId ? `?warehouseId=${warehouseId}` : ''}`, s),
+    low: (s: string) => fetchApi<any[]>('/ecommerce/stock/low', s),
+    adjust: (s: string, data: { productId: string; variantId?: string; warehouseId: string; quantityChange: number; reason?: string }) =>
+      fetchApi<any>('/ecommerce/stock/adjust', s, { method: 'POST', body: JSON.stringify(data) }),
+  },
+
+  attributes: {
+    list: (s: string) => fetchApi<any[]>('/ecommerce/attributes', s),
+    create: (s: string, data: { name: string }) =>
+      fetchApi<any>('/ecommerce/attributes', s, { method: 'POST', body: JSON.stringify(data) }),
+    addValue: (s: string, attributeId: string, data: { value: string }) =>
+      fetchApi<any>(`/ecommerce/attributes/${attributeId}/values`, s, { method: 'POST', body: JSON.stringify(data) }),
+    remove: (s: string, id: string) => fetchApi<{ message: string }>(`/ecommerce/attributes/${id}`, s, { method: 'DELETE' }),
+  },
+
+  variants: {
+    create: (s: string, productId: string, data: { sku?: string; priceOverride?: number; barcode?: string; valueIds: string[] }) =>
+      fetchApi<any>(`/ecommerce/products/${productId}/variants`, s, { method: 'POST', body: JSON.stringify(data) }),
+    remove: (s: string, id: string) => fetchApi<{ message: string }>(`/ecommerce/variants/${id}`, s, { method: 'DELETE' }),
+  },
+
+  orders: {
+    list: (s: string, mine?: boolean) => fetchApi<any[]>(`/ecommerce/orders?mine=${mine ? 'true' : 'false'}`, s),
+    getById: (s: string, id: string) => fetchApi<any>(`/ecommerce/orders/${id}`, s),
+    updateStatus: (s: string, id: string, status: string) =>
+      fetchApi<any>(`/ecommerce/orders/${id}/status`, s, { method: 'PUT', body: JSON.stringify({ status }) }),
+    cancel: (s: string, id: string) => fetchApi<any>(`/ecommerce/orders/${id}/cancel`, s, { method: 'POST' }),
+    confirmPayment: (s: string, id: string, data: { providerType: string; providerTxnId: string; amount?: number }) =>
+      fetchApi<any>(`/ecommerce/orders/${id}/confirm-payment`, s, { method: 'POST', body: JSON.stringify(data) }),
+  },
+
+  shipments: {
+    create: (s: string, orderId: string, data: { courierName?: string; trackingNumber?: string; warehouseId: string }) =>
+      fetchApi<any>(`/ecommerce/orders/${orderId}/shipment`, s, { method: 'POST', body: JSON.stringify(data) }),
+    updateStatus: (s: string, id: string, status: string) =>
+      fetchApi<any>(`/ecommerce/shipments/${id}/status`, s, { method: 'PUT', body: JSON.stringify({ status }) }),
+  },
+
+  dashboard: (s: string) =>
+    fetchApi<{ productCount: number; lowStockCount: number; orderCount: number; pendingOrders: number; totalRevenue?: number }>(
+      '/ecommerce/dashboard/summary',
+      s,
+    ),
+
+  customers: {
+    list: (s: string) =>
+      fetchApi<Array<{ id: string; name: string; email: string | null; mobile: string | null; totalSpent: number; orderCount: number; lastOrderAt: string | null }>>(
+        '/ecommerce/customers',
+        s,
+      ),
+    getById: (s: string, id: string) => fetchApi<any>(`/ecommerce/customers/${id}`, s),
+  },
+}
+
+// Payment Gateway API — tenant-configurable payment providers (eSewa, Fonepay,
+// ConnectIPS, Stripe, PayPal).
+export const paymentGatewayApi = {
+  listAvailableProviders: (s: string) =>
+    fetchApi<{ providers: string[] }>('/payment-gateway/providers', s),
+  listTenantProviders: (s: string) =>
+    fetchApi<any[]>('/payment-gateway/tenant/providers', s),
+  saveProvider: (s: string, data: {
+    type: string
+    name: string
+    credentials: Record<string, any>
+    config?: Record<string, any>
+    isDefault?: boolean
+    transactionFeePercent?: number
+    fixedFee?: number
+    supportedCurrencies?: string[]
+  }) => fetchApi<any>('/payment-gateway/tenant/providers', s, { method: 'POST', body: JSON.stringify(data) }),
+}
+
 // Plan modules API — which modules the tenant's subscription plan enables.
 // Returns null on any failure so callers can FAIL OPEN (show everything).
 export const tenantModulesApi = {

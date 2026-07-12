@@ -30,6 +30,7 @@ const navGroups: Array<{ label: string; items: NavItem[] }> = [
       { name: 'Tenants', href: '/tenants', icon: 'Building', platformOnly: true },
       { name: 'Users', href: '/users', icon: 'Users', platformOnly: true },
       { name: 'Roles', href: '/roles', icon: 'Shield', platformOnly: true },
+      { name: 'Ecommerce', href: '/ecommerce', icon: 'CreditCard', platformOnly: true },
     ],
   },
   {

@@ -1,6 +1,7 @@
 'use client'
 
 import { useEffect, useState } from 'react'
+import { useRouter } from 'next/navigation'
 import Link from 'next/link'
 import { resolveClientSubdomain } from '@/lib/subdomain'
 import {
@@ -14,16 +15,22 @@ import {
   loginCustomer,
   addToCart,
   checkout,
-  confirmDemoPayment,
+  getTenantBySubdomain,
+  getTenantAvailableProviders,
+  initPayment,
+  type TenantPaymentProvider,
 } from '@/lib/api'
 
 type PaymentMethod = 'COD' | 'PREPAID'
 
 /** Checkout — collects shipping/contact details, ensures the shopper is
  * authenticated (login inline if needed), replays the localStorage guest cart
- * into the backend cart, then places the order. Payment for PREPAID orders is
- * confirmed via a demo stub so the flow completes without a real gateway. */
+ * into the backend cart, then places the order. PREPAID orders are handed off
+ * to the tenant's real configured payment gateway (eSewa/Fonepay/ConnectIPS/
+ * Stripe/PayPal) via /checkout/callback; COD orders go straight to the order
+ * detail page. */
 export default function CheckoutPage() {
+  const router = useRouter()
   const [subdomain, setSubdomain] = useState('')
   const [items, setItems] = useState<GuestCartItem[]>([])
   const [authed, setAuthed] = useState(false)
@@ -38,16 +45,31 @@ export default function CheckoutPage() {
   const [line1, setLine1] = useState('')
   const [city, setCity] = useState('')
   const [payment, setPayment] = useState<PaymentMethod>('COD')
+  const [providers, setProviders] = useState<TenantPaymentProvider[]>([])
+  const [selectedProvider, setSelectedProvider] = useState<string>('')
 
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState<string | null>(null)
-  const [placedOrder, setPlacedOrder] = useState<any>(null)
 
   useEffect(() => {
     const sub = resolveClientSubdomain()
     setSubdomain(sub)
     setItems(getGuestCart(sub))
     setAuthed(!!getToken())
+
+    ;(async () => {
+      const tenant = await getTenantBySubdomain(sub)
+      if (!tenant?.id) return
+      const list = await getTenantAvailableProviders(tenant.id)
+      setProviders(list)
+      if (list.length > 0) {
+        const def = list.find((p) => p.isDefault) || list[0]
+        setSelectedProvider(def.type)
+      } else {
+        // No gateway configured for this tenant — fall back to COD-only.
+        setPayment('COD')
+      }
+    })()
   }, [])
 
   const { subtotal, tax, total } = guestCartTotals(items)
@@ -89,39 +111,66 @@ export default function CheckoutPage() {
       return setError(res.error)
     }
 
-    // Demo-confirm PREPAID payments so the order completes end-to-end.
-    if (payment === 'PREPAID' && res.order?.id) {
-      await confirmDemoPayment(res.order.id)
+    const order = res.order
+    const orderId = order?.id
+
+    if (payment === 'PREPAID' && orderId && selectedProvider) {
+      const started = await startGatewayPayment(orderId, Number(order.grandTotal ?? total), selectedProvider)
+      setBusy(false)
+      if (!started.ok) return setError(started.error || 'Could not start payment.')
+      // startGatewayPayment either redirects the browser or submits a hidden
+      // form — nothing left to do on this page.
+      return
     }
 
+    // COD (or PREPAID with no provider available, which shouldn't happen
+    // since the option is hidden in that case) — order is placed, done.
     clearGuestCart(subdomain)
     setBusy(false)
-    setPlacedOrder(res.order)
+    if (orderId) router.push(`/orders/${orderId}`)
   }
 
-  if (placedOrder) {
-    return (
-      <main className="max-w-xl mx-auto px-4 py-16 text-center" style={{ color: 'var(--site-text)' }}>
-        <div className="text-5xl mb-4">🎉</div>
-        <h1 className="text-3xl font-bold mb-2">Order placed!</h1>
-        <p style={{ color: 'var(--site-sub)' }}>
-          Thank you, {name || 'friend'}. Your order{' '}
-          <strong>{placedOrder.orderNumber || placedOrder.id}</strong> has been received.
-        </p>
-        <p className="mt-1" style={{ color: 'var(--site-sub)' }}>
-          Total: {fmt(Number(placedOrder.grandTotal ?? total))}
-        </p>
-        <div className="flex gap-3 justify-center mt-8">
-          <Link
-            href="/shop"
-            className="px-5 py-2.5 font-semibold"
-            style={{ background: 'var(--site-primary)', color: 'var(--site-on-primary)', borderRadius: 'var(--site-radius)' }}
-          >
-            Keep shopping
-          </Link>
-        </div>
-      </main>
-    )
+  /** Calls payment-gateway/init and either redirects the browser to the
+   * gateway (Fonepay/Stripe/PayPal return a full paymentUrl) or auto-submits
+   * a hidden POST form (eSewa/ConnectIPS return formData that must be
+   * submitted to paymentUrl). */
+  async function startGatewayPayment(orderId: string, amount: number, providerType: string): Promise<{ ok: boolean; error?: string }> {
+    const origin = window.location.origin
+    const base = `${origin}/checkout/callback?orderId=${encodeURIComponent(orderId)}&providerType=${encodeURIComponent(providerType)}&amount=${encodeURIComponent(amount)}`
+    // Stripe substitutes this exact literal token in the returned URL — it
+    // must not be URL-encoded.
+    const successUrl = providerType === 'STRIPE' ? `${base}&session_id={CHECKOUT_SESSION_ID}` : base
+    const failureUrl = `${origin}/checkout/callback?orderId=${encodeURIComponent(orderId)}&providerType=${encodeURIComponent(providerType)}&amount=${encodeURIComponent(amount)}&result=failed`
+    const cancelUrl = `${origin}/checkout/callback?orderId=${encodeURIComponent(orderId)}&providerType=${encodeURIComponent(providerType)}&amount=${encodeURIComponent(amount)}&result=cancelled`
+
+    const res = await initPayment({ providerType, orderId, amount, successUrl, failureUrl, cancelUrl })
+    if (!res.ok) return { ok: false, error: res.error }
+
+    const data = res.data
+    if (data.formData && data.paymentUrl) {
+      submitAutoForm(data.paymentUrl, data.formData)
+      return { ok: true }
+    }
+    if (data.paymentUrl) {
+      window.location.href = data.paymentUrl
+      return { ok: true }
+    }
+    return { ok: false, error: 'Payment gateway did not return a redirect URL.' }
+  }
+
+  function submitAutoForm(action: string, fields: Record<string, string>) {
+    const form = document.createElement('form')
+    form.method = 'POST'
+    form.action = action
+    for (const [k, v] of Object.entries(fields)) {
+      const input = document.createElement('input')
+      input.type = 'hidden'
+      input.name = k
+      input.value = v
+      form.appendChild(input)
+    }
+    document.body.appendChild(form)
+    form.submit()
   }
 
   return (
@@ -167,18 +216,44 @@ export default function CheckoutPage() {
 
                 <Panel title="Payment method">
                   <div className="space-y-2">
-                    {(['COD', 'PREPAID'] as PaymentMethod[]).map((m) => (
-                      <label key={m} className="flex items-center gap-2 cursor-pointer">
+                    <label className="flex items-center gap-2 cursor-pointer">
+                      <input
+                        type="radio"
+                        name="payment"
+                        checked={payment === 'COD'}
+                        onChange={() => setPayment('COD')}
+                      />
+                      <span>Cash on delivery</span>
+                    </label>
+                    {providers.length > 0 && (
+                      <label className="flex items-center gap-2 cursor-pointer">
                         <input
                           type="radio"
                           name="payment"
-                          checked={payment === m}
-                          onChange={() => setPayment(m)}
+                          checked={payment === 'PREPAID'}
+                          onChange={() => setPayment('PREPAID')}
                         />
-                        <span>{m === 'COD' ? 'Cash on delivery' : 'Pay now (demo)'}</span>
+                        <span>Pay now</span>
                       </label>
-                    ))}
+                    )}
                   </div>
+
+                  {payment === 'PREPAID' && providers.length > 0 && (
+                    <div className="mt-3 space-y-2">
+                      <span className="block text-sm" style={{ color: 'var(--site-sub)' }}>Choose a payment provider</span>
+                      {providers.map((p) => (
+                        <label key={p.type} className="flex items-center gap-2 cursor-pointer text-sm">
+                          <input
+                            type="radio"
+                            name="provider"
+                            checked={selectedProvider === p.type}
+                            onChange={() => setSelectedProvider(p.type)}
+                          />
+                          <span>{p.name}</span>
+                        </label>
+                      ))}
+                    </div>
+                  )}
                 </Panel>
 
                 {error && <p style={{ color: 'var(--site-accent)' }}>{error}</p>}
