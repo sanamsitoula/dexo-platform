@@ -2,38 +2,18 @@
 
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
-import { useTenantInfo } from '../../lib/tenant-info';
-
-// Canonical fitness journey — mirrored by the mobile app's tab bar
-// (apps/mobile/app/(tabs)/_layout.tsx): Home / Workouts / Diet / My Plan / Profile.
-const FITNESS_ITEMS = [
-  { href: '/',           label: 'Home',     icon: '🏠' },
-  { href: '/workouts',   label: 'Workouts', icon: '🏋️' },
-  { href: '/diet',       label: 'Diet',     icon: '🥗' },
-  { href: '/membership', label: 'My Plan',  icon: '💳' },
-  { href: '/account',    label: 'Profile',  icon: '👤' },
-];
+import { useNavItems } from './useNavItems';
 
 const HIDDEN_ON = ['/login', '/register', '/onboarding', '/forgot-password'];
 
+/** Mobile tab bar — hidden md+ in favor of TopNav (see layout.tsx). */
 export default function BottomNav() {
   const path = usePathname();
-  const { vertical } = useTenantInfo();
+  const items = useNavItems();
   if (HIDDEN_ON.includes(path || '')) return null;
 
-  // Non-fitness verticals build their tab bar from the registry's quick actions.
-  const items =
-    vertical.key === 'fitness'
-      ? FITNESS_ITEMS
-      : [
-          { href: '/', label: 'Home', icon: '🏠' },
-          ...vertical.quickActions.filter((a) => a.href !== '/account').slice(0, 3)
-            .map((a) => ({ href: a.href, label: a.label.split(' ')[0], icon: a.icon })),
-          { href: '/account', label: 'Profile', icon: '👤' },
-        ];
-
   return (
-    <nav className="fixed bottom-0 left-0 right-0 bg-white/95 backdrop-blur border-t border-gray-200 z-50">
+    <nav className="md:hidden fixed bottom-0 left-0 right-0 bg-white/95 backdrop-blur border-t border-gray-200 z-50">
       <div className="max-w-md mx-auto flex justify-around py-2">
         {items.map((it) => {
           const active = it.href === '/' ? path === '/' : path?.startsWith(it.href);

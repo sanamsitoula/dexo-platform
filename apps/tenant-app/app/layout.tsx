@@ -2,6 +2,7 @@ import './globals.css';
 import { headers } from 'next/headers';
 import { inter, grotesk, jbMono } from '@dexo/ui';
 import BottomNav from './_components/BottomNav';
+import TopNav from './_components/TopNav';
 import AuthGate from './_components/AuthGate';
 
 // DEXO brand type stack — Inter for UI, Space Grotesk for display numerals and
@@ -23,7 +24,8 @@ const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000';
 async function getBrand(): Promise<{ primary: string; accent: string }> {
   try {
     const h = headers();
-    const slug = h.get('x-tenant-slug') || process.env.DEV_TENANT || 'vrfitness';
+    const slug = h.get('x-tenant-slug');
+    if (!slug) return { primary: '#EA580C', accent: '#F59E0B' };
     const res = await fetch(`${API_URL}/api/tenants/subdomain/${slug}`, {
       cache: 'no-store',
       signal: AbortSignal.timeout(4000),
@@ -42,12 +44,15 @@ export default async function RootLayout({ children }: { children: React.ReactNo
   return (
     <html lang="en">
       <body
-        className={`${inter.variable} ${grotesk.variable} ${jbMono.variable} ${inter.className} bg-gray-50 pb-20`}
+        className={`${inter.variable} ${grotesk.variable} ${jbMono.variable} ${inter.className} bg-gray-50 pb-20 md:pb-0`}
         style={{ ['--brand-primary' as any]: brand.primary, ['--brand-accent' as any]: brand.accent }}
       >
-        <div className="max-w-md mx-auto min-h-screen bg-white">
+        <div className="min-h-screen bg-white">
           <AuthGate>
-            {children}
+            <TopNav />
+            <div className="max-w-md md:max-w-4xl mx-auto md:px-6 md:py-6">
+              {children}
+            </div>
             <BottomNav />
           </AuthGate>
         </div>
