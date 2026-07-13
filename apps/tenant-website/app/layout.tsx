@@ -16,7 +16,7 @@ export const metadata = {
 async function getTenantContext() {
   try {
     const h = headers();
-    const slug = h.get('x-tenant-slug') || process.env.DEV_TENANT || 'vrfitness';
+    const slug = h.get('x-tenant-slug') || '';
     const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000';
 
     // Resolve the domain type dynamically from the tenant record so ANY business
@@ -75,7 +75,7 @@ async function resolveDomainType(slug: string, apiUrl: string): Promise<string> 
 export default async function RootLayout({ children }: { children: React.ReactNode }) {
   // Resolve active tenant subdomain for layout-wide features (FloatingWhatsApp, etc.)
   const h = headers();
-  const slug = h.get('x-tenant-slug') || process.env.DEV_TENANT || 'vrfitness';
+  const slug = h.get('x-tenant-slug') || '';
 
   // Safely get template context with error handling
   let ctx: any = null;

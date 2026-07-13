@@ -8,7 +8,7 @@ import AddToCartButton from '@/components/AddToCartButton';
 
 function resolveSubdomain(): string {
   const h = headers();
-  return h.get('x-tenant-slug') || process.env.DEV_TENANT || 'vrfitness';
+  return h.get('x-tenant-slug') || '';
 }
 
 const PAGE_SIZE = 12;

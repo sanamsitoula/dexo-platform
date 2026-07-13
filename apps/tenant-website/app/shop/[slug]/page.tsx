@@ -9,7 +9,7 @@ import ProductDetail from './ProductDetail';
 
 function resolveSubdomain(): string {
   const h = headers();
-  return h.get('x-tenant-slug') || process.env.DEV_TENANT || 'vrfitness';
+  return h.get('x-tenant-slug') || '';
 }
 
 export default async function ProductPage({ params }: { params: { slug: string } }) {

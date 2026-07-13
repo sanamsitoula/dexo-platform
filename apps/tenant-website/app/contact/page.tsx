@@ -60,7 +60,7 @@ const card = {
 
 export default async function ContactPage() {
   const h = headers();
-  const subdomain = h.get('x-tenant-slug') || process.env.DEV_TENANT || 'vrfitness';
+  const subdomain = h.get('x-tenant-slug') || '';
 
   const [branches, tenant, whatsapp, theme] = await Promise.all([
     getBranches(subdomain),
