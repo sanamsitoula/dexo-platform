@@ -287,11 +287,49 @@ REM ============================================
 REM  Start API Server (port 4000)
 REM ============================================
 set "API_LOG=logs\api\api-%TIMESTAMP%.log"
+
+echo [INFO] Checking port 4000 for a stale API process...
+set "_killed4000=0"
+for /f "tokens=5" %%a in ('netstat -aon ^| findstr ":4000 " ^| findstr "LISTENING" 2^>nul') do (
+    echo [INFO] Killing stale process %%a on port 4000...
+    taskkill /PID %%a /T /F >nul 2>nul
+    set "_killed4000=1"
+)
+if "%_killed4000%"=="1" call :sleep 2
+echo [INFO] Port 4000 is free.
+
 echo [INFO] Starting API Server on port 4000...
 echo [INFO] Logs: %API_LOG%
 start "Dexo API" /MIN powershell -NoProfile -ExecutionPolicy Bypass -File "%~dp0scripts\start-app.ps1" -App api
 call :sleep 18
 call :check_app "API Server" 4000 "%API_LOG%" api
+
+REM Hard-stop the whole boot if the API never came up on its port — every
+REM other app depends on it, so continuing just cascades failures downstream.
+netstat -aon 2>nul | findstr ":4000 " | findstr "LISTENING" >nul
+if %ERRORLEVEL% NEQ 0 (
+    echo.
+    echo [FATAL] API Server failed to start on port 4000. Aborting startup here.
+    echo [FATAL] See logs: %API_LOG%.out / %API_LOG%.err
+    pause
+    exit /b 1
+)
+
+REM Hard-stop if the API log recorded a real error. "Failed to check bucket"
+REM is a known benign MinIO race on cold start and is excluded so it doesn't
+REM trigger a false abort.
+if exist "%API_LOG%.err" (
+    powershell -NoProfile -Command ^
+      "$m = Get-Content -LiteralPath '%API_LOG%.err' -ErrorAction SilentlyContinue | Select-String -Pattern 'error' -CaseSensitive:$false | Where-Object { $_.Line -notmatch 'Failed to check bucket' }; if ($m) { exit 1 } else { exit 0 }"
+    if %ERRORLEVEL% EQU 1 (
+        echo.
+        echo [FATAL] Error^(s^) detected in the API log. Aborting startup here.
+        echo [FATAL] Last 30 lines of %API_LOG%.err:
+        powershell -NoProfile -Command "Get-Content -LiteralPath '%API_LOG%.err' -Tail 30"
+        pause
+        exit /b 1
+    )
+)
 
 REM ============================================
 REM  Start platform-web (port 3001)

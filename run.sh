@@ -242,10 +242,39 @@ latest_log() {
 # ============================================
 echo -e "${GREEN}[INFO]${NC} Starting Dexo apps..."
 
+echo -e "${BLUE}[INFO]${NC} Checking port 4000 for a stale API process..."
+API_PIDS=$(ss -ltnp "( sport = :4000 )" 2>/dev/null | grep -oP 'pid=\K[0-9]+' | sort -u)
+if [ -n "$API_PIDS" ]; then
+    echo -e "${BLUE}[INFO]${NC} Killing stale process(es) on port 4000: $API_PIDS"
+    kill -9 $API_PIDS 2>/dev/null || true
+    sleep 2
+fi
+echo -e "${BLUE}[INFO]${NC} Port 4000 is free."
+
 echo -e "${BLUE}[INFO]${NC} Starting API Server on port 4000..."
 scripts/start-app.sh api
 sleep 18
-check_app "API Server" 4000 "$(latest_log api out)" "$(latest_log api err)"
+API_LOG_OUT="$(latest_log api out)"
+API_LOG_ERR="$(latest_log api err)"
+check_app "API Server" 4000 "$API_LOG_OUT" "$API_LOG_ERR"
+
+# Hard-stop the whole boot if the API never came up on its port — every
+# other app depends on it, so continuing just cascades failures downstream.
+if ! ss -ltn "( sport = :4000 )" 2>/dev/null | grep -q LISTEN; then
+    echo -e "${RED}[FATAL]${NC} API Server failed to start on port 4000. Aborting startup here."
+    echo -e "${RED}[FATAL]${NC} See logs: $API_LOG_OUT / $API_LOG_ERR"
+    exit 1
+fi
+
+# Hard-stop if the API log recorded a real error. "Failed to check bucket"
+# is a known benign MinIO race on cold start and is excluded so it doesn't
+# trigger a false abort.
+if [ -f "$API_LOG_ERR" ] && grep -i "error" "$API_LOG_ERR" | grep -qv "Failed to check bucket"; then
+    echo -e "${RED}[FATAL]${NC} Error(s) detected in the API log. Aborting startup here."
+    echo -e "${RED}[FATAL]${NC} Last 30 lines of $API_LOG_ERR:"
+    tail -30 "$API_LOG_ERR"
+    exit 1
+fi
 
 echo -e "${BLUE}[INFO]${NC} Starting Platform Web (port 3001)..."
 scripts/start-app.sh platform-web
