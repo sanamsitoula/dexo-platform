@@ -33,7 +33,12 @@ function extractSlug(host: string): string | null {
   if (!hostname || isTunnelHost(hostname)) return null;
   const parts = hostname.split('.');
 
-  // sub.localhost -> ["sub", "localhost"]
+  // Canonical tenant-admin host: admin.<tenant>.onedexo.com / admin.<tenant>.localhost
+  // (this app is hosted "admin" FIRST, tenant SECOND — see lib/subdomain.ts).
+  if (parts[0] === 'admin' && parts.length >= 3 && !RESERVED.has(parts[1])) {
+    return parts[1];
+  }
+  // sub.localhost -> ["sub", "localhost"]  (no "admin." prefix, some local setups)
   if (hostname.endsWith('.localhost') && parts.length >= 2 && !RESERVED.has(parts[0])) {
     return parts[0];
   }
@@ -53,8 +58,15 @@ export function middleware(req: NextRequest) {
     queryTenant ||
     extractSlug(host) ||
     (isTunnelHost((host || '').split(':')[0].toLowerCase()) ? cookieTenant : null) ||
-    process.env.DEV_TENANT ||
-    'vrfitness';
+    null;
+
+  // No silent default — an unresolvable host gets a real error page instead
+  // of pretending to be some other business (was silently 'vrfitness').
+  if (!slug) {
+    const requestHeaders = new Headers(req.headers);
+    requestHeaders.set('x-attempted-host', host);
+    return NextResponse.rewrite(new URL('/tenant-not-found', req.url), { request: { headers: requestHeaders } });
+  }
 
   const requestHeaders = new Headers(req.headers);
   requestHeaders.set('x-tenant-slug', slug);

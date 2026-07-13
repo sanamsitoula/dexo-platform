@@ -19,6 +19,10 @@ export function resolveSubdomain(): string {
   if (typeof window !== 'undefined' && !TUNNEL_SUFFIXES.some((s) => window.location.hostname.toLowerCase().endsWith(s))) {
     const hostname = window.location.hostname.toLowerCase();
     const parts = hostname.split('.');
+    // Canonical member-portal host: portal.<tenant>.onedexo.com / portal.<tenant>.localhost
+    if ((parts[0] === 'portal' || parts[0] === 'admin') && parts.length >= 3 && !RESERVED_SUBDOMAINS.has(parts[1])) {
+      return parts[1];
+    }
     if (hostname.endsWith('.localhost') && parts.length >= 2 && !RESERVED_SUBDOMAINS.has(parts[0])) {
       return parts[0];
     }
@@ -83,6 +87,8 @@ export const authApi = {
     });
   },
   profile: () => api<any>('/auth/profile'),
+  updateProfile: (data: { firstName?: string; lastName?: string; phone?: string; avatarUrl?: string }) =>
+    api<any>('/users/profile', { method: 'PUT', body: JSON.stringify(data) }),
 };
 
 const qs = (params?: Record<string, any>) => {

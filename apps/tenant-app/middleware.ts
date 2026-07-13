@@ -86,8 +86,16 @@ export async function middleware(req: NextRequest) {
     customSlug ||
     extractSlug(host) ||
     (isTunnelHost(hostname) ? cookieTenant : null) ||
-    process.env.DEV_TENANT ||
-    'vrfitness';
+    null;
+
+  // No silent default — a request that genuinely can't be tied to a tenant
+  // (e.g. bare `localhost:4007` with no ?tenant= and no dexo_tenant cookie)
+  // gets a real error page instead of pretending to be some other business.
+  if (!slug) {
+    const requestHeaders = new Headers(req.headers);
+    requestHeaders.set('x-attempted-host', host);
+    return NextResponse.rewrite(new URL('/tenant-not-found', req.url), { request: { headers: requestHeaders } });
+  }
 
   const requestHeaders = new Headers(req.headers);
   requestHeaders.set('x-tenant-slug', slug);

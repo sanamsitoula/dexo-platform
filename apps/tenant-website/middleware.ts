@@ -91,8 +91,15 @@ export async function middleware(req: NextRequest) {
     customSlug ||
     extractSlug(host) ||
     (isTunnelHost(hostname) ? cookieTenant : null) ||
-    process.env.DEV_TENANT ||
-    'vrfitness';
+    null;
+
+  // No silent default — an unresolvable host gets a real error page instead
+  // of pretending to be some other business (was silently 'vrfitness').
+  if (!slug) {
+    const requestHeaders = new Headers(req.headers);
+    requestHeaders.set('x-attempted-host', host);
+    return NextResponse.rewrite(new URL('/tenant-not-found', req.url), { request: { headers: requestHeaders } });
+  }
 
   const requestHeaders = new Headers(req.headers);
   requestHeaders.set('x-tenant-slug', slug);
