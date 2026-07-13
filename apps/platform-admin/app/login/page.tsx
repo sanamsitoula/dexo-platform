@@ -2,7 +2,6 @@
 
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
-import Link from 'next/link';
 import { useAuth } from '@/contexts/AuthContext';
 import AdminSocialLoginButtons from '@/components/AdminSocialLoginButtons';
 
@@ -61,7 +60,46 @@ export default function LoginPage() {
   }
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900 px-4 py-12">
+    <div className="min-h-screen flex flex-col lg:flex-row bg-slate-900">
+      {/* ── Left: operations showcase (restricted-access framing) ───────── */}
+      <div className="hidden lg:flex lg:w-[55%] relative overflow-hidden items-center justify-center px-16 bg-gradient-to-br from-slate-950 via-slate-900 to-indigo-950 border-r border-white/5">
+        <div className="absolute inset-0 opacity-[0.07]" style={{
+          backgroundImage: 'linear-gradient(white 1px, transparent 1px), linear-gradient(90deg, white 1px, transparent 1px)',
+          backgroundSize: '32px 32px',
+        }} />
+        <div className="relative max-w-lg text-white">
+          <span className="inline-flex items-center gap-2 text-xs font-semibold uppercase tracking-wider text-amber-300/90 bg-amber-400/10 border border-amber-400/20 rounded-full px-3 py-1">
+            <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
+            </svg>
+            Internal — Platform staff only
+          </span>
+          <h2 className="mt-6 text-4xl font-extrabold leading-tight">
+            Every tenant.<br />One console.
+          </h2>
+          <p className="mt-4 text-slate-300 text-lg">
+            Provision tenants, manage subscriptions and billing, review audit logs, and
+            operate the entire Dexo platform from a single internal dashboard.
+          </p>
+          <div className="mt-10 grid grid-cols-3 gap-4 text-center">
+            <div>
+              <div className="text-2xl font-bold">All tenants</div>
+              <div className="text-xs text-slate-400 mt-1">Provisioning &amp; billing</div>
+            </div>
+            <div>
+              <div className="text-2xl font-bold">Audit log</div>
+              <div className="text-xs text-slate-400 mt-1">Every action tracked</div>
+            </div>
+            <div>
+              <div className="text-2xl font-bold">Role-gated</div>
+              <div className="text-xs text-slate-400 mt-1">Staff accounts only</div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      {/* ── Right: sign-in form ───────────────────────────────────────── */}
+      <div className="w-full lg:w-[45%] flex items-center justify-center px-4 py-12">
       <div className="max-w-md w-full">
         {/* Logo & Header */}
         <div className="text-center mb-8">
@@ -72,7 +110,7 @@ export default function LoginPage() {
           </div>
           <h2 className="text-3xl font-bold text-white">Platform Admin</h2>
           <p className="mt-2 text-sm text-slate-300">
-            Platform administration dashboard
+            Sign in with a platform staff account
           </p>
         </div>
 
@@ -194,10 +232,12 @@ export default function LoginPage() {
 
         {/* Footer */}
         <p className="mt-6 text-center text-sm text-slate-400">
-          <Link href="https://app.onedexo.com" className="hover:text-slate-200">
-            ← Back to Tenant App
-          </Link>
+          Not platform staff?{' '}
+          <a href="http://localhost:3001/login" className="hover:text-slate-200 underline">
+            Sign in as a business owner →
+          </a>
         </p>
+      </div>
       </div>
     </div>
   );

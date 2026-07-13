@@ -199,20 +199,44 @@ if %ERRORLEVEL% NEQ 0 (
 echo.
 
 REM ============================================
-REM  Apply Prisma migrations (creates tables)
+REM  Apply Prisma schema (creates tables)
+REM  NOTE: `prisma migrate deploy` is a silent no-op when prisma/migrations has
+REM  no real migration folders (only migration_lock.toml) — fall back to
+REM  `db push` in that case, otherwise a fresh clone seeds against a database
+REM  with zero tables. Kept in parity with run.sh.
 REM ============================================
-echo [INFO] Applying database migrations...
-echo [%date% %time:~0,8%] [INFO] prisma migrate deploy >> "%ORCHESTRATOR_LOG%"
+echo [INFO] Preparing database schema...
 call npx prisma generate >> "%ORCHESTRATOR_LOG%" 2>&1
-call npx prisma migrate deploy >> "%ORCHESTRATOR_LOG%" 2>&1
-if %ERRORLEVEL% NEQ 0 (
-    echo [ERROR] Migration failed. Last 20 log lines:
-    powershell -NoProfile -Command "Get-Content '%ORCHESTRATOR_LOG%' -Tail 20"
-    echo.
-    echo [WARN] Continuing startup, but DB-dependent apps will fail.
-    echo [INFO] Full log: %ORCHESTRATOR_LOG%
+
+set "HAS_MIGRATIONS=0"
+for /f %%D in ('dir /b /ad "prisma\migrations" 2^>nul') do set "HAS_MIGRATIONS=1"
+
+if "%HAS_MIGRATIONS%"=="1" (
+    echo [INFO] Applying migrations ^(prisma migrate deploy^)...
+    echo [%date% %time:~0,8%] [INFO] prisma migrate deploy >> "%ORCHESTRATOR_LOG%"
+    call npx prisma migrate deploy >> "%ORCHESTRATOR_LOG%" 2>&1
+    if %ERRORLEVEL% NEQ 0 (
+        echo [ERROR] Migration failed. Last 20 log lines:
+        powershell -NoProfile -Command "Get-Content '%ORCHESTRATOR_LOG%' -Tail 20"
+        echo.
+        echo [WARN] Continuing startup, but DB-dependent apps will fail.
+        echo [INFO] Full log: %ORCHESTRATOR_LOG%
+    ) else (
+        echo [INFO] Migrations applied.
+    )
 ) else (
-    echo [INFO] Migrations applied.
+    echo [WARN] No migrations found in prisma\migrations - syncing schema with 'prisma db push'.
+    echo [%date% %time:~0,8%] [INFO] prisma db push --accept-data-loss >> "%ORCHESTRATOR_LOG%"
+    call npx prisma db push --accept-data-loss >> "%ORCHESTRATOR_LOG%" 2>&1
+    if %ERRORLEVEL% NEQ 0 (
+        echo [ERROR] db push failed. Last 20 log lines:
+        powershell -NoProfile -Command "Get-Content '%ORCHESTRATOR_LOG%' -Tail 20"
+        echo.
+        echo [WARN] Continuing startup, but DB-dependent apps will fail.
+        echo [INFO] Full log: %ORCHESTRATOR_LOG%
+    ) else (
+        echo [INFO] Schema synced.
+    )
 )
 echo.
 
