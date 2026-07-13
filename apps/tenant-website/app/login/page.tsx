@@ -1,15 +1,13 @@
-import Link from 'next/link';
 import { headers } from 'next/headers';
 import { getFitnessInfo, type FitnessInfo } from '@/lib/api';
 import { getSiteTheme } from '@/lib/site-theme';
 import SiteNav from '@/components/SiteNav';
 import SiteFooter from '@/components/SiteFooter';
-import LoginRedirect from './redirect';
-import { memberPortalUrl } from '@/lib/portal';
+import AuthPanel from '@/components/AuthPanel';
 
 function resolveSubdomain(): string {
   const h = headers();
-  return h.get('x-tenant-slug') || process.env.DEV_TENANT || 'vrfitness';
+  return h.get('x-tenant-slug') || '';
 }
 
 const FALLBACK: FitnessInfo = {
@@ -23,34 +21,13 @@ export default async function LoginPage() {
   const subdomain = resolveSubdomain();
   const [info, theme] = await Promise.all([getFitnessInfo(subdomain), getSiteTheme(subdomain)]);
   const t = info || FALLBACK;
-  // Customer app (member portal) URL — {slug} placeholder supports prod domains.
-  const memberAppUrl = memberPortalUrl(subdomain);
-  const loginUrl = `${memberAppUrl}/login`;
 
   return (
     <div style={{ background: 'var(--site-bg)', color: 'var(--site-text)', minHeight: '100vh' }}>
       <SiteNav theme={theme} name={t.name} />
-
-      {/* Redirect card */}
-      <section className="px-4 py-24 max-w-md mx-auto text-center">
-        <div
-          className="p-8"
-          style={{ backgroundColor: 'var(--site-surface)', border: '1px solid var(--site-border)', borderRadius: 'var(--site-radius)' }}
-        >
-          <div className="text-4xl">🔐</div>
-          <h1 className="mt-4 text-3xl font-extrabold">Member Login</h1>
-          <p className="mt-3 text-sm" style={{ color: 'var(--site-sub)' }}>
-            Members sign in through the {t.name} member portal, where you can book classes,
-            track workouts, manage payments and check in with your QR code.
-          </p>
-          <LoginRedirect loginUrl={loginUrl} accent={theme.primary} />
-          <p className="mt-6 text-sm" style={{ color: 'var(--site-sub)' }}>
-            Not a member yet?{' '}
-            <Link href="/register" className="underline hover:opacity-80" style={{ color: 'var(--site-primary)' }}>Join now</Link>
-          </p>
-        </div>
+      <section className="px-4 py-16 flex justify-center">
+        <AuthPanel subdomain={subdomain} tenantId={t.id} tenantName={t.name} logoUrl={t.logoUrl} initialTab="login" />
       </section>
-
       <SiteFooter theme={theme} name={t.name} contact={t.contact} />
     </div>
   );
