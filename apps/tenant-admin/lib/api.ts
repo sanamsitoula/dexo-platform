@@ -387,6 +387,20 @@ export const tenantUsersApi = {
     fetchApi<any>('/users/tenant', subdomain),
 }
 
+export const menuBuilderApi = {
+  list: (s: string) => fetchApi<any[]>('/menus', s),
+  get: (s: string, menuId: string) => fetchApi<any>(`/menus/${menuId}`, s),
+  create: (s: string, data: any) => fetchApi<any>('/menus', s, { method: 'POST', body: JSON.stringify(data) }),
+  update: (s: string, menuId: string, data: any) => fetchApi<any>(`/menus/${menuId}`, s, { method: 'PUT', body: JSON.stringify(data) }),
+  remove: (s: string, menuId: string) => fetchApi<any>(`/menus/${menuId}`, s, { method: 'DELETE' }),
+
+  createItem: (s: string, menuId: string, data: any) => fetchApi<any>(`/menus/${menuId}/items`, s, { method: 'POST', body: JSON.stringify(data) }),
+  updateItem: (s: string, itemId: string, data: any) => fetchApi<any>(`/menus/items/${itemId}`, s, { method: 'PUT', body: JSON.stringify(data) }),
+  removeItem: (s: string, itemId: string) => fetchApi<any>(`/menus/items/${itemId}`, s, { method: 'DELETE' }),
+  reorderItem: (s: string, itemId: string, direction: 'up' | 'down') =>
+    fetchApi<any>(`/menus/items/${itemId}/reorder`, s, { method: 'POST', body: JSON.stringify({ direction }) }),
+}
+
 export const tenantSettingsApi = {
   getBranding: (subdomain: string) => fetchApi<any>('/settings/branding', subdomain),
   saveBranding: (subdomain: string, data: any) =>

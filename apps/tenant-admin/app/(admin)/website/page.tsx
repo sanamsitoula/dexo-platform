@@ -1,6 +1,7 @@
 'use client';
 
 import { useEffect, useMemo, useState } from 'react';
+import Link from 'next/link';
 import { tenantApi } from '@/lib/api';
 import { resolveTenantAdminSubdomain } from '@/lib/subdomain';
 import { PageHeader, Card, Btn, Field, Input } from '../_ui';
@@ -112,7 +113,18 @@ export default function WebsiteBuilderPage() {
         <Btn onClick={save} disabled={saving || !templateId}>{saving ? 'Publishing…' : 'Publish site'}</Btn>
         {msg && <span className={`text-sm ${msg.ok ? 'text-green-600' : 'text-red-600'}`}>{msg.text}</span>}
       </div>
-      <p className="text-xs text-gray-400 mt-4">Menu items, logo/colors and social links are managed in <b>Gym Settings</b> and the Domain/menu tools — this builder controls your template and homepage copy.</p>
+
+      <Card className="p-6 mt-4">
+        <div className="flex items-center justify-between">
+          <div>
+            <div className="font-bold text-gray-900">Content sections</div>
+            <p className="text-xs text-gray-500 mt-1">Build reusable content sections — Services, Team, Locations, FAQ, Pricing, Gallery — and render them as a grid, table, carousel, list, accordion or map.</p>
+          </div>
+          <Link href="/website/menus"><Btn variant="outline">Manage menus →</Btn></Link>
+        </div>
+      </Card>
+
+      <p className="text-xs text-gray-400 mt-4">Navigation links, logo/colors and social links are managed in <b>Gym Settings</b> and the Domain tools — this page controls your template and homepage copy.</p>
     </div>
   );
 }

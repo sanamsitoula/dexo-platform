@@ -43,6 +43,7 @@ import { AiGatewayModule } from './modules/ai-gateway/ai-gateway.module';
 import { PlatformEmailModule } from './modules/platform-email/platform-email.module';
 import { ErrorLogsModule } from './modules/error-logs/error-logs.module';
 import { ChatwootModule } from './modules/chatwoot/chatwoot.module';
+import { MenuBuilderModule } from './modules/menu-builder/menu-builder.module';
 import { FitnessAiModule } from './modules/fitness/ai-integration/fitness-ai.module';
 import { EcommerceAiModule } from './modules/ecommerce/ai-integration/ecommerce-ai.module';
 import { TenantStatusMiddleware } from './common/middleware/tenant-status.middleware';
@@ -102,6 +103,7 @@ import { TenantStatusMiddleware } from './common/middleware/tenant-status.middle
     PlatformEmailModule,
     ErrorLogsModule,
     ChatwootModule,
+    MenuBuilderModule,
     AttendanceDevicesModule,
     BusinessTemplateModule,
     TenantLifecycleModule,

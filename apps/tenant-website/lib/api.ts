@@ -11,6 +11,50 @@ export async function getTenantBySubdomain(subdomain: string) {
   }
 }
 
+export interface MenuItemNode {
+  id: string
+  title: string
+  slug: string
+  shortDescription: string | null
+  description: string | null
+  icon: string | null
+  images: string[]
+  location: { lat?: number; lng?: number; address?: string; embed_url?: string } | null
+  linkUrl: string | null
+  children: MenuItemNode[]
+}
+
+export interface PublicMenu {
+  id: string
+  name: string
+  slug: string
+  displayTemplate: 'grid' | 'table' | 'carousel' | 'list' | 'accordion' | 'map'
+  items: MenuItemNode[]
+}
+
+/** Published menu(s) for a tenant's public site — no auth, draft items excluded server-side. */
+export async function getPublicMenu(subdomain: string, slug: string): Promise<PublicMenu | null> {
+  try {
+    const res = await fetch(`${API_BASE_URL}/menus/public/${subdomain}?slug=${encodeURIComponent(slug)}`, { cache: 'no-store' })
+    if (!res.ok) return null
+    const menus = await res.json()
+    return Array.isArray(menus) && menus.length ? menus[0] : null
+  } catch {
+    return null
+  }
+}
+
+export async function getPublicMenus(subdomain: string): Promise<PublicMenu[]> {
+  try {
+    const res = await fetch(`${API_BASE_URL}/menus/public/${subdomain}`, { cache: 'no-store' })
+    if (!res.ok) return []
+    const menus = await res.json()
+    return Array.isArray(menus) ? menus : []
+  } catch {
+    return []
+  }
+}
+
 export interface FitnessInfo {
   id: string
   name: string
