@@ -1,12 +1,12 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import { useParams } from 'next/navigation';
 import { tenantUsersApi } from '@/lib/api';
+import { resolveTenantAdminSubdomain } from '@/lib/subdomain';
 import { PageHeader, Card, EmptyState, Badge } from '../_ui';
 
 export default function UsersPage() {
-  const subdomain = (useParams()?.subdomain as string) || 'vrfitness';
+  const subdomain = resolveTenantAdminSubdomain();
   const [users, setUsers] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
 

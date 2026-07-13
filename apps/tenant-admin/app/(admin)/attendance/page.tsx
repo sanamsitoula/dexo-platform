@@ -1,12 +1,12 @@
 'use client';
 
 import { useEffect, useState, useCallback } from 'react';
-import { useParams } from 'next/navigation';
 import { gymApi } from '@/lib/api';
+import { resolveTenantAdminSubdomain } from '@/lib/subdomain';
 import { PageHeader, KpiCard, Card, Btn, Input, EmptyState } from '../_ui';
 
 export default function AttendancePage() {
-  const subdomain = (useParams()?.subdomain as string) || 'vrfitness';
+  const subdomain = resolveTenantAdminSubdomain();
   const [today, setToday] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [qr, setQr] = useState('');

@@ -2,8 +2,8 @@
 
 import { useEffect, useState } from 'react';
 import Link from 'next/link';
-import { useParams } from 'next/navigation';
 import { ecommerceApi } from '@/lib/api';
+import { resolveTenantAdminSubdomain } from '@/lib/subdomain';
 import { PageHeader, Card, EmptyState, Badge } from '../_ui';
 
 const STATUS_COLORS: Record<string, 'green' | 'amber' | 'gray' | 'red' | 'indigo'> = {
@@ -21,7 +21,7 @@ const STATUS_COLORS: Record<string, 'green' | 'amber' | 'gray' | 'red' | 'indigo
 const STATUSES = ['PENDING', 'CONFIRMED', 'PROCESSING', 'PACKED', 'SHIPPED', 'DELIVERED', 'CANCELLED', 'RETURNED', 'REFUNDED'];
 
 export default function OrdersPage() {
-  const subdomain = (useParams()?.subdomain as string) || 'vrfitness';
+  const subdomain = resolveTenantAdminSubdomain();
   const [orders, setOrders] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);

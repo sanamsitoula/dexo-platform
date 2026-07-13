@@ -3,6 +3,7 @@
 import { useEffect, useState } from 'react';
 import { useRouter, useParams } from 'next/navigation';
 import { ecommerceApi } from '@/lib/api';
+import { resolveTenantAdminSubdomain } from '@/lib/subdomain';
 import { PageHeader, Card, Btn, Field, Input, Badge } from '../../_ui';
 
 const STATUSES = ['PENDING', 'CONFIRMED', 'PROCESSING', 'PACKED', 'SHIPPED', 'DELIVERED', 'CANCELLED', 'RETURNED', 'REFUNDED'];
@@ -24,7 +25,7 @@ export default function OrderDetailPage() {
   const router = useRouter();
   const params = useParams();
   const id = params?.id as string;
-  const subdomain = (params?.subdomain as string) || 'vrfitness';
+  const subdomain = resolveTenantAdminSubdomain();
 
   const [order, setOrder] = useState<any>(null);
   const [warehouses, setWarehouses] = useState<any[]>([]);

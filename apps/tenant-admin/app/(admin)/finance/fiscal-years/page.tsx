@@ -1,8 +1,8 @@
 'use client';
 
 import { useEffect, useState, useCallback } from 'react';
-import { useParams } from 'next/navigation';
 import { tenantAccountsApi } from '@/lib/api';
+import { resolveTenantAdminSubdomain } from '@/lib/subdomain';
 import { PageHeader, Card, Btn, SlideOver, Field, Input, EmptyState, Badge } from '../../_ui';
 
 /** Approximate BS (Bikram Sambat) year for a Gregorian date. Nepali FY starts mid-Jul
@@ -15,7 +15,7 @@ function toBsLabel(d: Date): string {
 }
 
 export default function FiscalYearsPage() {
-  const subdomain = (useParams()?.subdomain as string) || 'vrfitness';
+  const subdomain = resolveTenantAdminSubdomain();
   const [years, setYears] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [cal, setCal] = useState<'EN' | 'BS'>('EN');

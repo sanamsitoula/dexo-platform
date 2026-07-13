@@ -5,6 +5,7 @@ import { useParams, useRouter } from 'next/navigation';
 import { tenantRolesApi, tenantModulesApi } from '@/lib/api';
 import { PageHeader, Card, Btn, Field, Input, Badge } from '../../_ui';
 import PermissionMatrix from '@/components/PermissionMatrix';
+import { resolveTenantAdminSubdomain } from '@/lib/subdomain';
 import { PERMISSION_ACTIONS, expandPermissions, compressPermissions, resourcesForModules } from '@/lib/permissions';
 
 interface Role {
@@ -21,7 +22,7 @@ interface Role {
 export default function RoleDetailPage() {
   const params = useParams<{ id: string; subdomain?: string }>();
   const id = params?.id;
-  const subdomain = (params?.subdomain as string) || 'vrfitness';
+  const subdomain = resolveTenantAdminSubdomain();
   const router = useRouter();
   const [role, setRole] = useState<Role | null>(null);
   const [loading, setLoading] = useState(true);

@@ -1,8 +1,8 @@
 'use client';
 
 import { useEffect, useState, useCallback } from 'react';
-import { useParams } from 'next/navigation';
 import { tenantCrmApi } from '@/lib/api';
+import { resolveTenantAdminSubdomain } from '@/lib/subdomain';
 import { PageHeader, KpiCard, Card, EmptyState, Badge, Btn } from '../_ui';
 
 const CHANNELS: Record<string, { icon: string; label: string }> = {
@@ -43,7 +43,7 @@ interface ChannelCfg {
 }
 
 export default function ContactsPage() {
-  const subdomain = (useParams()?.subdomain as string) || 'vrfitness';
+  const subdomain = resolveTenantAdminSubdomain();
   const [messages, setMessages] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [channel, setChannel] = useState('all');

@@ -2,10 +2,10 @@
 
 import { useEffect, useState } from 'react';
 import Link from 'next/link';
-import { useParams } from 'next/navigation';
 import { tenantRolesApi } from '@/lib/api';
 import { PageHeader, Card, EmptyState, Badge, Btn } from '../_ui';
 import PermissionMatrix from '@/components/PermissionMatrix';
+import { resolveTenantAdminSubdomain } from '@/lib/subdomain';
 import { expandPermissions } from '@/lib/permissions';
 
 interface Role {
@@ -19,7 +19,7 @@ interface Role {
 }
 
 export default function RolesPage() {
-  const subdomain = (useParams()?.subdomain as string) || 'vrfitness';
+  const subdomain = resolveTenantAdminSubdomain();
   const [roles, setRoles] = useState<Role[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);

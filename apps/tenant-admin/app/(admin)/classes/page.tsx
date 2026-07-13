@@ -1,14 +1,14 @@
 'use client';
 
 import { useEffect, useState, useCallback } from 'react';
-import { useParams } from 'next/navigation';
 import { gymApi } from '@/lib/api';
+import { resolveTenantAdminSubdomain } from '@/lib/subdomain';
 import { PageHeader, Card, Btn, SlideOver, Field, Input, EmptyState, Badge } from '../_ui';
 
 const DAYS = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
 
 export default function ClassesPage() {
-  const subdomain = (useParams()?.subdomain as string) || 'vrfitness';
+  const subdomain = resolveTenantAdminSubdomain();
   const [classes, setClasses] = useState<any[]>([]);
   const [trainers, setTrainers] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);

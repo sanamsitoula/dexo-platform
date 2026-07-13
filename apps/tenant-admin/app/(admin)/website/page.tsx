@@ -1,8 +1,8 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import { useParams } from 'next/navigation';
 import { tenantSettingsApi, tenantApi } from '@/lib/api';
+import { resolveTenantAdminSubdomain } from '@/lib/subdomain';
 import { PageHeader, Card, Btn, Field, Input } from '../_ui';
 
 const PLATFORM_DOMAIN = process.env.NEXT_PUBLIC_PLATFORM_DOMAIN || 'onedexo.com';
@@ -14,7 +14,7 @@ const TEMPLATES = [
 ];
 
 export default function WebsiteBuilderPage() {
-  const subdomain = (useParams()?.subdomain as string) || 'vrfitness';
+  const subdomain = resolveTenantAdminSubdomain();
   const [tenant, setTenant] = useState<any>(null);
   const [cfg, setCfg] = useState({ template: 'energetic', heroTitle: '', heroSubtitle: '', about: '', ctaLabel: 'Join now' });
   const [loading, setLoading] = useState(true);

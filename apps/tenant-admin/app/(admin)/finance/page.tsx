@@ -2,13 +2,12 @@
 
 import Link from 'next/link'
 import { useEffect, useState } from 'react'
-import { useParams } from 'next/navigation'
 import { tenantAccountsApi } from '@/lib/api'
+import { resolveTenantAdminSubdomain } from '@/lib/subdomain';
 import { StatCard, formatNumber } from '@/lib/report-utils'
 
 export default function FinancePage() {
-  const params = useParams()
-  const subdomain = (params?.subdomain as string) || 'vrfitness'
+  const subdomain = resolveTenantAdminSubdomain();
   const [summary, setSummary] = useState<any>(null)
   const [loading, setLoading] = useState(true)
 

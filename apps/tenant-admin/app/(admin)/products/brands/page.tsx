@@ -2,8 +2,8 @@
 
 import { useEffect, useState } from 'react';
 import Link from 'next/link';
-import { useParams } from 'next/navigation';
 import { ecommerceApi } from '@/lib/api';
+import { resolveTenantAdminSubdomain } from '@/lib/subdomain';
 import { PageHeader, Card, EmptyState, Btn, Field, Input, SlideOver } from '../../_ui';
 
 interface Brand {
@@ -15,7 +15,7 @@ interface Brand {
 const EMPTY = { name: '', logoUrl: '' };
 
 export default function BrandsPage() {
-  const subdomain = (useParams()?.subdomain as string) || 'vrfitness';
+  const subdomain = resolveTenantAdminSubdomain();
   const [brands, setBrands] = useState<Brand[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');

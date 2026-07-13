@@ -1,15 +1,15 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import { useParams } from 'next/navigation';
 import { ecommerceApi } from '@/lib/api';
+import { resolveTenantAdminSubdomain } from '@/lib/subdomain';
 import { PageHeader, Card, EmptyState, Btn, Field, Input, SlideOver, Badge } from '../_ui';
 
 const EMPTY_ADJUST = { productId: '', variantId: '', warehouseId: '', quantityChange: '', reason: '' };
 const EMPTY_WAREHOUSE = { name: '', code: '', address: '', isDefault: false };
 
 export default function InventoryPage() {
-  const subdomain = (useParams()?.subdomain as string) || 'vrfitness';
+  const subdomain = resolveTenantAdminSubdomain();
   const [stock, setStock] = useState<any[]>([]);
   const [products, setProducts] = useState<any[]>([]);
   const [warehouses, setWarehouses] = useState<any[]>([]);

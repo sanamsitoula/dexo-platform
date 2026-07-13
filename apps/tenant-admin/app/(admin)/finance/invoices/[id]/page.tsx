@@ -4,12 +4,13 @@ import { useEffect, useState } from 'react'
 import { useParams, useRouter } from 'next/navigation'
 import Link from 'next/link'
 import { tenantInvoicesApi } from '@/lib/api'
+import { resolveTenantAdminSubdomain } from '@/lib/subdomain';
 import { LoadingState, ErrorState, formatNumber, formatDate } from '@/lib/report-utils'
 
 export default function InvoiceViewPage() {
   const params = useParams()
   const router = useRouter()
-  const subdomain = (params?.subdomain as string) || 'vrfitness'
+  const subdomain = resolveTenantAdminSubdomain();
   const id = params?.id as string
   const [invoice, setInvoice] = useState<any>(null)
   const [loading, setLoading] = useState(true)

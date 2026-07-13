@@ -1,8 +1,8 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import { useParams } from 'next/navigation';
 import { paymentGatewayApi } from '@/lib/api';
+import { resolveTenantAdminSubdomain } from '@/lib/subdomain';
 import { PageHeader, Card, EmptyState, Btn, Field, Input, SlideOver, Badge } from '../../_ui';
 
 interface Provider {
@@ -73,7 +73,7 @@ const EMPTY_FORM = {
 };
 
 export default function PaymentSettingsPage() {
-  const subdomain = (useParams()?.subdomain as string) || 'vrfitness';
+  const subdomain = resolveTenantAdminSubdomain();
   const [providers, setProviders] = useState<Provider[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');

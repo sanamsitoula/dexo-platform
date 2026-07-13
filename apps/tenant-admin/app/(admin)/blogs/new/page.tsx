@@ -1,14 +1,15 @@
 'use client';
 
 import { useState } from 'react';
-import { useRouter, useParams } from 'next/navigation';
+import { useRouter } from 'next/navigation';
 import { blogApi } from '@/lib/api';
 import { PageHeader, Btn } from '../../_ui';
+import { resolveTenantAdminSubdomain } from '@/lib/subdomain';
 import BlogForm, { BlogFormValues, EMPTY_BLOG } from '../_form';
 
 export default function NewBlogPage() {
   const router = useRouter();
-  const subdomain = (useParams()?.subdomain as string) || 'vrfitness';
+  const subdomain = resolveTenantAdminSubdomain();
   const [values, setValues] = useState<BlogFormValues>(EMPTY_BLOG);
   const [slug, setSlug] = useState('');
   const [saving, setSaving] = useState(false);

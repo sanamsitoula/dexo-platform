@@ -1,9 +1,9 @@
 'use client'
 
 import { useEffect, useState } from 'react'
-import { useParams } from 'next/navigation'
 import Link from 'next/link'
 import { tenantInvoicesApi } from '@/lib/api'
+import { resolveTenantAdminSubdomain } from '@/lib/subdomain';
 import { ReportHeader, EmptyState, ErrorState, LoadingState, formatNumber, formatDate, downloadCsv } from '@/lib/report-utils'
 
 const STATUS_STYLES: Record<string, string> = {
@@ -14,8 +14,7 @@ const STATUS_STYLES: Record<string, string> = {
 }
 
 export default function InvoicesPage() {
-  const params = useParams()
-  const subdomain = (params?.subdomain as string) || 'vrfitness'
+  const subdomain = resolveTenantAdminSubdomain();
   const [invoices, setInvoices] = useState<any[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)

@@ -1,8 +1,8 @@
 'use client';
 
 import { useState } from 'react';
-import { useParams } from 'next/navigation';
 import { gymApi } from '@/lib/api';
+import { resolveTenantAdminSubdomain } from '@/lib/subdomain';
 import { PageHeader, Card, Btn, Field, Input } from '../_ui';
 
 const AUDIENCES = [
@@ -12,7 +12,7 @@ const AUDIENCES = [
 ];
 
 export default function AnnouncementsPage() {
-  const subdomain = (useParams()?.subdomain as string) || 'vrfitness';
+  const subdomain = resolveTenantAdminSubdomain();
   const [title, setTitle] = useState('');
   const [message, setMessage] = useState('');
   const [audience, setAudience] = useState('ALL');

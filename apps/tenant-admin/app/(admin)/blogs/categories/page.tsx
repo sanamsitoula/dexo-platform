@@ -2,8 +2,8 @@
 
 import { useEffect, useState } from 'react';
 import Link from 'next/link';
-import { useParams } from 'next/navigation';
 import { blogCategoryApi } from '@/lib/api';
+import { resolveTenantAdminSubdomain } from '@/lib/subdomain';
 import { PageHeader, Card, EmptyState, Btn, Field, Input, SlideOver } from '../../_ui';
 
 interface Category {
@@ -18,7 +18,7 @@ interface Category {
 const EMPTY = { name: '', description: '', color: '#6366f1', thumbnail: '' };
 
 export default function BlogCategoriesPage() {
-  const subdomain = (useParams()?.subdomain as string) || 'vrfitness';
+  const subdomain = resolveTenantAdminSubdomain();
   const [categories, setCategories] = useState<Category[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');

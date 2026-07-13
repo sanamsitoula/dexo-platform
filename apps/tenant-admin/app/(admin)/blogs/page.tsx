@@ -2,8 +2,8 @@
 
 import { useEffect, useState } from 'react';
 import Link from 'next/link';
-import { useParams } from 'next/navigation';
 import { blogApi } from '@/lib/api';
+import { resolveTenantAdminSubdomain } from '@/lib/subdomain';
 import { PageHeader, Card, EmptyState, Badge, Btn } from '../_ui';
 
 const STATUS_COLORS: Record<string, 'green' | 'amber' | 'gray' | 'red' | 'indigo'> = {
@@ -14,7 +14,7 @@ const STATUS_COLORS: Record<string, 'green' | 'amber' | 'gray' | 'red' | 'indigo
 };
 
 export default function BlogsPage() {
-  const subdomain = (useParams()?.subdomain as string) || 'vrfitness';
+  const subdomain = resolveTenantAdminSubdomain();
   const [blogs, setBlogs] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);

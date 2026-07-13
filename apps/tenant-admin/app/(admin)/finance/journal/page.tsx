@@ -1,15 +1,14 @@
 'use client'
 
 import { useEffect, useState } from 'react'
-import { useParams } from 'next/navigation'
 import { tenantJournalApi, tenantAccountsApi } from '@/lib/api'
+import { resolveTenantAdminSubdomain } from '@/lib/subdomain';
 import { ReportHeader, EmptyState, ErrorState, LoadingState, formatNumber, formatDate, downloadCsv } from '@/lib/report-utils'
 
 type Line = { accountId: string; debit: string; credit: string; description: string }
 
 export default function JournalPage() {
-  const params = useParams()
-  const subdomain = (params?.subdomain as string) || 'vrfitness'
+  const subdomain = resolveTenantAdminSubdomain();
   const [entries, setEntries] = useState<any[]>([])
   const [accounts, setAccounts] = useState<any[]>([])
   const [loading, setLoading] = useState(true)

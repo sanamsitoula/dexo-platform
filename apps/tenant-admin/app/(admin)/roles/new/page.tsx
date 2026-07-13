@@ -1,14 +1,15 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import { useParams, useRouter } from 'next/navigation';
+import { useRouter } from 'next/navigation';
 import { tenantRolesApi, tenantModulesApi } from '@/lib/api';
 import { PageHeader, Card, Btn, Field, Input } from '../../_ui';
 import PermissionMatrix from '@/components/PermissionMatrix';
+import { resolveTenantAdminSubdomain } from '@/lib/subdomain';
 import { PERMISSION_ACTIONS, compressPermissions, resourcesForModules } from '@/lib/permissions';
 
 export default function NewRolePage() {
-  const subdomain = (useParams()?.subdomain as string) || 'vrfitness';
+  const subdomain = resolveTenantAdminSubdomain();
   const router = useRouter();
   const [name, setName] = useState('');
   const [description, setDescription] = useState('');

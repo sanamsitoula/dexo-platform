@@ -2,12 +2,13 @@
 
 import { useEffect, useState, useCallback } from 'react';
 import Link from 'next/link';
-import { useParams, useSearchParams } from 'next/navigation';
+import { useSearchParams } from 'next/navigation';
 import { gymApi } from '@/lib/api';
+import { resolveTenantAdminSubdomain } from '@/lib/subdomain';
 import { PageHeader, Card, Btn, EmptyState, Badge } from '../../_ui';
 
 export default function TrainerClients() {
-  const subdomain = (useParams()?.subdomain as string) || 'vrfitness';
+  const subdomain = resolveTenantAdminSubdomain();
   const preselect = useSearchParams()?.get('id') || null;
   const [members, setMembers] = useState<any[]>([]);
   const [selected, setSelected] = useState<string | null>(preselect);

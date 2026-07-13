@@ -1,8 +1,9 @@
 'use client';
 
 import { useEffect, useState, useCallback } from 'react';
-import { useParams, useSearchParams, useRouter } from 'next/navigation';
+import { useSearchParams, useRouter } from 'next/navigation';
 import { gymApi } from '@/lib/api';
+import { resolveTenantAdminSubdomain } from '@/lib/subdomain';
 import { PageHeader, Card, Btn, Field, Input } from '../../_ui';
 
 type Ex = { name: string; sets: number; reps: number; weight: number; restSeconds: number };
@@ -12,7 +13,7 @@ const newEx = (): Ex => ({ name: '', sets: 3, reps: 10, weight: 0, restSeconds: 
 const newDay = (i: number): Day => ({ dayName: `Day ${i + 1}`, muscleGroup: '', isRestDay: false, exercises: [newEx()] });
 
 export default function WorkoutBuilder() {
-  const subdomain = (useParams()?.subdomain as string) || 'vrfitness';
+  const subdomain = resolveTenantAdminSubdomain();
   const router = useRouter();
   const preMember = useSearchParams()?.get('member') || '';
   const [members, setMembers] = useState<any[]>([]);

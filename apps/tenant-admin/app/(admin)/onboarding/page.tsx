@@ -2,13 +2,13 @@
 
 import { useEffect, useState } from 'react';
 import Link from 'next/link';
-import { useParams } from 'next/navigation';
+import { resolveTenantAdminSubdomain } from '@/lib/subdomain';
 import { ecommerceApi, paymentGatewayApi } from '@/lib/api';
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000';
 
 export default function OnboardingPage() {
-  const subdomain = (useParams()?.subdomain as string) || 'vrfitness';
+  const subdomain = resolveTenantAdminSubdomain();
   const [tenantId, setTenantId] = useState('');
   const [data, setData] = useState<any>(null);
   const [step, setStep] = useState(1);

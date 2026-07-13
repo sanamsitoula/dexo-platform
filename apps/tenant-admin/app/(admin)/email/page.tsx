@@ -1,12 +1,12 @@
 'use client';
 
 import { useEffect, useState, useCallback } from 'react';
-import { useParams } from 'next/navigation';
 import { tenantMailApi } from '@/lib/api';
+import { resolveTenantAdminSubdomain } from '@/lib/subdomain';
 import { PageHeader, Card, Btn, Field, Input } from '../_ui';
 
 export default function EmailSettingsPage() {
-  const subdomain = (useParams()?.subdomain as string) || 'vrfitness';
+  const subdomain = resolveTenantAdminSubdomain();
   const [form, setForm] = useState<any>({ host: '', port: 587, secure: false, user: '', pass: '', fromName: '', fromEmail: '', enabled: true });
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);

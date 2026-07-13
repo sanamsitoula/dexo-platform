@@ -1,12 +1,13 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import { useParams } from 'next/navigation';
 import { tenantApi, tenantSettingsApi } from '@/lib/api';
+import { resolveTenantAdminSubdomain } from '@/lib/subdomain';
 import { PageHeader, Card, Btn, Field, Input } from '../_ui';
+import FileUpload from '@/components/FileUpload';
 
 export default function SettingsPage() {
-  const subdomain = (useParams()?.subdomain as string) || 'vrfitness';
+  const subdomain = resolveTenantAdminSubdomain();
   const [tenant, setTenant] = useState<any>(null);
   const [form, setForm] = useState({
     primaryColor: '#4f46e5', logo: '', tagline: '',
@@ -64,7 +65,22 @@ export default function SettingsPage() {
               <Input value={form.primaryColor} onChange={set('primaryColor')} />
             </div>
           </Field>
-          <Field label="Logo URL"><Input value={form.logo} onChange={set('logo')} placeholder="https://…" /></Field>
+          <Field label="Logo">
+            <FileUpload
+              subdomain={subdomain}
+              documentType="LOGO"
+              isPublic
+              preview={
+                form.logo ? (
+                  // eslint-disable-next-line @next/next/no-img-element
+                  <img src={form.logo} alt="Logo preview" className="w-16 h-16 rounded-lg object-cover mb-2 border border-gray-200" />
+                ) : undefined
+              }
+              onUploaded={(files) => {
+                if (files[0]) setForm((f) => ({ ...f, logo: files[0].url }));
+              }}
+            />
+          </Field>
         </div>
         <Field label="Tagline"><Input value={form.tagline} onChange={set('tagline')} placeholder="Transform your body. Transform your life." /></Field>
       </Card>

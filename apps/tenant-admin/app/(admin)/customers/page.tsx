@@ -1,12 +1,12 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import { useParams } from 'next/navigation';
 import { ecommerceApi } from '@/lib/api';
+import { resolveTenantAdminSubdomain } from '@/lib/subdomain';
 import { PageHeader, Card, EmptyState } from '../_ui';
 
 export default function CustomersPage() {
-  const subdomain = (useParams()?.subdomain as string) || 'vrfitness';
+  const subdomain = resolveTenantAdminSubdomain();
   const [customers, setCustomers] = useState<Array<{
     id: string; name: string; email: string | null; mobile: string | null;
     totalSpent: number; orderCount: number; lastOrderAt: string | null;

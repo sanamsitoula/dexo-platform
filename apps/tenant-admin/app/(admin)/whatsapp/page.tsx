@@ -1,7 +1,7 @@
 'use client'
 
 import { useEffect, useState } from 'react'
-import { useParams } from 'next/navigation'
+import { resolveTenantAdminSubdomain } from '@/lib/subdomain';
 import { tenantWhatsAppApi } from '@/lib/api'
 
 const TEMPLATE_KEYS = [
@@ -14,8 +14,7 @@ const TEMPLATE_KEYS = [
 ]
 
 export default function WhatsAppSettingsPage() {
-  const params = useParams()
-  const subdomain = (params?.subdomain as string) || 'vrfitness'
+  const subdomain = resolveTenantAdminSubdomain();
 
   const [config, setConfig] = useState<any>(null)
   const [loading, setLoading] = useState(true)

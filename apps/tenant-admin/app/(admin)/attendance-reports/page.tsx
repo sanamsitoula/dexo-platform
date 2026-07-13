@@ -1,15 +1,15 @@
 'use client';
 
 import { useEffect, useState, useCallback } from 'react';
-import { useParams } from 'next/navigation';
 import { attendanceApi } from '@/lib/api';
+import { resolveTenantAdminSubdomain } from '@/lib/subdomain';
 import { PageHeader, Card, Btn, Input, KpiCard, EmptyState } from '../_ui';
 
 const fmtTime = (v: any) => (v ? new Date(v).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : '—');
 const fmtMin = (m: number | null) => (m == null ? '—' : `${Math.floor(m / 60)}h ${m % 60}m`);
 
 export default function AttendanceReportsPage() {
-  const subdomain = (useParams()?.subdomain as string) || 'vrfitness';
+  const subdomain = resolveTenantAdminSubdomain();
   const [tab, setTab] = useState<'daily' | 'monthly'>('daily');
   const [date, setDate] = useState(new Date().toISOString().slice(0, 10));
   const [month, setMonth] = useState(new Date().toISOString().slice(0, 7));

@@ -1,13 +1,12 @@
 'use client'
 
 import { useEffect, useState } from 'react'
-import { useParams } from 'next/navigation'
 import { tenantFinanceReportsApi } from '@/lib/api'
+import { resolveTenantAdminSubdomain } from '@/lib/subdomain';
 import { ReportHeader, StatCard, EmptyState, ErrorState, LoadingState, formatNumber, formatDateTime, defaultPeriod, downloadCsv } from '@/lib/report-utils'
 
 export default function CancelledBillsPage() {
-  const params = useParams()
-  const subdomain = (params?.subdomain as string) || 'vrfitness'
+  const subdomain = resolveTenantAdminSubdomain();
   const { startDate, endDate } = defaultPeriod()
   const [data, setData] = useState<any>(null)
   const [loading, setLoading] = useState(true)

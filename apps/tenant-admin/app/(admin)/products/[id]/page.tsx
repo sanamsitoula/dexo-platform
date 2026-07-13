@@ -4,13 +4,14 @@ import { useEffect, useState } from 'react';
 import { useRouter, useParams } from 'next/navigation';
 import { ecommerceApi } from '@/lib/api';
 import { PageHeader, Btn, Card, Field, Input, Badge } from '../../_ui';
+import { resolveTenantAdminSubdomain } from '@/lib/subdomain';
 import ProductForm, { ProductFormValues, EMPTY_PRODUCT } from '../_form';
 
 export default function EditProductPage() {
   const router = useRouter();
   const params = useParams();
   const id = params?.id as string;
-  const subdomain = (params?.subdomain as string) || 'vrfitness';
+  const subdomain = resolveTenantAdminSubdomain();
 
   const [values, setValues] = useState<ProductFormValues>(EMPTY_PRODUCT);
   const [loading, setLoading] = useState(true);

@@ -1,14 +1,15 @@
 'use client';
 
 import { useState } from 'react';
-import { useRouter, useParams } from 'next/navigation';
+import { useRouter } from 'next/navigation';
 import { ecommerceApi } from '@/lib/api';
 import { PageHeader, Btn } from '../../_ui';
+import { resolveTenantAdminSubdomain } from '@/lib/subdomain';
 import ProductForm, { ProductFormValues, EMPTY_PRODUCT } from '../_form';
 
 export default function NewProductPage() {
   const router = useRouter();
-  const subdomain = (useParams()?.subdomain as string) || 'vrfitness';
+  const subdomain = resolveTenantAdminSubdomain();
   const [values, setValues] = useState<ProductFormValues>(EMPTY_PRODUCT);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState('');

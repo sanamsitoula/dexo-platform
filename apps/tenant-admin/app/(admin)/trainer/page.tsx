@@ -2,12 +2,12 @@
 
 import { useEffect, useState, useCallback } from 'react';
 import Link from 'next/link';
-import { useParams } from 'next/navigation';
 import { gymApi } from '@/lib/api';
+import { resolveTenantAdminSubdomain } from '@/lib/subdomain';
 import { PageHeader, KpiCard, Card, EmptyState } from '../_ui';
 
 export default function TrainerDashboard() {
-  const subdomain = (useParams()?.subdomain as string) || 'vrfitness';
+  const subdomain = resolveTenantAdminSubdomain();
   const [me, setMe] = useState<any>(null);
   const [members, setMembers] = useState<any[]>([]);
   const [today, setToday] = useState<any[]>([]);

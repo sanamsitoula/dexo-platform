@@ -4,13 +4,14 @@ import { useEffect, useState } from 'react';
 import { useRouter, useParams } from 'next/navigation';
 import { blogApi } from '@/lib/api';
 import { PageHeader, Btn, Badge } from '../../_ui';
+import { resolveTenantAdminSubdomain } from '@/lib/subdomain';
 import BlogForm, { BlogFormValues, EMPTY_BLOG } from '../_form';
 
 export default function EditBlogPage() {
   const router = useRouter();
   const params = useParams();
   const id = params?.id as string;
-  const subdomain = (params?.subdomain as string) || 'vrfitness';
+  const subdomain = resolveTenantAdminSubdomain();
 
   const [values, setValues] = useState<BlogFormValues>(EMPTY_BLOG);
   const [slug, setSlug] = useState('');
