@@ -45,6 +45,19 @@ echo ""
 for d in orchestrator api platform-web platform-admin tenant-website tenant-admin tenant-app mobile expo-go; do
   mkdir -p "logs/$d"
 done
+
+# ============================================
+#  Rotate old logs — keep only the newest 50 files per service directory.
+#  Runs BEFORE this session writes anything, so it never touches today's
+#  about-to-be-created log files, only leftovers from previous runs.
+# ============================================
+echo -e "${BLUE}[INFO]${NC} Rotating old logs (keeping newest 50 per service)..."
+for d in orchestrator api platform-web platform-admin tenant-website tenant-admin tenant-app mobile expo-go; do
+  ls -t "logs/$d"/*.log "logs/$d"/*.log.out "logs/$d"/*.log.err 2>/dev/null | tail -n +51 | xargs -r rm -f
+done
+echo -e "${BLUE}[INFO]${NC} Log rotation done."
+echo ""
+
 ORCHESTRATOR_LOG="logs/orchestrator/orchestrator-$TIMESTAMP.log"
 echo "[$(date '+%Y-%m-%d %H:%M:%S')] Dexo Platform v5 - Startup initiated" > "$ORCHESTRATOR_LOG"
 
@@ -124,10 +137,12 @@ if [ ! -f ".env" ]; then
 DATABASE_URL=postgresql://postgres:postgres@localhost:5433/dexo
 JWT_SECRET=dev-jwt-secret-key-change-in-production
 REDIS_URL=redis://localhost:6379
-MINIO_ENDPOINT=localhost
+USE_MINIO=true
+MINIO_ENDPOINT=http://localhost:9000
 MINIO_PORT=9000
 MINIO_ACCESS_KEY=minioadmin
 MINIO_SECRET_KEY=minioadmin
+S3_BUCKET=dexo-uploads
 SMTP_HOST=localhost
 SMTP_PORT=1025
 NODE_ENV=development

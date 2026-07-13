@@ -32,7 +32,7 @@ export default function UsersPage() {
               <tbody className="divide-y divide-gray-100">
                 {users.map((u) => {
                   const name = `${u.firstName ?? ''} ${u.lastName ?? ''}`.trim() || u.email;
-                  const role = u.userRoles?.[0]?.role?.code || u.role || 'MEMBER';
+                  const role = u.userRoles?.[0]?.role?.name || u.role || 'MEMBER';
                   return (
                     <tr key={u.id} className="hover:bg-gray-50">
                       <td className="px-4 py-3"><div className="flex items-center gap-3"><div className="w-8 h-8 rounded-full bg-indigo-100 text-indigo-700 flex items-center justify-center font-bold">{name.charAt(0).toUpperCase()}</div><span className="font-semibold text-gray-900">{name}</span></div></td>

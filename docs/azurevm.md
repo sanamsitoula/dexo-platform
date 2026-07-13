@@ -122,6 +122,13 @@ curl -sI https://admin.subhangym.onedexo.com | head -5
 
 curl -sI https://subhangym.onedexo.com | head -5
 curl -sI https://portal.subhangym.onedexo.com | head -5
+curl -sI https://chatwoot.onedexo.com | head -5
+# Expect a Chatwoot response, NOT a tenant-website page. If chatwoot.onedexo.com
+# is missing its own server_name block in infra/nginx/dexo.conf, it falls
+# through to the generic `~^(?<tenant>[a-z0-9-]+)\.onedexo\.com$` wildcard,
+# which treats "chatwoot" as a tenant slug and serves whatever tenant-website
+# falls back to for an unresolved tenant — the wildcard block MUST have a
+# dedicated chatwoot.onedexo.com block (already in dexo.conf) taking priority.
 ```
 
 If these `curl` from the VM itself work but the browser doesn't, it's almost

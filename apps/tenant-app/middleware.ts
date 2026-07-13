@@ -14,7 +14,7 @@ import { NextRequest, NextResponse } from 'next/server';
  *   localhost:4007             -> DEV_TENANT env or "vrfitness"
  */
 
-const RESERVED = new Set(['www', 'app', 'api', 'admin', 'portal', 'localhost', 'dexo', 'onedexo']);
+const RESERVED = new Set(['www', 'app', 'api', 'admin', 'portal', 'localhost', 'dexo', 'onedexo', 'chatwoot']);
 
 // Tunnel hosts (ngrok, cloudflared, localtunnel) have random first labels that
 // must NOT be treated as tenant subdomains. On these hosts the tenant comes

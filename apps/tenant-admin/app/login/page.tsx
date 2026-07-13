@@ -70,14 +70,14 @@ export default function LoginPage() {
       // tenant — previously omitted entirely, which let any valid user from
       // any tenant log into any other tenant's admin panel.
       const data = await tenantApi.login(tenantSlug, email, password);
-      const role = data?.user?.role || data?.user?.userRoles?.[0]?.role?.code || '';
+      const role = (data?.user?.role || data?.user?.userRoles?.[0]?.role?.name || '').toUpperCase();
 
       // Customer/member accounts authenticate through the same /auth/login
       // endpoint as staff, but must never get into the staff admin — they
       // belong in the member portal (tenant-app), not here. Send them there
       // directly rather than just showing an error and leaving them stuck.
       const CUSTOMER_ROLES = new Set(['MEMBER', 'CUSTOMER', 'GUEST']);
-      if (CUSTOMER_ROLES.has(role.toUpperCase())) {
+      if (CUSTOMER_ROLES.has(role)) {
         setError('This is a customer account — redirecting you to the member sign-in…');
         setRedirecting(true);
         const memberLoginUrl = `${memberPortalUrl(tenantSlug)}/login`;

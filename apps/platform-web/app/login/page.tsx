@@ -3,9 +3,16 @@
 import { useState } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
-import { authApi } from '@/lib/api';
+import { authApi, tenantApi } from '@/lib/api';
 
 const PLATFORM_ADMIN_URL = process.env.NEXT_PUBLIC_PLATFORM_ADMIN_URL || 'http://localhost:3002';
+const IS_DEV = typeof window !== 'undefined' && window.location.hostname.endsWith('localhost');
+
+function tenantAdminUrl(subdomain: string) {
+  return IS_DEV
+    ? `http://admin.${subdomain}.localhost:4006/login`
+    : `https://admin.${subdomain}.onedexo.com/login`;
+}
 
 export default function LoginPage() {
   const router = useRouter();
@@ -31,10 +38,23 @@ export default function LoginPage() {
     }
     if (data.user?.isPlatformAdmin) {
       window.location.href = `${PLATFORM_ADMIN_URL}/?token=${encodeURIComponent(data.accessToken)}`;
-    } else {
-      router.push('/');
+      setSubmitting(false);
+      return;
     }
-    setSubmitting(false);
+
+    // Not a platform admin — this account owns/staffs a tenant, and the
+    // marketing site itself has no dashboard for them. Previously this fell
+    // through to router.push('/'), which silently dropped them back on the
+    // homepage with no visible sign the login even worked. Resolve their
+    // tenant and hand them off to that tenant's admin console instead.
+    const { data: tenants } = await tenantApi.getMine();
+    const subdomain = tenants?.data?.[0]?.subdomain;
+    if (subdomain) {
+      window.location.href = tenantAdminUrl(subdomain);
+    } else {
+      setError('Signed in, but this account has no business dashboard associated with it.');
+      setSubmitting(false);
+    }
   }
 
   return (

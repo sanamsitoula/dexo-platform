@@ -109,6 +109,12 @@ The startup script performs all six setup steps in order (see **Modular setup**
 below) and then boots every app. When it finishes it opens the browser windows
 for you.
 
+Both scripts also: rotate `logs/<service>/` down to the newest 50 files per
+service on every run, and hard-abort the whole startup (with the relevant log
+tail printed inline) if the API fails to come up on port 4000 or its log
+records a real error — every other app depends on the API, so this fails
+fast instead of limping on and cascading into confusing downstream errors.
+
 ---
 
 ## 🧩 Modular setup (manual, step by step)
@@ -140,9 +146,14 @@ DATABASE_URL=postgresql://postgres:postgres@localhost:5433/dexo
 REDIS_URL=redis://localhost:6379
 JWT_SECRET=dev-jwt-secret-key-change-in-production
 DEV_TENANT=vrfitness            # which tenant to simulate in dev
+USE_MINIO=true                  # required — without it, file uploads silently
+                                 # try real AWS S3 with empty creds and fail
+MINIO_ENDPOINT=http://localhost:9000   # must include the http:// scheme
 ```
 > If port 5433 is already taken by a native Windows Postgres, change the host
 > port to 5432 in both `docker-compose.yml` and `.env`.
+> `run.bat`/`run.sh` write a correct `.env` for you automatically if one
+> doesn't exist yet — the values above only matter if you're hand-rolling it.
 
 ### Step 3 — Dependencies module
 ```bash

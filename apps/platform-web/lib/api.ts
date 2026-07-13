@@ -37,6 +37,10 @@ export const authApi = {
   logout: () => fetchApi<void>('/auth/logout', { method: 'POST' }),
 }
 
+export const tenantApi = {
+  getMine: () => fetchApi<{ data: Array<{ subdomain: string }>; meta: { total: number } }>('/tenants/me'),
+}
+
 export const dashboardApi = {
   getTenantDashboard: () => fetchApi<any>('/dashboard/tenant'),
 }

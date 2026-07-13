@@ -43,15 +43,13 @@ export class RoleService {
   }
 
   async findAll(tenantId?: string, page?: number, limit?: number) {
-    const where: any = {};
-    if (tenantId) {
-      where.OR = [
-        { tenantId },
-        { tenantId: null, isSystem: true },
-      ];
-    } else {
-      where.tenantId = null;
-    }
+    // Tenant-scoped requests see ONLY that tenant's own roles — this used to
+    // also union in every platform-wide isSystem role (the platform-admin
+    // role catalog), which meant any tenant admin's Roles page showed
+    // unrelated platform templates (Admin/Manager/Viewer/SuperAdmin) mixed
+    // in with their own admin/staff/customer roles. Platform-wide role
+    // management belongs to platform-admin only (tenantId undefined below).
+    const where: any = tenantId ? { tenantId } : { tenantId: null };
 
     const query: any = {
       where,

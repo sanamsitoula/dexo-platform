@@ -63,9 +63,12 @@ export default function TenantsPage() {
                   <td className="px-4 py-3">
                     <span className="px-2 py-0.5 rounded text-xs bg-emerald-100 text-emerald-700">{t.status}</span>
                   </td>
-                  <td className="px-4 py-3">
-                    <Link href={`/tenants/${t.id}/lifecycle`} className="text-blue-600 hover:underline text-xs">
-                      Manage lifecycle →
+                  <td className="px-4 py-3 space-x-3">
+                    <Link href={`/tenants/${t.id}`} className="text-blue-600 hover:underline text-xs">
+                      Manage →
+                    </Link>
+                    <Link href={`/tenants/${t.id}/lifecycle`} className="text-gray-500 hover:underline text-xs">
+                      Lifecycle
                     </Link>
                   </td>
                 </tr>

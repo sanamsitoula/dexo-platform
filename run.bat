@@ -37,6 +37,19 @@ for %%D in (orchestrator api platform-web platform-admin tenant-website tenant-a
   if not exist "logs\%%D" mkdir "logs\%%D"
 )
 
+REM ============================================
+REM  Rotate old logs — keep only the newest 50 files per service directory.
+REM  Runs BEFORE this session writes anything, so it never touches today's
+REM  about-to-be-created log files, only leftovers from previous runs.
+REM ============================================
+echo [INFO] Rotating old logs (keeping newest 50 per service)...
+for %%D in (orchestrator api platform-web platform-admin tenant-website tenant-admin tenant-app mobile expo-go) do (
+  powershell -NoProfile -Command ^
+    "Get-ChildItem -LiteralPath 'logs\%%D' -File -ErrorAction SilentlyContinue | Where-Object { $_.Extension -match '\.(log|out|err)$' } | Sort-Object LastWriteTime -Descending | Select-Object -Skip 50 | Remove-Item -Force -ErrorAction SilentlyContinue"
+)
+echo [INFO] Log rotation done.
+echo.
+
 set "ORCHESTRATOR_LOG=logs\orchestrator\orchestrator-%TIMESTAMP%.log"
 echo [%date% %time:~0,8%] Dexo Platform v5 - Startup initiated > "%ORCHESTRATOR_LOG%"
 echo. >> "%ORCHESTRATOR_LOG%"
@@ -166,10 +179,12 @@ if not exist ".env" (
         echo DATABASE_URL=postgresql://postgres:postgres@localhost:5433/dexo
         echo JWT_SECRET=dev-jwt-secret-key-change-in-production
         echo REDIS_URL=redis://localhost:6379
-        echo MINIO_ENDPOINT=localhost
+        echo USE_MINIO=true
+        echo MINIO_ENDPOINT=http://localhost:9000
         echo MINIO_PORT=9000
         echo MINIO_ACCESS_KEY=minioadmin
         echo MINIO_SECRET_KEY=minioadmin
+        echo S3_BUCKET=dexo-uploads
         echo SMTP_HOST=localhost
         echo SMTP_PORT=1025
         echo NODE_ENV=development

@@ -80,9 +80,14 @@ export const authApi = {
 // Tenants API
 export const tenantsApi = {
   list: (params?: { page?: number; limit?: number; status?: string }) => {
+    // The API's QueryTenantDto whitelists limit/offset — it has no `page`
+    // concept and rejects unknown properties with a 400. Translate here so
+    // callers can keep thinking in pages.
+    const limit = params?.limit || 25
+    const page = params?.page || 1
     const searchParams = new URLSearchParams()
-    if (params?.page) searchParams.append('page', params.page.toString())
-    if (params?.limit) searchParams.append('limit', params.limit.toString())
+    searchParams.append('limit', limit.toString())
+    searchParams.append('offset', ((page - 1) * limit).toString())
     if (params?.status) searchParams.append('status', params.status)
     return fetchApi<{ data: any[]; meta: { total: number } }>(`/tenants?${searchParams.toString()}`)
   },

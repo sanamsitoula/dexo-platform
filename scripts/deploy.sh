@@ -40,5 +40,29 @@ else
   pm2 save
 fi
 
+# `pm2 reload`/`start` return as soon as PM2 has been told to (re)spawn the
+# process — they do NOT wait for the app to actually come up. A migration or
+# build can succeed while the API still crashes on boot (bad env var, DB
+# permission issue, etc.), which would otherwise leave this script exiting 0
+# and CI reporting green on a broken deploy. Poll the health endpoint before
+# declaring success.
+echo "==> Verifying API health..."
+API_HEALTHY=0
+for i in $(seq 1 15); do
+  if curl -fsS "http://127.0.0.1:4000/api/health" 2>/dev/null | grep -q '"status":"ok"'; then
+    API_HEALTHY=1
+    break
+  fi
+  sleep 2
+done
+
+if [ "$API_HEALTHY" -ne 1 ]; then
+  echo "==> [FATAL] API failed to become healthy after reload. Rolling back is NOT automatic — investigate now."
+  echo "==> Last 50 lines of dexo-api logs:"
+  pm2 logs dexo-api --lines 50 --nostream || true
+  pm2 status
+  exit 1
+fi
+
 echo "==> Deploy complete: $(git rev-parse --short HEAD)"
 pm2 status

@@ -23,7 +23,7 @@ export default function AdminAuthGate({ children }: { children: React.ReactNode 
     let role = '';
     try {
       const user = JSON.parse(userRaw);
-      role = (user?.role || user?.userRoles?.[0]?.role?.code || '').toUpperCase();
+      role = (user?.role || user?.userRoles?.[0]?.role?.name || '').toUpperCase();
     } catch { /* corrupt cache — treat as unauthenticated */ }
 
     if (!role || CUSTOMER_ROLES.has(role)) {

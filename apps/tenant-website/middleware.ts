@@ -20,7 +20,7 @@ import { NextRequest, NextResponse } from 'next/server';
  */
 
 // Subdomains that are never a tenant slug.
-const RESERVED = new Set(['www', 'app', 'api', 'admin', 'localhost', 'dexo']);
+const RESERVED = new Set(['www', 'app', 'api', 'admin', 'localhost', 'dexo', 'chatwoot']);
 
 // Tunnel hosts (ngrok, cloudflared, localtunnel) have random first labels that
 // must NOT be treated as tenant subdomains. On these hosts the tenant comes

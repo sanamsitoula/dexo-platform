@@ -155,6 +155,16 @@ export class AuthService {
 
     await this.audit.logAuthEvent('user.login', user.id, user.tenantId);
 
+    // Tenant-admin's login gate reads user.userRoles[0].role.name to decide
+    // staff-vs-admin-vs-customer routing (and to reject accounts with no
+    // role at all) — this response previously never included roles, so
+    // EVERY tenant-admin login failed with "no staff role assigned",
+    // regardless of whether the account actually had one.
+    const userRoles = await this.prisma.userRoles.findMany({
+      where: { userId: user.id },
+      include: { role: { select: { name: true } } },
+    });
+
     return {
       accessToken,
       refreshToken,
@@ -166,6 +176,7 @@ export class AuthService {
         tenantId: user.tenantId,
         emailVerified: user.emailVerified,
         isPlatformAdmin: user.isPlatformAdmin || false,
+        userRoles,
       },
     };
   }
