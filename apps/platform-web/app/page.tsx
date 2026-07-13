@@ -1,8 +1,8 @@
 'use client'
 
-import dynamic from 'next/dynamic'
 import BlogSection from '@/components/BlogSection'
 import SectionDivider from '@/components/SectionDivider'
+import Hero from '@/components/sections/Hero'
 import About from '@/components/sections/About'
 import Services from '@/components/sections/Services'
 import Portfolio from '@/components/sections/Portfolio'
@@ -11,11 +11,6 @@ import Pricing from '@/components/sections/Pricing'
 import FAQ from '@/components/sections/FAQ'
 import Contact from '@/components/sections/Contact'
 import MagneticButton from '@/components/MagneticButton'
-
-const Hero = dynamic(() => import('@/components/sections/Hero'), {
-  ssr: false,
-  loading: () => <div className="min-h-[92vh] w-full bg-[#05050a]" />,
-})
 
 export default function HomePage() {
   return (
