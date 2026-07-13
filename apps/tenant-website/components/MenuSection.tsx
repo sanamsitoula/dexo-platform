@@ -1,3 +1,4 @@
+import DOMPurify from 'isomorphic-dompurify';
 import type { PublicMenu, MenuItemNode } from '@/lib/api';
 
 /**
@@ -30,6 +31,13 @@ function ItemLink({ item, children }: { item: MenuItemNode; children: React.Reac
   return <a href={item.linkUrl}>{children}</a>;
 }
 
+/** item.description is rich HTML from the admin's RichTextEditor — sanitized
+ * here at render time (same pattern as the blog post page) before being
+ * trusted as HTML. Never render it as plain text (it would show raw tags). */
+function RichDescription({ html, className }: { html: string; className?: string }) {
+  return <div className={`prose prose-sm max-w-none ${className || ''}`} dangerouslySetInnerHTML={{ __html: DOMPurify.sanitize(html) }} />;
+}
+
 function MenuGrid({ menu, color }: { menu: PublicMenu; color: string }) {
   return (
     <section id={menu.slug} className="px-4 py-16 max-w-6xl mx-auto">
@@ -40,7 +48,8 @@ function MenuGrid({ menu, color }: { menu: PublicMenu; color: string }) {
             <article className="p-6 rounded-xl border border-gray-200 h-full flex flex-col gap-3">
               {item.icon && <div className="text-3xl">{item.icon}</div>}
               <h3 className="font-bold text-lg">{item.title}</h3>
-              {item.shortDescription && <p className="text-sm opacity-70 flex-1">{item.shortDescription}</p>}
+              {item.shortDescription && <p className="text-sm opacity-70">{item.shortDescription}</p>}
+              {item.description && <RichDescription html={item.description} className="text-sm opacity-70 flex-1" />}
             </article>
           </ItemLink>
         ))}
@@ -62,6 +71,7 @@ function MenuList({ menu, color }: { menu: PublicMenu; color: string }) {
                 <div>
                   <div className="font-semibold">{item.title}</div>
                   {item.shortDescription && <div className="text-sm opacity-70 mt-1">{item.shortDescription}</div>}
+                  {item.description && <RichDescription html={item.description} className="text-sm opacity-70 mt-1" />}
                 </div>
               </div>
             </ItemLink>
@@ -80,11 +90,14 @@ function MenuTable({ menu, color }: { menu: PublicMenu; color: string }) {
         <tbody>
           {menu.items.map((item) => (
             <tr key={item.id} className="border-b border-gray-200">
-              <td className="py-3 pr-4 font-semibold whitespace-nowrap">
+              <td className="py-3 pr-4 font-semibold whitespace-nowrap align-top">
                 {item.icon && <span className="mr-2">{item.icon}</span>}
                 {item.title}
               </td>
-              <td className="py-3 opacity-70">{item.shortDescription}</td>
+              <td className="py-3 opacity-70">
+                {item.shortDescription}
+                {item.description && <RichDescription html={item.description} className="mt-1" />}
+              </td>
             </tr>
           ))}
         </tbody>
@@ -104,7 +117,8 @@ function MenuAccordion({ menu, color }: { menu: PublicMenu; color: string }) {
               {item.icon && <span>{item.icon}</span>}
               {item.title}
             </summary>
-            {item.description && <p className="text-sm opacity-70 mt-3">{item.description}</p>}
+            {item.shortDescription && <p className="text-sm opacity-70 mt-3">{item.shortDescription}</p>}
+            {item.description && <RichDescription html={item.description} className="text-sm opacity-70 mt-3" />}
             {item.children?.length > 0 && (
               <ul className="mt-3 pl-4 space-y-1 border-l-2" style={{ borderColor: color }}>
                 {item.children.map((child) => (

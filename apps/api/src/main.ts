@@ -4,6 +4,17 @@ import { SwaggerModule, DocumentBuilder } from '@nestjs/swagger';
 import { AppModule } from './app.module';
 import { PrismaService } from '@dexo/shared';
 
+// Node's JSON.stringify throws "Do not know how to serialize a BigInt" on
+// any value that came from a Prisma BigInt column (e.g. File.sizeBytes) —
+// this crashed every endpoint that ever returned one (500, even though the
+// underlying operation succeeded) as soon as a tenant had at least one row
+// with that column set. Patching BigInt.prototype.toJSON once here fixes
+// every current and future BigInt field across the whole API, rather than
+// hand-converting it in each individual service/DTO.
+(BigInt.prototype as any).toJSON = function () {
+  return Number(this);
+};
+
 /**
  * Catches every exception the app doesn't handle itself. Previously this
  * only shaped the client-facing JSON response and threw the actual

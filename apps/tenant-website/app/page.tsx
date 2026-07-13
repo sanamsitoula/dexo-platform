@@ -1,9 +1,10 @@
 import Link from 'next/link';
 import { headers } from 'next/headers';
-import { getFitnessInfo, getFitnessPlans, getTenantBySubdomain, getCategories, getProducts, type FitnessInfo, type FitnessPlan } from '@/lib/api';
+import { getFitnessInfo, getFitnessPlans, getTenantBySubdomain, getCategories, getProducts, getPublicMenus, type FitnessInfo, type FitnessPlan } from '@/lib/api';
 import { getTemplate } from '@dexo/shared/src/themes';
 import TemplateHome from '@/components/TemplateHome';
 import EcommerceHome from '@/components/EcommerceHome';
+import MenuSection from '@/components/MenuSection';
 import { getSiteTheme } from '@/lib/site-theme';
 import { isEcommerceDomainCode } from '@/lib/domainType';
 import { memberPortalUrl } from '@/lib/portal';
@@ -96,9 +97,10 @@ export default async function Home() {
     );
   }
 
-  const [info, plans] = await Promise.all([
+  const [info, plans, menus] = await Promise.all([
     getFitnessInfo(subdomain),
     getFitnessPlans(subdomain),
+    getPublicMenus(subdomain),
   ]);
   const t = info || FALLBACK;
   // Canonical member-portal host: portal.<tenant>.onedexo.com (see lib/portal.ts).
@@ -120,6 +122,7 @@ export default async function Home() {
         colorAccent={branding.colorAccent}
         contact={t.contact}
         plansSlot={<TemplatePlans plans={plans} color={color} name={t.name} />}
+        menusSlot={<>{menus.map((m) => <MenuSection key={m.id} menu={m} colorPrimary={branding.colorPrimary} />)}</>}
       />
     );
   }
@@ -198,6 +201,9 @@ export default async function Home() {
           </div>
         )}
       </section>
+
+      {/* Menu Builder sections (Services/Team/Locations/...) */}
+      {menus.map((m) => <MenuSection key={m.id} menu={m} colorPrimary={t.colorPrimary} />)}
 
       {/* CTA */}
       <section className="px-4 py-20 text-center" style={{ background: t.colorAccent, color: '#111' }}>

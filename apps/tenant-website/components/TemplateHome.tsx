@@ -20,6 +20,8 @@ export interface TemplateHomeProps {
   contact?: { branch?: string; address?: string; phone?: string; email?: string } | null;
   /** Pre-rendered pricing/plans section (industry-specific), slotted into the journey. */
   plansSlot?: React.ReactNode;
+  /** Published Menu Builder sections (Services/Team/Locations/FAQ/...), rendered after plans. */
+  menusSlot?: React.ReactNode;
 }
 
 const SECTION_LABELS: Record<string, string> = {
@@ -38,7 +40,7 @@ const SECTION_LABELS: Record<string, string> = {
   'team': 'Our Team', 'causes': 'Our Causes', 'impact-stats': 'Our Impact', 'volunteers': 'Volunteers',
 };
 
-export default function TemplateHome({ tpl, name, tagline, description, colorPrimary, colorAccent, contact, plansSlot }: TemplateHomeProps) {
+export default function TemplateHome({ tpl, name, tagline, description, colorPrimary, colorAccent, contact, plansSlot, menusSlot }: TemplateHomeProps) {
   const p = {
     ...tpl.palette,
     primary: colorPrimary || tpl.palette.primary,
@@ -190,6 +192,9 @@ export default function TemplateHome({ tpl, name, tagline, description, colorPri
 
       {/* ---------- Plans (industry data slot) ---------- */}
       {plansSlot}
+
+      {/* ---------- Menu Builder sections (Services/Team/Locations/...) ---------- */}
+      {menusSlot}
 
       {/* ---------- CTA ---------- */}
       <section className="px-4 py-20 text-center"

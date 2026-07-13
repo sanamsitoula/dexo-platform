@@ -6,6 +6,7 @@ import Link from 'next/link';
 import { menuBuilderApi } from '@/lib/api';
 import { resolveTenantAdminSubdomain } from '@/lib/subdomain';
 import { PageHeader, Card, Btn, Badge, Field, Input, SlideOver, EmptyState } from '../../../_ui';
+import RichTextEditor from '@/components/RichTextEditor';
 
 const TEMPLATES = ['grid', 'table', 'carousel', 'list', 'accordion', 'map'];
 
@@ -159,8 +160,8 @@ export default function MenuEditorPage() {
         <Field label="Icon (emoji)"><Input value={itemForm.icon} onChange={(e: any) => setItemForm({ ...itemForm, icon: e.target.value })} placeholder="🏋️" /></Field>
         <Field label="Short description"><Input value={itemForm.shortDescription} onChange={(e: any) => setItemForm({ ...itemForm, shortDescription: e.target.value })} placeholder="For card previews" /></Field>
         <Field label="Full description">
-          <textarea value={itemForm.description} onChange={(e) => setItemForm({ ...itemForm, description: e.target.value })} rows={4}
-            className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm" placeholder="Full details shown on the item page" />
+          <RichTextEditor value={itemForm.description} onChange={(html) => setItemForm({ ...itemForm, description: html })}
+            placeholder="Full details shown on the public site" minHeight={160} />
         </Field>
         <Field label="Link (optional)"><Input value={itemForm.linkUrl} onChange={(e: any) => setItemForm({ ...itemForm, linkUrl: e.target.value })} placeholder="/book or https://…" /></Field>
         <div className="flex items-center gap-2 mb-4">
