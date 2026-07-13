@@ -28,8 +28,11 @@ out/
 .env.*
 !.env.example
 
-# Logs
-logs
+# Logs — root-level orchestrator output only (run.bat/run.sh), NOT any
+# directory literally named "logs" anywhere in the tree — a bare "logs"
+# here previously matched apps/platform-admin/app/logs (a real Next.js
+# route folder) and silently kept it out of git entirely.
+/logs
 *.log
 npm-debug.log*
 yarn-debug.log*

@@ -170,7 +170,7 @@ export default function AdminSidebar() {
               className="h-9 w-9 flex items-center justify-center shrink-0"
               style={{ background: `linear-gradient(135deg, ${primary}, ${theme.accentColor})`, borderRadius: radius }}
             >
-              <DexoLogo size={20} variant="dark" />
+              <DexoLogo size={20} variant="dark" withWordmark={false} />
             </span>
           )}
           <span className="min-w-0">

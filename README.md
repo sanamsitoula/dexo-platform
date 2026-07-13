@@ -619,6 +619,32 @@ find apps -maxdepth 2 -name ".next" -type d -exec rm -rf {} +
 
 ---
 
+## 🪵 Error logging
+
+Every unhandled exception in `apps/api` (any 5xx) is caught by the global
+`CentralErrorFilter` (`apps/api/src/main.ts`) and:
+
+1. Logged via Nest's `Logger` — always printed to whatever terminal/process
+   is running the API, regardless of how it was started.
+2. Persisted to the `ErrorLog` table (method, path, status, message,
+   stack, tenantId, userId, timestamp) — so it's visible even if nobody was
+   watching that terminal live when it happened.
+
+View persisted errors at **platform-admin → Logs** (`/logs`, requires a
+platform-admin account) — the "Application Errors" panel at the top of that
+page queries `GET /api/error-logs`. This is separate from the file-based
+"System Logs" section further down that page, which only shows output from
+services launched through `run.bat`/`run.sh`'s orchestrator — a service you
+started manually (e.g. `npm run dev --workspace=@dexo/api` in its own
+terminal) never writes to those log files, but its errors still show up in
+Application Errors either way, since that path doesn't depend on how the
+process was launched.
+
+4xx responses (bad request, unauthorized, not found, etc.) are **not**
+logged — those are expected client-side traffic, not bugs.
+
+---
+
 ## 🙏 Credits & Third-Party Software
 
 OneDexo builds on and integrates with the following open-source projects:

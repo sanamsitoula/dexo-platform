@@ -903,6 +903,31 @@ model AuditLog {
   @@index([createdAt])
 }
 
+/// Every unhandled exception the API's global CentralErrorFilter catches —
+/// written here regardless of how the API process was started (npm run dev,
+/// run.bat, PM2, ...), so a crash is visible in platform-admin even if
+/// nobody was watching the terminal it happened in. Deliberately NOT a
+/// relation to Tenant/User (plain string ids) since the error itself may be
+/// caused by an invalid/deleted tenantId — a broken FK must never prevent
+/// logging the error that reports it.
+model ErrorLog {
+  id         String   @id @default(uuid())
+  method     String
+  path       String
+  statusCode Int
+  message    String   @db.Text
+  errorName  String?
+  stack      String?  @db.Text
+  tenantId   String?
+  userId     String?
+  requestId  String?
+  createdAt  DateTime @default(now())
+
+  @@index([statusCode])
+  @@index([createdAt])
+  @@index([tenantId])
+}
+
 model NotificationTemplate {
   id        String           @id @default(uuid())
   tenant    Tenant?          @relation(fields: [tenantId], references: [id])
@@ -920,22 +945,44 @@ model NotificationTemplate {
   @@index([type])
 }
 
+enum FileScope {
+  PLATFORM
+  TENANT
+}
+
+enum FileDocumentType {
+  LOGO
+  PROFILE_PIC
+  DOCUMENT
+  INVOICE
+  CONTRACT
+  ID_PROOF
+  OTHER
+}
+
 model File {
-  id           String   @id @default(uuid())
-  tenant       Tenant   @relation(fields: [tenantId], references: [id])
-  tenantId     String
-  user         User?    @relation(fields: [userId], references: [id])
+  id           String           @id @default(uuid())
+  // PLATFORM-scoped files (e.g. the platform's own logo) have no tenant —
+  // TENANT-scoped files always do. See files.validation.ts for the
+  // allowed-type/max-size rules enforced per documentType at upload time.
+  scope        FileScope        @default(TENANT)
+  tenant       Tenant?          @relation(fields: [tenantId], references: [id])
+  tenantId     String?
+  user         User?            @relation(fields: [userId], references: [id])
   userId       String?
+  documentType FileDocumentType @default(OTHER)
   s3Key        String
   originalName String
   mimeType     String?
   sizeBytes    BigInt?
-  isPublic     Boolean  @default(false)
-  uploadedAt   DateTime @default(now())
+  isPublic     Boolean          @default(false)
+  uploadedAt   DateTime         @default(now())
 
   @@index([tenantId])
   @@index([userId])
   @@index([s3Key])
+  @@index([scope])
+  @@index([documentType])
 }
 
 model Setting {
