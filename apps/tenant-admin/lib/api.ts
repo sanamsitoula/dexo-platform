@@ -60,6 +60,9 @@ export const tenantApi = {
   getBySubdomain: (subdomain: string) =>
     fetchApi<any>(`/tenants/subdomain/${subdomain}`, subdomain),
 
+  updateOwnBranding: (subdomain: string, branding: Record<string, any>) =>
+    fetchApi<any>('/tenants/me/branding', subdomain, { method: 'PUT', body: JSON.stringify(branding) }),
+
   login: async (subdomain: string, email: string, password: string) => {
     const response = await fetch(`${API_BASE_URL}/auth/login`, {
       method: 'POST',

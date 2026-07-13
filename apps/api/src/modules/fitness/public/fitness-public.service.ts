@@ -1,5 +1,5 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
-import { PrismaService } from '@dexo/shared';
+import { PrismaService, defaultAvatarUrl } from '@dexo/shared';
 
 /**
  * Read-only, unauthenticated data for a fitness tenant's public marketing
@@ -23,6 +23,14 @@ export class FitnessPublicService {
   async getInfo(subdomain: string) {
     const tenant = await this.resolveTenant(subdomain);
     const settings = (tenant.settings as Record<string, any>) || {};
+    // settings.branding.* is the current source of truth — written by
+    // tenant-admin's Website Builder (PUT /tenants/me/branding) and read by
+    // the ecommerce homepage and TemplateHome's template rendering. This
+    // endpoint used to only check the legacy top-level settings.tagline/
+    // description, so editing tagline/description in the builder had no
+    // effect on what fitness tenants' public site actually showed. Prefer
+    // branding.*, fall back to the legacy top-level keys for old tenants.
+    const branding = settings.branding || {};
 
     const hq = await this.prisma.branch.findFirst({
       where: { tenantId: tenant.id, status: 'active' },
@@ -38,13 +46,14 @@ export class FitnessPublicService {
       id: tenant.id,
       name: tenant.name,
       subdomain: tenant.subdomain,
-      tagline: settings.tagline || 'Transform your body. Transform your life.',
+      tagline: branding.tagline || settings.tagline || 'Transform your body. Transform your life.',
       description:
+        branding.description ||
         settings.description ||
         `Join ${tenant.name} — modern gym & fitness management with workout plans, diet tracking, classes and more.`,
-      logoUrl: settings.logoUrl || null,
-      colorPrimary: settings.colorPrimary || settings.primaryColor || '#E85D24',
-      colorAccent: settings.colorAccent || settings.accentColor || '#F2A623',
+      logoUrl: branding.logo || settings.logoUrl || defaultAvatarUrl(tenant.name),
+      colorPrimary: branding.colorPrimary || settings.colorPrimary || settings.primaryColor || '#E85D24',
+      colorAccent: branding.colorAccent || settings.colorAccent || settings.accentColor || '#F2A623',
       branchCount,
       contact: hq
         ? { branch: hq.name, address: hq.address, city: hq.city, phone: hq.phone, email: hq.email }

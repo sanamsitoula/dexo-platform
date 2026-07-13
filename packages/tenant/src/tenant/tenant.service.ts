@@ -172,7 +172,9 @@ export class TenantService {
         name: t.name,
         subdomain: t.subdomain,
         primaryColor: s.colorPrimary || s.primaryColor || s.branding?.primaryColor || null,
-        domainCode: s.theme || s.domainCode || null,
+        // settings only ever stores domainType (see ProvisioningService) —
+        // s.theme/s.domainCode don't exist, so this always returned null.
+        domainCode: s.domainType || null,
       };
     });
   }
@@ -274,6 +276,7 @@ export class TenantService {
           include: {
             plan: true,
             _count: { select: { users: true, subscriptions: true } },
+            domains: { where: { isActive: true }, take: 1, include: { domain: { select: { code: true } } } },
           },
         },
       },
@@ -281,7 +284,10 @@ export class TenantService {
     if (!user || !user.tenant) {
       return { data: [], meta: { total: 0 } };
     }
-    return { data: [user.tenant], meta: { total: 1 } };
+    // Flat domainCode for clients that don't want to walk the domains
+    // relation themselves (e.g. the mobile tenant-select list badge).
+    const tenant = { ...user.tenant, domainCode: user.tenant.domains?.[0]?.domain?.code || null };
+    return { data: [tenant], meta: { total: 1 } };
   }
 
   async findByDomain(domain: string) {
@@ -685,6 +691,29 @@ export class TenantService {
     });
 
     return { message: 'Settings updated successfully', settings: mergedSettings };
+  }
+
+  /** Merges into settings.branding only — deliberately narrower than
+   * updateSettings() (which replaces whole top-level keys), so a tenant's
+   * own self-service branding call can never touch domainType, themeId, or
+   * anything else living in settings. */
+  async updateOwnBranding(tenantId: string, branding: Record<string, any>) {
+    const tenant = await this.prisma.tenant.findUnique({
+      where: { id: tenantId },
+      select: { settings: true },
+    });
+    if (!tenant) throw new NotFoundException('Tenant not found');
+
+    const currentSettings = (tenant.settings as Record<string, any>) || {};
+    const mergedBranding = { ...(currentSettings.branding || {}), ...branding };
+    const mergedSettings = { ...currentSettings, branding: mergedBranding };
+
+    await this.prisma.tenant.update({
+      where: { id: tenantId },
+      data: { settings: mergedSettings },
+    });
+
+    return { message: 'Branding updated successfully', branding: mergedBranding };
   }
 
   async getUsageStats(id: string) {

@@ -6,6 +6,7 @@ export * from './queue/queue.module';
 export * from './queue/queue.service';
 export * from './queue/queue.constants';
 export * from './themes';
+export * from './utils/default-avatar';
 export * from './guards/module-access.guard';
 export * from './guards/permission.guard';
 export * from './mail/tenant-mail.module';

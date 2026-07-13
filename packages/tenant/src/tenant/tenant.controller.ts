@@ -11,6 +11,7 @@ import {
   HttpCode,
   HttpStatus,
   Req,
+  ForbiddenException,
 } from '@nestjs/common';
 import { ApiTags, ApiOperation, ApiResponse, ApiBearerAuth } from '@nestjs/swagger';
 import { JwtAuthGuard, PlatformAdminGuard } from '@dexo/auth';
@@ -53,6 +54,25 @@ export class TenantController {
     if (!req.user) return { data: [] };
     const userId = req.user.id || req.user.sub;
     return this.tenantService.findByUserId(userId);
+  }
+
+  /**
+   * PUT /tenants/me/branding — self-service website branding (template,
+   * tagline, description, colors) for the caller's OWN tenant. Every other
+   * settings-write path on this controller is PlatformAdminGuard-only, which
+   * meant a tenant owner had no way to change their own site's template
+   * after signup — tenant-admin's Website Builder page looked like it saved
+   * successfully but wrote to a key nothing ever read. Merges into
+   * settings.branding only; every other settings key is left untouched.
+   */
+  @Put('me/branding')
+  @UseGuards(JwtAuthGuard)
+  @ApiBearerAuth()
+  @ApiOperation({ summary: "Update the caller's own tenant website branding" })
+  async updateOwnBranding(@Req() req: any, @Body() branding: Record<string, any>) {
+    const tenantId = req.user?.tenantId;
+    if (!tenantId) throw new ForbiddenException('No tenant associated with this account');
+    return this.tenantService.updateOwnBranding(tenantId, branding);
   }
 
   /**
