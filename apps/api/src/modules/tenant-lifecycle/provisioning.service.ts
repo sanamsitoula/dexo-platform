@@ -1,4 +1,4 @@
-import { Injectable, Logger } from '@nestjs/common';
+import { Injectable, Logger, ConflictException } from '@nestjs/common';
 import * as bcrypt from 'bcryptjs';
 import { PrismaService, TenantMailService } from '@dexo/shared';
 import { ConfigService } from '@nestjs/config';
@@ -47,12 +47,12 @@ export class ProvisioningService {
   async provisionTenant(input: CreateTenantInput): Promise<ProvisionResult> {
     const slugValidation = await this.slugService.validateSlug(input.slug);
     if (!slugValidation.available) {
-      throw new Error(`Slug not available: ${slugValidation.reason}`);
+      throw new ConflictException(`Slug not available: ${slugValidation.reason}`);
     }
 
     const existingOwner = await this.prisma.user.findUnique({ where: { email: input.ownerEmail } });
     if (existingOwner) {
-      throw new Error(`An account with email ${input.ownerEmail} already exists`);
+      throw new ConflictException(`An account with email ${input.ownerEmail} already exists`);
     }
 
     const tenant = await this.prisma.tenant.create({
