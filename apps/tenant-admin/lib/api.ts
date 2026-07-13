@@ -73,6 +73,9 @@ export const tenantApi = {
 
   getProfile: (subdomain: string) =>
     fetchApi<any>('/auth/profile', subdomain),
+
+  updateProfile: (subdomain: string, data: { firstName?: string; lastName?: string; phone?: string; avatarUrl?: string }) =>
+    fetchApi<any>('/users/profile', subdomain, { method: 'PUT', body: JSON.stringify(data) }),
 }
 
 export const tenantDashboardApi = {
@@ -725,4 +728,19 @@ export const tenantModulesApi = {
       return null
     }
   },
+}
+
+export interface TenantFile {
+  id: string
+  originalName: string
+  mimeType: string | null
+  sizeBytes: string | number
+  documentType: string
+  uploadedAt: string
+}
+
+export const filesApi = {
+  list: (subdomain: string) => fetchApi<TenantFile[]>('/files', subdomain),
+  delete: (subdomain: string, id: string) => fetchApi<{ message: string }>(`/files/${id}`, subdomain, { method: 'DELETE' }),
+  downloadUrl: (subdomain: string, id: string) => fetchApi<{ downloadUrl: string }>(`/files/download/${id}`, subdomain),
 }
