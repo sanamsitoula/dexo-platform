@@ -11,16 +11,19 @@ import {
   Request,
   UseInterceptors,
   UploadedFile,
+  UploadedFiles,
   StreamableFile,
   Res,
   BadRequestException,
 } from '@nestjs/common';
-import { FileInterceptor } from '@nestjs/platform-express';
+import { FileInterceptor, FilesInterceptor } from '@nestjs/platform-express';
 import type { Response } from 'express';
 import { ApiTags, ApiOperation } from '@nestjs/swagger';
 import { FilesService } from './files.service';
 import { JwtAuthGuard } from '@dexo/auth';
 import { Public } from '@dexo/auth';
+
+const MAX_UPLOAD_BYTES = 10 * 1024 * 1024; // hard multer ceiling; per-documentType limits are enforced in FilesService
 
 @ApiTags('files')
 @Controller('files')
@@ -29,29 +32,64 @@ export class FilesController {
   constructor(private readonly filesService: FilesService) {}
 
   @Post('upload')
-  @UseInterceptors(FileInterceptor('file'))
-  @ApiOperation({ summary: 'Upload file' })
+  @UseInterceptors(FileInterceptor('file', { limits: { fileSize: MAX_UPLOAD_BYTES } }))
+  @ApiOperation({ summary: 'Upload a single file. Body: documentType (LOGO/PROFILE_PIC/DOCUMENT/INVOICE/CONTRACT/ID_PROOF/OTHER), scope (TENANT/PLATFORM), isPublic.' })
   async uploadFile(
     @UploadedFile() file: any,
-    @Body() body: { isPublic?: string },
+    @Body() body: { isPublic?: string; documentType?: string; scope?: string },
     @Request() req: any,
   ) {
     if (!file) {
       throw new BadRequestException('No file uploaded');
     }
 
+    // PLATFORM scope (e.g. the platform's own logo) has no tenant and is
+    // gated to platform admins — everyone else is forced to TENANT scope
+    // under their own tenant, regardless of what the client sends.
+    const wantsPlatformScope = body.scope === 'PLATFORM';
+    if (wantsPlatformScope && !req.user.isPlatformAdmin) {
+      throw new BadRequestException('Only platform admins may upload platform-scoped files');
+    }
+    const scope = wantsPlatformScope ? 'PLATFORM' : 'TENANT';
     const isPublic = body.isPublic === 'true';
 
     return this.filesService.uploadFile(
       {
-        tenantId: req.user.tenantId,
+        tenantId: scope === 'PLATFORM' ? null : req.user.tenantId,
         userId: req.user.id,
         originalName: file.originalname,
         mimeType: file.mimetype,
         sizeBytes: file.size,
         isPublic,
+        documentType: body.documentType || 'OTHER',
+        scope,
       },
       file.buffer,
+    );
+  }
+
+  @Post('upload-multiple')
+  @UseInterceptors(FilesInterceptor('files', 10, { limits: { fileSize: MAX_UPLOAD_BYTES } }))
+  @ApiOperation({ summary: 'Upload up to 10 files in one request (all-or-nothing validation). Body: documentType, isPublic.' })
+  async uploadMultipleFiles(
+    @UploadedFiles() files: any[],
+    @Body() body: { isPublic?: string; documentType?: string },
+    @Request() req: any,
+  ) {
+    if (!files || files.length === 0) {
+      throw new BadRequestException('No files uploaded');
+    }
+    const isPublic = body.isPublic === 'true';
+
+    return this.filesService.uploadMultipleFiles(
+      files.map((f) => ({ originalName: f.originalname, mimeType: f.mimetype, sizeBytes: f.size, buffer: f.buffer })),
+      {
+        tenantId: req.user.tenantId,
+        userId: req.user.id,
+        isPublic,
+        documentType: body.documentType || 'DOCUMENT',
+        scope: 'TENANT',
+      },
     );
   }
 

@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from 'react'
 import { brandingApi } from '@/lib/api'
+import FileUpload from '@/components/FileUpload'
 
 export default function BrandingSettingsPage() {
   const [loading, setLoading] = useState(true)
@@ -149,49 +150,49 @@ export default function BrandingSettingsPage() {
         
         <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">Logo URL</label>
-            <input
-              type="url"
-              value={logoUrl}
-              onChange={(e) => setLogoUrl(e.target.value)}
-              className="input-primary"
-              placeholder="https://example.com/logo.svg"
+            <label className="block text-sm font-medium text-gray-700 mb-1">Logo</label>
+            <FileUpload
+              documentType="LOGO"
+              isPublic
+              preview={
+                logoUrl ? (
+                  <div className="mb-2 p-4 bg-gray-50 rounded-lg flex items-center justify-center h-20">
+                    <img src={logoUrl} alt="Logo" className="max-h-16 object-contain" />
+                  </div>
+                ) : undefined
+              }
+              onUploaded={(files) => { if (files[0]) setLogoUrl(files[0].url) }}
             />
-            {logoUrl && (
-              <div className="mt-2 p-4 bg-gray-50 rounded-lg flex items-center justify-center h-20">
-                <img src={logoUrl} alt="Logo" className="max-h-16 object-contain" />
-              </div>
-            )}
           </div>
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">Dark Mode Logo URL</label>
-            <input
-              type="url"
-              value={logoDarkUrl}
-              onChange={(e) => setLogoDarkUrl(e.target.value)}
-              className="input-primary"
-              placeholder="https://example.com/logo-dark.svg"
+            <label className="block text-sm font-medium text-gray-700 mb-1">Dark Mode Logo</label>
+            <FileUpload
+              documentType="LOGO"
+              isPublic
+              preview={
+                logoDarkUrl ? (
+                  <div className="mb-2 p-4 bg-gray-800 rounded-lg flex items-center justify-center h-20">
+                    <img src={logoDarkUrl} alt="Dark Logo" className="max-h-16 object-contain" />
+                  </div>
+                ) : undefined
+              }
+              onUploaded={(files) => { if (files[0]) setLogoDarkUrl(files[0].url) }}
             />
-            {logoDarkUrl && (
-              <div className="mt-2 p-4 bg-gray-800 rounded-lg flex items-center justify-center h-20">
-                <img src={logoDarkUrl} alt="Dark Logo" className="max-h-16 object-contain" />
-              </div>
-            )}
           </div>
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">Favicon URL</label>
-            <input
-              type="url"
-              value={faviconUrl}
-              onChange={(e) => setFaviconUrl(e.target.value)}
-              className="input-primary"
-              placeholder="https://example.com/favicon.ico"
+            <label className="block text-sm font-medium text-gray-700 mb-1">Favicon</label>
+            <FileUpload
+              documentType="LOGO"
+              isPublic
+              preview={
+                faviconUrl ? (
+                  <div className="mb-2 p-4 bg-gray-50 rounded-lg flex items-center justify-center h-20">
+                    <img src={faviconUrl} alt="Favicon" className="max-h-12 object-contain" />
+                  </div>
+                ) : undefined
+              }
+              onUploaded={(files) => { if (files[0]) setFaviconUrl(files[0].url) }}
             />
-            {faviconUrl && (
-              <div className="mt-2 p-4 bg-gray-50 rounded-lg flex items-center justify-center h-20">
-                <img src={faviconUrl} alt="Favicon" className="max-h-12 object-contain" />
-              </div>
-            )}
           </div>
         </div>
       </div>

@@ -3,15 +3,25 @@
 import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { useAuth } from '../../lib/auth';
-import { fitnessApi, publicApi, resolveSubdomain } from '../../lib/api';
+import { fitnessApi, publicApi, authApi, resolveSubdomain } from '../../lib/api';
+import FileUpload from '../_components/FileUpload';
 
 const PLATFORM_DOMAIN = process.env.NEXT_PUBLIC_PLATFORM_DOMAIN || 'onedexo.com';
 
 export default function AccountPage() {
   const router = useRouter();
-  const { user, logout } = useAuth();
+  const { user, logout, updateUser } = useAuth();
   const [member, setMember] = useState<any>(null);
   const [info, setInfo] = useState<any>(null);
+  const [avatarSaving, setAvatarSaving] = useState(false);
+
+  async function onAvatarUploaded(files: { url: string }[]) {
+    if (!files[0]) return;
+    setAvatarSaving(true);
+    const r = await authApi.updateProfile({ avatarUrl: files[0].url });
+    setAvatarSaving(false);
+    if (!r.error) updateUser({ avatarUrl: files[0].url });
+  }
 
   useEffect(() => {
     fitnessApi.me().then((r) => setMember(r.data));
@@ -31,13 +41,26 @@ export default function AccountPage() {
 
       <div className="mt-4 rounded-xl border border-gray-200 p-4">
         <div className="flex items-center gap-3">
-          <div className="w-12 h-12 rounded-full bg-orange-500 text-white flex items-center justify-center text-lg font-bold">
-            {(user?.firstName || user?.email || 'U').charAt(0).toUpperCase()}
-          </div>
+          {user?.avatarUrl ? (
+            // eslint-disable-next-line @next/next/no-img-element
+            <img src={user.avatarUrl} alt="" className="w-12 h-12 rounded-full object-cover" />
+          ) : (
+            <div className="w-12 h-12 rounded-full bg-orange-500 text-white flex items-center justify-center text-lg font-bold">
+              {(user?.firstName || user?.email || 'U').charAt(0).toUpperCase()}
+            </div>
+          )}
           <div>
             <div className="font-semibold text-gray-900">{user?.firstName} {user?.lastName}</div>
             <div className="text-sm text-gray-500">{user?.email}</div>
           </div>
+        </div>
+        <div className="mt-3">
+          <FileUpload
+            documentType="PROFILE_PIC"
+            isPublic
+            buttonLabel={avatarSaving ? 'Saving…' : 'Change photo'}
+            onUploaded={onAvatarUploaded}
+          />
         </div>
         {member && (
           <div className="mt-3 grid grid-cols-3 gap-2 text-center text-sm">

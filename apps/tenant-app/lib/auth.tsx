@@ -3,7 +3,7 @@
 import { createContext, useContext, useEffect, useState, useCallback, ReactNode } from 'react';
 import { authApi, getToken, setToken, clearToken } from './api';
 
-interface User { id: string; email: string; firstName?: string; lastName?: string; tenantId?: string }
+interface User { id: string; email: string; firstName?: string; lastName?: string; tenantId?: string; avatarUrl?: string }
 
 interface AuthCtx {
   user: User | null;
@@ -12,6 +12,9 @@ interface AuthCtx {
   login: (email: string, password: string) => Promise<{ error?: string }>;
   register: (data: { email: string; password: string; firstName: string; lastName: string; phone?: string }) => Promise<{ error?: string }>;
   logout: () => void;
+  /** Merges into the stored user (localStorage + context) — used after a
+   * profile/avatar update so the rest of the app reflects it immediately. */
+  updateUser: (patch: Partial<User>) => void;
 }
 
 const Ctx = createContext<AuthCtx | undefined>(undefined);
@@ -54,8 +57,17 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     setUser(null);
   }, []);
 
+  const updateUser = useCallback((patch: Partial<User>) => {
+    setUser((prev) => {
+      if (!prev) return prev;
+      const next = { ...prev, ...patch };
+      localStorage.setItem(USER_KEY, JSON.stringify(next));
+      return next;
+    });
+  }, []);
+
   return (
-    <Ctx.Provider value={{ user, loading, isAuthenticated: !!user, login, register, logout }}>
+    <Ctx.Provider value={{ user, loading, isAuthenticated: !!user, login, register, logout, updateUser }}>
       {children}
     </Ctx.Provider>
   );
