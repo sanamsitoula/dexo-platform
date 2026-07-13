@@ -172,3 +172,9 @@ export const fitnessApi = {
   classes: () => api<any>('/fitness/classes'),
   bookClass: (data: any) => api<any>('/fitness/bookings', { method: 'POST', body: JSON.stringify(data) }),
 };
+
+/** Generic (all-vertical) payment history for the logged-in customer —
+ * not fitness-specific like fitnessApi above. */
+export const paymentApi = {
+  myTransactions: (limit = 50) => api<any[]>(`/payment-gateway/transactions/me?limit=${limit}`),
+};

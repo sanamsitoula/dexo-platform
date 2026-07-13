@@ -37,6 +37,7 @@ export class FilesService {
       data.tenantId || 'platform',
       data.userId || null,
       data.originalName,
+      documentType,
     );
 
     // Upload to S3

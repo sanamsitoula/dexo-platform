@@ -330,6 +330,18 @@ export class PaymentGatewayService {
     return { data: transactions, meta: { total, limit: filters?.limit || 50, offset: filters?.offset || 0 } };
   }
 
+  /** Self-service payment history for the logged-in customer — unlike
+   * getTransactions() above (tenant-wide, staff/admin only), this is scoped
+   * to just this customer's own transactions by email. */
+  async getMyTransactions(tenantId: string, customerEmail: string, limit = 50) {
+    return this.prisma.paymentTransaction.findMany({
+      where: { tenantId, customerEmail },
+      include: { provider: { select: { name: true, type: true } } },
+      orderBy: { createdAt: 'desc' },
+      take: Math.min(limit, 200),
+    });
+  }
+
   /**
    * Get payment statistics for a tenant
    */

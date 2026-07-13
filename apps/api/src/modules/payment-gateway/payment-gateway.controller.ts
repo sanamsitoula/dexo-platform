@@ -140,6 +140,18 @@ export class PaymentGatewayController {
     );
   }
 
+  @Get('transactions/me')
+  @UseGuards(JwtAuthGuard)
+  @ApiBearerAuth()
+  @ApiOperation({ summary: "Get the logged-in customer's own payment history" })
+  async getMyTransactions(@Req() req: any, @Query('limit') limit?: string) {
+    return this.paymentGatewayService.getMyTransactions(
+      req.user.tenantId,
+      req.user.email,
+      limit ? parseInt(limit, 10) : 50,
+    );
+  }
+
   @Get('transactions')
   @UseGuards(JwtAuthGuard)
   @ApiBearerAuth()

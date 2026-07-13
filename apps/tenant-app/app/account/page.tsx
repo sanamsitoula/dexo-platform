@@ -4,16 +4,24 @@ import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { useAuth } from '../../lib/auth';
 import { fitnessApi, publicApi, authApi, resolveSubdomain } from '../../lib/api';
+import { useTenantInfo } from '../../lib/tenant-info';
 import FileUpload from '../_components/FileUpload';
+
+function humanizeDomainType(domainType?: string | null): string | null {
+  if (!domainType) return null;
+  return domainType.toLowerCase().split('_').map((w) => w[0].toUpperCase() + w.slice(1)).join(' ');
+}
 
 const PLATFORM_DOMAIN = process.env.NEXT_PUBLIC_PLATFORM_DOMAIN || 'onedexo.com';
 
 export default function AccountPage() {
   const router = useRouter();
   const { user, logout, updateUser } = useAuth();
+  const { info: tenantInfo } = useTenantInfo();
   const [member, setMember] = useState<any>(null);
   const [info, setInfo] = useState<any>(null);
   const [avatarSaving, setAvatarSaving] = useState(false);
+  const businessType = humanizeDomainType(tenantInfo?.domainType);
 
   async function onAvatarUploaded(files: { url: string }[]) {
     if (!files[0]) return;
@@ -52,6 +60,7 @@ export default function AccountPage() {
           <div>
             <div className="font-semibold text-gray-900">{user?.firstName} {user?.lastName}</div>
             <div className="text-sm text-gray-500">{user?.email}</div>
+            {businessType && <div className="text-xs text-gray-400 mt-0.5">{businessType}</div>}
           </div>
         </div>
         <div className="mt-3">

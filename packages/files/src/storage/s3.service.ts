@@ -1,10 +1,10 @@
-import { Injectable, Logger, NotFoundException, BadRequestException } from '@nestjs/common';
+import { Injectable, Logger, NotFoundException, BadRequestException, InternalServerErrorException, OnModuleInit } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
-import { S3Client, PutObjectCommand, GetObjectCommand, DeleteObjectCommand, ListObjectsV2Command } from '@aws-sdk/client-s3';
+import { S3Client, PutObjectCommand, GetObjectCommand, DeleteObjectCommand, ListObjectsV2Command, HeadBucketCommand, CreateBucketCommand } from '@aws-sdk/client-s3';
 import { getSignedUrl } from '@aws-sdk/s3-request-presigner';
 
 @Injectable()
-export class S3Service {
+export class S3Service implements OnModuleInit {
   private readonly logger = new Logger(S3Service.name);
   private readonly s3Client: S3Client;
   private readonly bucketName: string;
@@ -64,8 +64,13 @@ export class S3Service {
         url: await this.getSignedUrl(key, 3600),
       };
     } catch (error: any) {
-      this.logger.error('Failed to upload file:', error);
-      throw new BadRequestException('Failed to upload file');
+      // A failed PUT here means S3/MinIO itself is unreachable/misconfigured
+      // (e.g. a missing bucket) — a server-side infrastructure problem, not
+      // something the uploader did wrong. 500 (not 400) so it's picked up
+      // by CentralErrorFilter's ErrorLog persistence instead of silently
+      // looking like a client mistake.
+      this.logger.error(`Failed to upload file "${key}": ${error?.message || error}`);
+      throw new InternalServerErrorException('Failed to upload file — storage is temporarily unavailable');
     }
   }
 
@@ -156,21 +161,47 @@ export class S3Service {
     }
   }
 
+  async onModuleInit(): Promise<void> {
+    await this.ensureBucketExists();
+  }
+
+  /** Neither MinIO nor AWS S3 auto-creates a bucket just because you PUT to
+   * it — every upload was silently failing with a generic "Failed to upload
+   * file" until this actually ran. Runs on every API boot; a no-op once the
+   * bucket exists (HeadBucket succeeds), so it's always safe to call. */
   async ensureBucketExists(): Promise<void> {
     try {
-      // In production with AWS S3, ensure bucket exists via AWS SDK
-      // For MinIO, buckets are auto-created
-      this.logger.log(`Using bucket: ${this.bucketName}`);
+      await this.s3Client.send(new HeadBucketCommand({ Bucket: this.bucketName }));
+      this.logger.log(`Using existing bucket: ${this.bucketName}`);
     } catch (error: any) {
-      this.logger.error('Failed to ensure bucket exists:', error);
+      const notFound = error?.$metadata?.httpStatusCode === 404 || error?.name === 'NotFound';
+      if (!notFound) {
+        this.logger.error(`Failed to check bucket "${this.bucketName}":`, error?.message || error);
+        return;
+      }
+      try {
+        await this.s3Client.send(new CreateBucketCommand({ Bucket: this.bucketName }));
+        this.logger.log(`Created missing bucket: ${this.bucketName}`);
+      } catch (createError: any) {
+        this.logger.error(`Failed to create bucket "${this.bucketName}":`, createError?.message || createError);
+      }
     }
   }
 
-  generateKey(tenantId: string, userId: string | null, fileName: string): string {
+  /**
+   * Per-tenant folder structure, grouped by document type, e.g.:
+   *   platform/logo/public/<ts>-logo.png                    (scope=PLATFORM)
+   *   <tenantId>/logo/public/<ts>-logo.png                  (scope=TENANT, LOGO)
+   *   <tenantId>/profile_pic/<userId>/<ts>-avatar.jpg
+   *   <tenantId>/document/<userId>/<ts>-invoice.pdf
+   * This full key is what's persisted in File.s3Key — the database is
+   * always the source of truth for where a given file actually lives.
+   */
+  generateKey(tenantId: string, userId: string | null, fileName: string, documentType = 'other'): string {
     const timestamp = Date.now();
     const sanitizedFileName = fileName.replace(/[^a-zA-Z0-9.-]/g, '_');
-    return userId
-      ? `${tenantId}/${userId}/${timestamp}-${sanitizedFileName}`
-      : `${tenantId}/public/${timestamp}-${sanitizedFileName}`;
+    const typeSegment = documentType.toLowerCase();
+    const ownerSegment = userId || 'public';
+    return `${tenantId}/${typeSegment}/${ownerSegment}/${timestamp}-${sanitizedFileName}`;
   }
 }
