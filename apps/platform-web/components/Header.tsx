@@ -43,7 +43,7 @@ export default function Header() {
         <div className="flex items-center gap-6">
           {/* Logo or Brand Name */}
           <a href="/" className="flex items-center gap-2">
-            {logoUrl ? (
+            {logoUrl && /^(https?:\/\/|\/)/.test(logoUrl) ? (
               <Image
                 src={logoUrl}
                 alt={brandName}
@@ -51,6 +51,11 @@ export default function Header() {
                 height={32}
                 className="rounded"
               />
+            ) : logoUrl ? (
+              // Some tenants store an emoji glyph (e.g. "💪") here instead of
+              // a real image URL — next/image requires a URL and throws
+              // otherwise, so just show the glyph itself.
+              <span className="text-2xl leading-none">{logoUrl}</span>
             ) : null}
             <h1
               className="text-xl font-bold"

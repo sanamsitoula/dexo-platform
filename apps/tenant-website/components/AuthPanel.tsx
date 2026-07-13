@@ -87,14 +87,17 @@ export default function AuthPanel({ subdomain, tenantId, tenantName, logoUrl, in
   return (
     <div className="max-w-md w-full site-card rounded-xl p-8">
       <div className="text-center">
-        {logoUrl ? (
+        {logoUrl && /^(https?:\/\/|\/)/.test(logoUrl) ? (
           <Image src={logoUrl} alt={tenantName} width={56} height={56} className="mx-auto rounded-lg object-cover" />
         ) : (
           <div
             className="mx-auto w-14 h-14 rounded-lg flex items-center justify-center text-2xl font-bold"
             style={{ backgroundColor: 'var(--site-primary)', color: 'var(--site-on-primary, #fff)' }}
           >
-            {tenantName.charAt(0).toUpperCase()}
+            {/* Some tenants store an emoji glyph (e.g. "💪") as a logo
+              placeholder instead of a real image URL — next/image requires
+              a URL and throws otherwise, so show the emoji itself here. */}
+            {logoUrl || tenantName.charAt(0).toUpperCase()}
           </div>
         )}
         <h1 className="text-2xl font-bold mt-3">{tab === 'register' ? `Join ${tenantName}` : `Welcome back to ${tenantName}`}</h1>

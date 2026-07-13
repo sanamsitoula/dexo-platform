@@ -198,14 +198,21 @@ export function TenantBrandingConfig({ tenant, onSave }: TenantBrandingConfigPro
             />
             {logoUrl && (
               <div className="mt-2 p-2 border rounded bg-gray-50">
-                <Image
-                  src={logoUrl}
-                  alt="Logo preview"
-                  width={100}
-                  height={40}
-                  className="object-contain"
-                  unoptimized
-                />
+                {/^(https?:\/\/|\/)/.test(logoUrl) ? (
+                  <Image
+                    src={logoUrl}
+                    alt="Logo preview"
+                    width={100}
+                    height={40}
+                    className="object-contain"
+                    unoptimized
+                  />
+                ) : (
+                  // Some tenants store an emoji glyph (e.g. "💪") here instead
+                  // of a real image URL — next/image requires a URL and
+                  // throws otherwise, so just show the glyph itself.
+                  <div className="text-3xl">{logoUrl}</div>
+                )}
               </div>
             )}
           </div>

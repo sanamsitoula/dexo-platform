@@ -5,14 +5,17 @@ import { gymApi } from '@/lib/api';
 import { resolveTenantAdminSubdomain } from '@/lib/subdomain';
 import { PageHeader, Card, Btn, SlideOver, Field, Input, EmptyState, Badge } from '../_ui';
 
+const EMPTY_FORM = { name: '', type: 'MONTHLY', durationDays: 30, priceNpr: 2000, vatPercent: 13, includesTrainer: false, includesClasses: true, description: '' };
+
 export default function PlansPage() {
   const subdomain = resolveTenantAdminSubdomain();
   const [plans, setPlans] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [open, setOpen] = useState(false);
+  const [editingId, setEditingId] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
   const [err, setErr] = useState<string | null>(null);
-  const [form, setForm] = useState({ name: '', type: 'MONTHLY', durationDays: 30, priceNpr: 2000, vatPercent: 13, includesTrainer: false, includesClasses: true, description: '' });
+  const [form, setForm] = useState(EMPTY_FORM);
 
   const load = useCallback(async () => {
     const r = await gymApi.plans.list(subdomain);
@@ -21,9 +24,34 @@ export default function PlansPage() {
   }, [subdomain]);
   useEffect(() => { load(); }, [load]);
 
+  function openNew() {
+    setEditingId(null);
+    setForm(EMPTY_FORM);
+    setErr(null);
+    setOpen(true);
+  }
+
+  function openEdit(p: any) {
+    setEditingId(p.id);
+    setForm({
+      name: p.name, type: p.type, durationDays: p.durationDays, priceNpr: Number(p.priceNpr),
+      vatPercent: Number(p.vatPercent), includesTrainer: !!p.includesTrainer, includesClasses: !!p.includesClasses,
+      description: p.description || '',
+    });
+    setErr(null);
+    setOpen(true);
+  }
+
   async function save() {
     setSaving(true); setErr(null);
-    const r = await gymApi.plans.create(subdomain, { ...form, durationDays: Number(form.durationDays), priceNpr: Number(form.priceNpr), vatPercent: Number(form.vatPercent) });
+    const payload = { ...form, durationDays: Number(form.durationDays), priceNpr: Number(form.priceNpr), vatPercent: Number(form.vatPercent) };
+    // This tenant's own MembershipPlan row — every plan belongs to exactly
+    // one tenant (tenantId is a required FK, never shared across tenants),
+    // so editing here can never touch another tenant's or the platform's
+    // data. Update in place rather than creating a duplicate.
+    const r = editingId
+      ? await gymApi.plans.update(subdomain, editingId, payload)
+      : await gymApi.plans.create(subdomain, payload);
     setSaving(false);
     if (r.error) return setErr(r.error);
     setOpen(false); load();
@@ -32,7 +60,7 @@ export default function PlansPage() {
   return (
     <div>
       <PageHeader title="Membership Plans" subtitle="What members can buy · NPR + 13% VAT"
-        action={<Btn onClick={() => setOpen(true)}>+ New plan</Btn>} />
+        action={<Btn onClick={openNew}>+ New plan</Btn>} />
 
       {loading ? <div className="text-gray-400">Loading…</div> : plans.length === 0 ? (
         <Card><EmptyState icon="🎟️" title="No plans yet" msg="Create your first membership plan." /></Card>
@@ -52,12 +80,13 @@ export default function PlansPage() {
                 {p.includesClasses && <Badge color="indigo">Classes</Badge>}
                 {p.includesDietPlan && <Badge color="indigo">Diet</Badge>}
               </div>
+              <button onClick={() => openEdit(p)} className="mt-4 text-sm text-indigo-600 hover:underline font-medium">Edit →</button>
             </Card>
           ))}
         </div>
       )}
 
-      <SlideOver open={open} onClose={() => setOpen(false)} title="New membership plan">
+      <SlideOver open={open} onClose={() => setOpen(false)} title={editingId ? 'Edit membership plan' : 'New membership plan'}>
         <Field label="Plan name"><Input value={form.name} onChange={(e: any) => setForm({ ...form, name: e.target.value })} placeholder="Monthly Unlimited" /></Field>
         <div className="grid grid-cols-2 gap-3">
           <Field label="Type">
@@ -77,7 +106,7 @@ export default function PlansPage() {
         </div>
         <Field label="Description"><textarea value={form.description} onChange={(e) => setForm({ ...form, description: e.target.value })} rows={2} className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm" /></Field>
         {err && <p className="text-sm text-red-600 mb-3">{err}</p>}
-        <Btn onClick={save} disabled={saving || !form.name}>{saving ? 'Saving…' : 'Create plan'}</Btn>
+        <Btn onClick={save} disabled={saving || !form.name}>{saving ? 'Saving…' : editingId ? 'Save changes' : 'Create plan'}</Btn>
       </SlideOver>
     </div>
   );
