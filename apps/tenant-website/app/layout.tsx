@@ -22,6 +22,7 @@ async function getTenantContext() {
     // Resolve the domain type dynamically from the tenant record so ANY business
     // (any gym, any restaurant) renders correctly — no per-slug hardcoding.
     const domainType = await resolveDomainType(slug, API_URL);
+    if (!domainType) throw new Error('Could not resolve tenant domain type');
 
     // Try to fetch from API, but don't fail if unavailable
     const res = await fetch(`${API_URL}/api/business-templates/${domainType}`, {
@@ -51,10 +52,14 @@ async function getTenantContext() {
   };
 }
 
-// Resolve a tenant's business/domain type from its record (settings.theme or
-// settings.domainCode), so new tenants work without code changes. Falls back to
-// FITNESS_CENTER only when the tenant can't be resolved.
-async function resolveDomainType(slug: string, apiUrl: string): Promise<string> {
+// Resolve a tenant's business/domain type from the TenantDomain relation
+// (tenant.domains[0].domain.code, per tenant.service.ts's findBySubdomain
+// include) so ANY business (any gym, any restaurant, any salon) renders
+// correctly — no per-slug hardcoding. settings.domainCode/theme and a flat
+// tenant.domainCode don't exist on this response, so reading those always
+// fell through to a hardcoded FITNESS_CENTER default regardless of the
+// tenant's real business type.
+async function resolveDomainType(slug: string, apiUrl: string): Promise<string | null> {
   try {
     const res = await fetch(`${apiUrl}/api/tenants/subdomain/${slug}`, {
       cache: 'no-store',
@@ -62,14 +67,12 @@ async function resolveDomainType(slug: string, apiUrl: string): Promise<string> 
     });
     if (res.ok) {
       const tenant = await res.json();
-      const s = (tenant?.settings as Record<string, any>) || {};
-      const code = s.domainCode || s.theme || tenant?.domainCode;
-      if (code && typeof code === 'string') return code;
+      return tenant?.domains?.[0]?.domain?.code || null;
     }
   } catch {
-    // ignore — fall through to default
+    // ignore — fall through to null
   }
-  return 'FITNESS_CENTER';
+  return null;
 }
 
 export default async function RootLayout({ children }: { children: React.ReactNode }) {

@@ -14,9 +14,12 @@ export default function TenantAdminIndex() {
     const slug =
       document.cookie.match(/(?:^|;\s*)dexo-tenant-slug=([^;]+)/)?.[1] ||
       localStorage.getItem('dexo-tenant-slug') ||
-      'vrfitness';
+      '';
     setTenantSlug(slug);
-    router.replace(`/dashboard`);
+    // No stored tenant means no prior login on this host — send to /login
+    // (which resolves the real tenant from the host itself) rather than
+    // guessing a default tenant and routing straight into its dashboard.
+    router.replace(slug ? '/dashboard' : '/login');
   }, [router]);
 
   return (

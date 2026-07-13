@@ -16,10 +16,19 @@ export default function UserMenu() {
   const [tenant, setTenant] = useState<any>(null);
   const ref = useRef<HTMLDivElement>(null);
 
-  const subdomain =
-    (typeof window !== 'undefined' && localStorage.getItem('dexo-tenant-slug')) || 'vrfitness';
+  // Resolved client-side only, after mount — reading localStorage directly
+  // in the render body gives the server render (no localStorage) a
+  // different value than the client's first hydration pass (the real
+  // stored slug), causing a React hydration mismatch on the subdomain text
+  // rendered below.
+  const [subdomain, setSubdomain] = useState('');
 
   useEffect(() => {
+    setSubdomain(localStorage.getItem('dexo-tenant-slug') || '');
+  }, []);
+
+  useEffect(() => {
+    if (!subdomain) return;
     (async () => {
       const [p, t] = await Promise.all([
         tenantApi.getProfile(subdomain),
@@ -28,10 +37,12 @@ export default function UserMenu() {
       if (p.data) setUser(p.data);
       if (t.data) setTenant(t.data);
     })();
+  }, [subdomain]);
+
+  useEffect(() => {
     const close = (e: MouseEvent) => { if (ref.current && !ref.current.contains(e.target as Node)) setOpen(false); };
     document.addEventListener('mousedown', close);
     return () => document.removeEventListener('mousedown', close);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   function logout() {
@@ -46,7 +57,7 @@ export default function UserMenu() {
     user?.roles ??
     (user?.userRoles ?? []).map((r: any) => r?.role?.name ?? r?.role?.code).filter(Boolean);
   const initial = (user?.firstName || user?.email || 'U').charAt(0).toUpperCase();
-  const domainCode = tenant?.domainCode || (tenant?.settings as any)?.domainCode;
+  const domainCode = tenant?.domains?.[0]?.domain?.code;
 
   return (
     <div className="relative" ref={ref}>

@@ -6,11 +6,11 @@ const API_HOST = (process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000').re
 const API_BASE_URL = `${API_HOST}/api`
 
 function resolveTenantSlug(): string {
-  if (typeof document === 'undefined') return 'vrfitness'
+  if (typeof document === 'undefined') return ''
   return (
     document.cookie.match(/(?:^|;\s*)dexo-tenant-slug=([^;]+)/)?.[1] ||
     localStorage.getItem('dexo-tenant-slug') ||
-    'vrfitness'
+    ''
   )
 }
 

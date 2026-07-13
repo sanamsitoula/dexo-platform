@@ -2,16 +2,24 @@ import { headers } from 'next/headers';
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000';
 
-async function resolveDomainCode(slug: string): Promise<string> {
+async function resolveDomainCode(slug: string): Promise<string | null> {
   try {
     const res = await fetch(`${API_URL}/api/tenants/subdomain/${slug}`, { cache: 'no-store' });
     if (res.ok) {
       const tenant = await res.json();
-      const settings = (tenant?.settings as Record<string, any>) || {};
-      return tenant?.domainCode || settings.domainCode || 'FITNESS_CENTER';
+      // The real business type lives on the TenantDomain relation
+      // (tenant.domains[0].domain.code, per tenant.service.ts's
+      // findBySubdomain include) — NOT a flat tenant.domainCode or
+      // settings.domainCode, neither of which exist on the Tenant model or
+      // its settings JSON. Reading those non-existent fields meant this
+      // always fell through to a hardcoded 'FITNESS_CENTER' default,
+      // showing every salon/restaurant/school tenant a fitness-branded
+      // dashboard fetching fitness member counts regardless of their real
+      // business.
+      return tenant?.domains?.[0]?.domain?.code || null;
     }
   } catch {}
-  return 'FITNESS_CENTER';
+  return null;
 }
 
 async function EcommerceDashboard({ slug }: { slug: string }) {
@@ -159,11 +167,35 @@ async function FitnessDashboard({ slug }: { slug: string }) {
   );
 }
 
+async function GenericDashboard({ slug, domainCode }: { slug: string; domainCode: string | null }) {
+  const businessLabel = domainCode
+    ? domainCode.toLowerCase().split('_').map((w) => w[0].toUpperCase() + w.slice(1)).join(' ')
+    : 'your business';
+
+  return (
+    <div>
+      <h2 className="text-2xl font-bold text-gray-900">Welcome back</h2>
+      <p className="mt-1 text-gray-500">Here&rsquo;s what&rsquo;s happening with {slug} ({businessLabel}) today.</p>
+
+      <div className="mt-6 bg-white rounded-lg shadow p-6">
+        <h3 className="font-semibold text-gray-900">Quick Links</h3>
+        <div className="mt-4 grid grid-cols-2 gap-2 text-sm">
+          <a href="/users" className="text-blue-600 hover:underline">Manage Users</a>
+          <a href="/finance" className="text-blue-600 hover:underline">Finance</a>
+          <a href="/documents" className="text-blue-600 hover:underline">Documents</a>
+          <a href="/settings" className="text-blue-600 hover:underline">Settings</a>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 export default async function AdminDashboard() {
   const h = headers();
-  const slug = h.get('x-tenant-slug') || process.env.DEV_TENANT || 'vrfitness';
+  const slug = h.get('x-tenant-slug') || '';
   const domainCode = await resolveDomainCode(slug);
 
   if (domainCode === 'ECOMMERCE') return <EcommerceDashboard slug={slug} />;
-  return <FitnessDashboard slug={slug} />;
+  if (domainCode === 'FITNESS_CENTER') return <FitnessDashboard slug={slug} />;
+  return <GenericDashboard slug={slug} domainCode={domainCode} />;
 }

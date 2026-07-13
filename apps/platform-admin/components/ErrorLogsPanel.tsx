@@ -13,8 +13,15 @@ interface ErrorLogEntry {
   errorName: string | null;
   stack: string | null;
   tenantId: string | null;
+  tenantName: string | null;
+  businessType: string | null;
   userId: string | null;
   createdAt: string;
+}
+
+function humanizeBusinessType(code?: string | null): string | null {
+  if (!code) return null;
+  return code.toLowerCase().split('_').map((w) => w[0].toUpperCase() + w.slice(1)).join(' ');
 }
 
 /** Every unhandled 5xx the API's CentralErrorFilter has caught, regardless
@@ -71,6 +78,11 @@ export default function ErrorLogsPanel() {
                         </div>
                         <div className="text-xs text-gray-700 mt-1 font-mono truncate">{e.path}</div>
                         <div className="text-xs text-gray-500 mt-0.5 truncate">{e.message}</div>
+                        {e.tenantName && (
+                          <div className="text-xs text-indigo-600 mt-0.5 truncate">
+                            {e.tenantName}{e.businessType ? ` · ${humanizeBusinessType(e.businessType)}` : ''}
+                          </div>
+                        )}
                       </button>
                     </li>
                   ))}
@@ -91,7 +103,16 @@ export default function ErrorLogsPanel() {
                   <div><span className="text-gray-500">Method/Path:</span> {selected.method} {selected.path}</div>
                   <div><span className="text-gray-500">Status:</span> {selected.statusCode}</div>
                   <div><span className="text-gray-500">Message:</span> {selected.message}</div>
-                  {selected.tenantId && <div><span className="text-gray-500">Tenant:</span> {selected.tenantId}</div>}
+                  {selected.tenantName && (
+                    <div>
+                      <span className="text-gray-500">Tenant:</span> {selected.tenantName}
+                      {selected.businessType ? ` (${humanizeBusinessType(selected.businessType)})` : ''}
+                      {' '}<span className="text-gray-600">[{selected.tenantId}]</span>
+                    </div>
+                  )}
+                  {!selected.tenantName && selected.tenantId && (
+                    <div><span className="text-gray-500">Tenant:</span> {selected.tenantId}</div>
+                  )}
                   {selected.userId && <div><span className="text-gray-500">User:</span> {selected.userId}</div>}
                   <div><span className="text-gray-500">Time:</span> {new Date(selected.createdAt).toLocaleString()}</div>
                   {selected.stack && (

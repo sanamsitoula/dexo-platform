@@ -70,7 +70,12 @@ function TemplatePlans({ plans, color, name }: { plans: FitnessPlan[]; color: st
 export default async function Home() {
   const subdomain = resolveSubdomain();
   const tenant = await getTenantBySubdomain(subdomain);
-  const domainCode = (tenant?.settings as any)?.domainCode || (tenant?.settings as any)?.theme || tenant?.domainCode;
+  // The real business type lives on the TenantDomain relation
+  // (tenant.domains[0].domain.code, per tenant.service.ts's findBySubdomain
+  // include) — settings.domainCode/theme and a flat tenant.domainCode don't
+  // exist on this response at all, so this always evaluated against
+  // undefined before.
+  const domainCode = tenant?.domains?.[0]?.domain?.code;
 
   if (isEcommerceDomainCode(domainCode)) {
     const [theme, categories, featured, latest] = await Promise.all([

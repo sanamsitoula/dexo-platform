@@ -20,7 +20,7 @@ class CentralErrorFilter implements ExceptionFilter {
 
   constructor(private readonly prisma: PrismaService) {}
 
-  catch(exception: any, host: ArgumentsHost) {
+  async catch(exception: any, host: ArgumentsHost) {
     const ctx = host.switchToHttp();
     const res = ctx.getResponse();
     const req = ctx.getRequest();
@@ -46,6 +46,24 @@ class CentralErrorFilter implements ExceptionFilter {
         `${req?.method || ''} ${req?.originalUrl || req?.url || ''} -> ${status} ${message}`,
         exception?.stack,
       );
+
+      const tenantId = req?.tenantId || req?.user?.tenantId || null;
+      // Snapshot the tenant's name/business type at log time — tenantId
+      // alone is a UUID, useless for tracing an error without a separate
+      // lookup. Never let this secondary lookup break the actual response.
+      let tenantName: string | null = null;
+      let businessType: string | null = null;
+      if (tenantId) {
+        try {
+          const tenant = await this.prisma.tenant.findUnique({
+            where: { id: tenantId },
+            select: { name: true, domains: { where: { isActive: true }, take: 1, select: { domain: { select: { code: true } } } } },
+          });
+          tenantName = tenant?.name || null;
+          businessType = tenant?.domains?.[0]?.domain?.code || null;
+        } catch { /* tenant lookup must never break error reporting */ }
+      }
+
       this.prisma.errorLog
         .create({
           data: {
@@ -55,7 +73,9 @@ class CentralErrorFilter implements ExceptionFilter {
             message: String(message).slice(0, 2000),
             errorName: String(errorName).slice(0, 200),
             stack: exception?.stack ? String(exception.stack).slice(0, 8000) : null,
-            tenantId: req?.tenantId || req?.user?.tenantId || null,
+            tenantId,
+            tenantName,
+            businessType,
             userId: req?.user?.id || null,
             requestId: req?.id || null,
           },

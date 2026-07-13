@@ -919,6 +919,12 @@ model ErrorLog {
   errorName  String?
   stack      String?  @db.Text
   tenantId   String?
+  // Denormalized at log time — tenantId alone is a UUID, useless for
+  // tracing an error at a glance. Snapshotting the name/business type here
+  // means the log stays readable even if the tenant is later renamed or
+  // deleted, and avoids a join just to display the error list.
+  tenantName   String?
+  businessType String?
   userId     String?
   requestId  String?
   createdAt  DateTime @default(now())

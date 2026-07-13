@@ -29,10 +29,21 @@ export default function LoginPage() {
   const [error, setError] = useState<string | null>(null);
   const [redirecting, setRedirecting] = useState(false);
   const [brand, setBrand] = useState<TenantBrand | null>(null);
-
-  const tenantSlug = resolveTenantAdminSubdomain();
+  // Resolved client-side only, in an effect — resolveTenantAdminSubdomain()
+  // reads window.location.hostname, which doesn't exist during the server
+  // render. Computing it directly in the render body gave the server render
+  // a different value ('vrfitness' fallback) than the client's first
+  // hydration pass (the real host-resolved slug), causing a React hydration
+  // mismatch. Starting at '' matches on both sides; the effect below fills
+  // in the real value right after mount.
+  const [tenantSlug, setTenantSlug] = useState('');
 
   useEffect(() => {
+    setTenantSlug(resolveTenantAdminSubdomain());
+  }, []);
+
+  useEffect(() => {
+    if (!tenantSlug) return;
     fetch(`${API_HOST}/api/tenants/subdomain/${tenantSlug}`, { cache: 'no-store' })
       .then((r) => (r.ok ? r.json() : null))
       .then((t) => {
