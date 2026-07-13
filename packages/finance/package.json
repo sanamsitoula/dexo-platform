@@ -2,7 +2,7 @@
   "name": "@dexo/finance",
   "version": "1.0.0",
   "description": "Finance module for Dexo Platform - Multi-tenant accounting with IRD compliance",
-  "main": "src/index.ts",
+  "main": "dist/index.js",
   "types": "dist/index.d.ts",
   "scripts": {
     "build": "tsc",
