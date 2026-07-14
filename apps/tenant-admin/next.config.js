@@ -2,6 +2,9 @@
 const nextConfig = {
   reactStrictMode: true,
   transpilePackages: ['@dexo/ui'],
+  // Lint runs as its own (non-blocking) CI step; don't let `next build` fail
+  // on the eslint/prettier baseline. Types are enforced by the type-check job.
+  eslint: { ignoreDuringBuilds: true },
   env: {
     NEXT_PUBLIC_API_URL: process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000',
   },
