@@ -8,11 +8,10 @@ const nextConfig = {
       { protocol: 'http', hostname: '**' },
     ],
   },
-  ...(process.env.ENABLE_PATH_ROUTING === 'true'
-    ? { basePath: '/dexo/app' }
-    : process.env.TENANT_PATH_MODE === 'true'
-      ? { basePath: '/app' }
-      : {}),
+  // Path-based tenant routing: this app is always reached at
+  // <tenant>.onedexo.com/portal (nginx dispatches by path, not by a
+  // portal.<tenant>. subdomain — see infra/nginx/dexo.conf).
+  basePath: '/portal',
   async rewrites() {
     return [
       {

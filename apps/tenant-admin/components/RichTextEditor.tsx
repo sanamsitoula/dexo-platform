@@ -1,6 +1,9 @@
 'use client'
 
-import { useEffect, useRef } from 'react'
+import { useEffect, useRef, useState } from 'react'
+import MediaPicker, { permanentMediaUrl } from './MediaPicker'
+import { resolveTenantAdminSubdomain } from '@/lib/subdomain'
+import { aiApi } from '@/lib/api'
 
 /**
  * Lightweight rich-text editor built on contentEditable + document.execCommand.
@@ -18,6 +21,10 @@ export default function RichTextEditor({
   minHeight?: number
 }) {
   const editorRef = useRef<HTMLDivElement>(null)
+  const [pickerOpen, setPickerOpen] = useState(false)
+  const [aiBusy, setAiBusy] = useState(false)
+  const [aiError, setAiError] = useState<string | null>(null)
+  const subdomain = resolveTenantAdminSubdomain()
   // Track the last HTML we emitted so external value changes (e.g. after a
   // fetch) update the editor, but our own keystrokes don't reset the caret.
   const lastEmitted = useRef<string>('')
@@ -49,9 +56,34 @@ export default function RichTextEditor({
     if (url) exec('createLink', url)
   }
 
-  function insertImage() {
+  function insertImageFromLibrary() {
+    setPickerOpen(true)
+  }
+
+  function insertImageByUrl() {
     const url = window.prompt('Image URL (https://…)')
     if (url) exec('insertImage', url)
+  }
+
+  async function aiWrite() {
+    const brief = window.prompt('What should this section say? (e.g. "Hero intro for a boutique gym, friendly tone, mention 24/7 access")')
+    if (!brief || !brief.trim()) return
+    setAiError(null)
+    setAiBusy(true)
+    const r = await aiApi.writeContent(subdomain, brief.trim())
+    setAiBusy(false)
+    if (r.error || !r.data?.reply) {
+      setAiError(r.error || 'AI did not return any content')
+      return
+    }
+    // Insert as a fresh block at the end rather than replacing selection —
+    // AI output is HTML (headings/paragraphs), not a plain insertHTML-safe
+    // inline string, so appending is the least surprising default.
+    const el = editorRef.current
+    if (el) {
+      el.innerHTML += r.data.reply
+      emit()
+    }
   }
 
   const buttons: { label: React.ReactNode; title: string; onClick: () => void; className?: string }[] = [
@@ -65,8 +97,10 @@ export default function RichTextEditor({
     { label: '1. List', title: 'Numbered list', onClick: () => exec('insertOrderedList') },
     { label: '❝', title: 'Blockquote', onClick: () => exec('formatBlock', '<blockquote>') },
     { label: '🔗', title: 'Insert link', onClick: insertLink },
-    { label: '🖼', title: 'Insert image by URL', onClick: insertImage },
+    { label: '🖼 Library', title: 'Insert image from Media Library', onClick: insertImageFromLibrary },
+    { label: '🖼 URL', title: 'Insert image by URL', onClick: insertImageByUrl },
     { label: '✕', title: 'Clear formatting', onClick: () => exec('removeFormat') },
+    { label: aiBusy ? '✨ Writing…' : '✨ AI Write', title: 'Draft this section with AI (review before saving)', onClick: aiWrite },
   ]
 
   return (
@@ -85,6 +119,9 @@ export default function RichTextEditor({
           </button>
         ))}
       </div>
+      {aiError && (
+        <div className="px-4 py-2 text-xs text-red-600 bg-red-50 border-b border-red-100">{aiError}</div>
+      )}
       <div
         ref={editorRef}
         contentEditable
@@ -111,6 +148,15 @@ export default function RichTextEditor({
         .rte-content img { max-width: 100%; border-radius: 0.5rem; margin: 0.5em 0; }
         .rte-content p { margin: 0.4em 0; }
       `}</style>
+      <MediaPicker
+        subdomain={subdomain}
+        open={pickerOpen}
+        onClose={() => setPickerOpen(false)}
+        onSelect={(file) => {
+          setPickerOpen(false)
+          exec('insertImage', permanentMediaUrl(file.id))
+        }}
+      />
     </div>
   )
 }

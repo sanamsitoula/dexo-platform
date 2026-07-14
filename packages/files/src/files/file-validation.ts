@@ -7,6 +7,9 @@ import { BadRequestException } from '@nestjs/common';
  * path that writes to S3 and it always calls validateFile() first.
  */
 const IMAGE_TYPES = ['image/png', 'image/jpeg', 'image/jpg'];
+// Broader image set for the website/menu Media Library (logos/avatars stay
+// restricted to IMAGE_TYPES above — this is only for general content media).
+const MEDIA_IMAGE_TYPES = [...IMAGE_TYPES, 'image/webp', 'image/gif', 'image/svg+xml'];
 const DOCUMENT_TYPES = [
   'application/pdf',
   'application/msword',
@@ -26,6 +29,7 @@ export const FILE_RULES: Record<string, { allowedMimeTypes: string[]; maxSizeByt
   INVOICE: { allowedMimeTypes: DOCUMENT_TYPES, maxSizeBytes: 10 * MB },
   CONTRACT: { allowedMimeTypes: DOCUMENT_TYPES, maxSizeBytes: 10 * MB },
   ID_PROOF: { allowedMimeTypes: IMAGE_TYPES.concat('application/pdf'), maxSizeBytes: 5 * MB },
+  MEDIA: { allowedMimeTypes: MEDIA_IMAGE_TYPES, maxSizeBytes: 5 * MB },
   OTHER: { allowedMimeTypes: DOCUMENT_TYPES, maxSizeBytes: 10 * MB },
 };
 

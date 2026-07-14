@@ -6,6 +6,7 @@ import Link from 'next/link';
 import { menuBuilderApi } from '@/lib/api';
 import { resolveTenantAdminSubdomain } from '@/lib/subdomain';
 import { PageHeader, Card, Btn, Badge, Field, Input, SlideOver, EmptyState } from '../../../_ui';
+import WebsiteSubNav from '@/components/WebsiteSubNav';
 import RichTextEditor from '@/components/RichTextEditor';
 
 const TEMPLATES = ['grid', 'table', 'carousel', 'list', 'accordion', 'map'];
@@ -96,7 +97,8 @@ export default function MenuEditorPage() {
 
   return (
     <div className="max-w-4xl">
-      <Link href="/website/menus" className="text-sm text-gray-500 hover:text-gray-700">← Back to Menus</Link>
+      <WebsiteSubNav />
+      <Link href="/website/menus" className="text-sm text-gray-500 hover:text-gray-700">← Back to Homepage Sections</Link>
       <PageHeader title={menu.name} subtitle={`/${menu.slug} · ${items.length} item${items.length === 1 ? '' : 's'}`}
         action={<Badge color={menu.status === 'published' ? 'green' : 'gray'}>{menu.status}</Badge>} />
 

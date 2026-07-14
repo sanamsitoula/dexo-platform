@@ -363,6 +363,12 @@ model Tenant {
   chatwootConfig         TenantChatwootConfig?
   menus                  Menu[]
   menuItems              MenuItem[]
+  pages                  Page[]
+  pageSections           PageSection[]
+  forms                  Form[]
+  formFields             FormField[]
+  formSubmissions        FormSubmission[]
+  themes                 TenantTheme[]
 
   @@index([subdomain])
   @@index([domain])
@@ -965,6 +971,7 @@ enum FileDocumentType {
   INVOICE
   CONTRACT
   ID_PROOF
+  MEDIA
   OTHER
 }
 
@@ -4275,4 +4282,204 @@ model MenuItem {
   @@index([menuId])
   @@index([menuId, status])
   @@index([parentId])
+}
+
+// Publishing Workflow state machine for Page (no version/revision history —
+// explicitly out of scope for now). Linear happy path:
+//   draft -> in_review -> approved -> (published | scheduled) -> archived
+// "scheduled" auto-flips to "published" once publishAt passes (checked at
+// public-read time in PageBuilderService.getPublicPage, not by a cron job —
+// no extra infra needed, and the page is never served early or late).
+// Any state can go back to "draft" (a plain revert, not a tracked rollback).
+enum PageStatus {
+  draft
+  in_review
+  approved
+  scheduled
+  published
+  archived
+}
+
+// Page Builder — a tenant's custom pages (Home, About, Services, Careers,
+// Landing Pages, ...), each an ordered list of PageSections drawn from the
+// fixed Component Library (see packages/shared/src/page-builder/components.ts).
+// No visual drag-and-drop canvas yet — sections are reordered via up/down
+// controls in tenant-admin, same interaction as MenuItem reordering above.
+model Page {
+  id       String @id @default(uuid())
+  tenant   Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  tenantId String
+
+  parent   Page?   @relation("PageHierarchy", fields: [parentId], references: [id], onDelete: Cascade)
+  parentId String?
+  children Page[]  @relation("PageHierarchy")
+
+  name     String
+  slug     String
+  template String     @default("default")
+  status   PageStatus @default(draft)
+  isHomepage Boolean      @default(false)
+  publishAt  DateTime?
+  sortOrder  Int          @default(0)
+
+  // Per-page SEO — the minimum viable set; sitemap/redirects/301-302 are
+  // platform-level concerns, not per-page fields, and remain future work.
+  metaTitle       String?
+  metaDescription String?
+  ogImage         String?
+  canonicalUrl    String?
+  robotsIndex     Boolean @default(true)
+  robotsFollow    Boolean @default(true)
+
+  sections PageSection[]
+
+  createdBy String?
+  updatedBy String?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([tenantId, slug])
+  @@index([tenantId])
+  @@index([tenantId, status])
+  @@index([parentId])
+}
+
+model PageSection {
+  id       String @id @default(uuid())
+  tenant   Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  tenantId String
+
+  page   Page   @relation(fields: [pageId], references: [id], onDelete: Cascade)
+  pageId String
+
+  // Component Library key, e.g. "hero", "cta", "testimonials", "pricing",
+  // "faq", "gallery", "richtext" — validated against the fixed registry at
+  // the API layer (not a DB enum, so new component types don't need a migration).
+  componentType String
+  // Component-specific props — shape depends on componentType, validated
+  // per-type at the API layer (see page-builder.service.ts).
+  content   Json
+  sortOrder Int            @default(0)
+  status    MenuItemStatus @default(published)
+
+  createdBy String?
+  updatedBy String?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([tenantId])
+  @@index([pageId])
+  @@index([pageId, status])
+}
+
+// Forms Builder — a tenant's forms, embedded on pages via the "form"
+// Component Library entry (content: { formId }). Field types are validated
+// against a fixed registry at the API layer (packages/shared/src/forms
+// -builder/field-types.ts), not a DB enum, so adding a type is a data
+// change. Scope note: upload/signature/OTP/captcha field types are NOT
+// built — see website_builder_remaining.md.
+model Form {
+  id       String @id @default(uuid())
+  tenant   Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  tenantId String
+
+  name          String
+  slug          String
+  status        MenuItemStatus @default(draft)
+  submitLabel   String         @default("Submit")
+  successMessage String        @default("Thanks — we'll be in touch soon.")
+  notifyEmail   String?
+
+  fields      FormField[]
+  submissions FormSubmission[]
+
+  createdBy String?
+  updatedBy String?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([tenantId, slug])
+  @@index([tenantId])
+  @@index([tenantId, status])
+}
+
+model FormField {
+  id       String @id @default(uuid())
+  tenant   Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  tenantId String
+
+  form   Form   @relation(fields: [formId], references: [id], onDelete: Cascade)
+  formId String
+
+  // Registry key — text/email/phone/number/date/checkbox/radio/dropdown/textarea/rating.
+  type        String
+  label       String
+  placeholder String?
+  required    Boolean  @default(false)
+  // Choices for radio/dropdown — ignored by other field types.
+  options     String[] @default([])
+  sortOrder   Int      @default(0)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([tenantId])
+  @@index([formId])
+}
+
+model FormSubmission {
+  id       String @id @default(uuid())
+  tenant   Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  tenantId String
+
+  form   Form   @relation(fields: [formId], references: [id], onDelete: Cascade)
+  formId String
+
+  // { [fieldId]: value } — untyped at the DB layer, shaped by whatever
+  // fields existed on the form at submission time.
+  data      Json
+  ipAddress String?
+  createdAt DateTime @default(now())
+
+  @@index([tenantId])
+  @@index([formId])
+  @@index([formId, createdAt])
+}
+
+// Theme Builder — a tenant can save multiple named custom themes (each
+// optionally based on one of the 60 fixed WebsiteTemplates as a starting
+// point) and switch which one is active. Unlike the older single
+// `Tenant.settings.branding.colorPrimary/colorAccent` override (still
+// supported as a fallback for tenants who never open Theme Builder), this
+// covers the FULL token set — every palette color, both fonts, and corner
+// radius — and is a named, saved, switchable asset rather than one ad-hoc
+// live override. See apps/tenant-website/lib/site-theme.ts for how an
+// active theme's tokens layer over (or replace) the base template's.
+model TenantTheme {
+  id       String @id @default(uuid())
+  tenant   Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  tenantId String
+
+  name           String
+  baseTemplateId String? // one of the 60 fixed WebsiteTemplate ids, as a starting point — optional
+
+  colorPrimary        String?
+  colorAccent         String?
+  colorBackground     String?
+  colorSurface        String?
+  colorText           String?
+  colorTextSecondary  String?
+  headingFont         String?
+  bodyFont            String?
+  borderRadius        Int?
+
+  isActive Boolean @default(false)
+
+  createdBy String?
+  updatedBy String?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([tenantId])
+  @@index([tenantId, isActive])
 }

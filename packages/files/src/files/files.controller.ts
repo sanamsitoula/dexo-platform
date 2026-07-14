@@ -119,6 +119,12 @@ export class FilesController {
     return this.filesService.findAll(req.user.tenantId, req.user.id);
   }
 
+  @Get('media/library')
+  @ApiOperation({ summary: "Tenant's Media Library — MEDIA-type files with signed preview URLs" })
+  async mediaLibrary(@Request() req: any) {
+    return this.filesService.findAllWithUrls(req.user.tenantId, 'MEDIA');
+  }
+
   @Get('storage')
   @ApiOperation({ summary: 'Get tenant storage stats' })
   async getStorage(@Request() req: any) {
@@ -132,9 +138,9 @@ export class FilesController {
   }
 
   @Put(':id')
-  @ApiOperation({ summary: 'Update file metadata' })
-  async update(@Param('id') id: string, @Body() data: any) {
-    return (this.filesService as any).update(id, data);
+  @ApiOperation({ summary: 'Update file metadata (rename / toggle public)' })
+  async update(@Param('id') id: string, @Body() data: { originalName?: string; isPublic?: boolean }, @Request() req: any) {
+    return this.filesService.update(id, req.user.tenantId, data);
   }
 
   @Delete(':id')

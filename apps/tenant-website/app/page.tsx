@@ -1,6 +1,6 @@
 import Link from 'next/link';
 import { headers } from 'next/headers';
-import { getFitnessInfo, getFitnessPlans, getTenantBySubdomain, getCategories, getProducts, getPublicMenus, type FitnessInfo, type FitnessPlan } from '@/lib/api';
+import { getFitnessInfo, getFitnessPlans, getGenericTenantInfo, getTenantBySubdomain, getCategories, getProducts, getPublicMenus, getPublicPage, type FitnessInfo, type FitnessPlan } from '@/lib/api';
 import { getTemplate } from '@dexo/shared/src/themes';
 import TemplateHome from '@/components/TemplateHome';
 import EcommerceHome from '@/components/EcommerceHome';
@@ -71,19 +71,22 @@ function TemplatePlans({ plans, color, name }: { plans: FitnessPlan[]; color: st
 export default async function Home() {
   const subdomain = resolveSubdomain();
   const tenant = await getTenantBySubdomain(subdomain);
-  // The real business type lives on the TenantDomain relation
-  // (tenant.domains[0].domain.code, per tenant.service.ts's findBySubdomain
-  // include) — settings.domainCode/theme and a flat tenant.domainCode don't
-  // exist on this response at all, so this always evaluated against
-  // undefined before.
-  const domainCode = tenant?.domains?.[0]?.domain?.code;
+  // tenant.service.ts's findBySubdomain() deliberately FLATTENS the
+  // TenantDomain relation into a plain `tenant.domainCode` string and
+  // strips `domains` from the response entirely (see its own comment:
+  // "Flatten so consumers can read tenant.domainCode directly") — reading
+  // tenant.domains[0].domain.code here always silently evaluated to
+  // undefined, which meant every ecommerce tenant fell through to the
+  // generic fitness/template branch instead of rendering EcommerceHome.
+  const domainCode = tenant?.domainCode;
 
   if (isEcommerceDomainCode(domainCode)) {
-    const [theme, categories, featured, latest] = await Promise.all([
+    const [theme, categories, featured, latest, ecomHomePage] = await Promise.all([
       getSiteTheme(subdomain),
       getCategories(subdomain),
       getProducts(subdomain, { featured: true }),
       getProducts(subdomain),
+      getPublicPage(subdomain, 'home'),
     ]);
     return (
       <EcommerceHome
@@ -93,16 +96,23 @@ export default async function Home() {
         categories={categories}
         featured={featured}
         latest={latest}
+        realSections={ecomHomePage?.sections}
+        subdomain={subdomain}
       />
     );
   }
 
-  const [info, plans, menus] = await Promise.all([
+  const [info, plans, menus, homePage] = await Promise.all([
     getFitnessInfo(subdomain),
     getFitnessPlans(subdomain),
     getPublicMenus(subdomain),
+    getPublicPage(subdomain, 'home'),
   ]);
-  const t = info || FALLBACK;
+  // getFitnessInfo() is fitness-only and 404s for every other business type
+  // — this branch is only reached when a tenant has no chosen template at
+  // all, but non-fitness tenants without one would otherwise still show
+  // "Fitness Center" / "Transform your body..." on their own homepage.
+  const t = info || (await getGenericTenantInfo(subdomain)) || FALLBACK;
   // Canonical member-portal host: portal.<tenant>.onedexo.com (see lib/portal.ts).
   const memberLoginUrl = `${memberPortalUrl(subdomain)}/login`;
 
@@ -111,18 +121,31 @@ export default async function Home() {
   const branding = (tenant?.settings as any)?.branding;
   const tpl = branding?.templateId ? getTemplate(branding.templateId) : undefined;
   if (tpl) {
-    const color = branding.colorPrimary || tpl.palette.primary;
+    // getSiteTheme() resolves the tenant's ACTIVE Theme Builder theme (if
+    // any) over the legacy branding override over the fixed template —
+    // previously this branch never called it at all, so Theme Builder's
+    // background/surface/text/radius tokens (everything except the two
+    // legacy colorPrimary/colorAccent fields) never reached the homepage.
+    const theme = await getSiteTheme(subdomain, branding.colorPrimary, branding.colorAccent);
     return (
       <TemplateHome
         tpl={tpl}
         name={t.name}
         tagline={t.tagline}
         description={t.description}
-        colorPrimary={branding.colorPrimary}
-        colorAccent={branding.colorAccent}
+        colorPrimary={theme.primary}
+        colorAccent={theme.accent}
+        colorBackground={theme.bg}
+        colorSurface={theme.surface}
+        colorText={theme.text}
+        colorTextSecondary={theme.sub}
+        themeBorderRadius={parseInt(theme.radius, 10) || undefined}
+        bookEnabled={theme.bookEnabled}
         contact={t.contact}
-        plansSlot={<TemplatePlans plans={plans} color={color} name={t.name} />}
-        menusSlot={<>{menus.map((m) => <MenuSection key={m.id} menu={m} colorPrimary={branding.colorPrimary} />)}</>}
+        plansSlot={<TemplatePlans plans={plans} color={theme.primary} name={t.name} />}
+        menusSlot={<>{menus.map((m) => <MenuSection key={m.id} menu={m} colorPrimary={theme.primary} />)}</>}
+        realSections={homePage?.sections}
+        subdomain={subdomain}
       />
     );
   }

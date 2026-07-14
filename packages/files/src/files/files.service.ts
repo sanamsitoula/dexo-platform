@@ -200,6 +200,40 @@ export class FilesService {
     });
   }
 
+  /** Same as findAll, but each row also carries a signed preview/download
+   * URL — what the tenant-admin Media Library grid actually renders. Scoped
+   * to documentType (e.g. 'MEDIA') so it doesn't also surface unrelated
+   * uploads (invoices, ID proofs, profile pics) in the media picker. */
+  async findAllWithUrls(tenantId: string, documentType?: string) {
+    const where: any = { tenantId };
+    if (documentType) where.documentType = documentType;
+    const files = await this.prisma.file.findMany({ where, orderBy: { uploadedAt: 'desc' } });
+    return Promise.all(
+      files.map(async (f) => ({
+        ...f,
+        sizeBytes: f.sizeBytes != null ? Number(f.sizeBytes) : null,
+        url: await this.s3Service.getSignedUrl(f.s3Key, 3600),
+      })),
+    );
+  }
+
+  async update(id: string, tenantId: string, data: { originalName?: string; isPublic?: boolean }) {
+    const file = await this.prisma.file.findUnique({ where: { id } });
+    if (!file) throw new NotFoundException('File not found');
+    if (file.tenantId !== tenantId) {
+      throw new BadRequestException('You do not have access to this file');
+    }
+    const updated = await this.prisma.file.update({
+      where: { id },
+      data: {
+        ...(data.originalName !== undefined ? { originalName: data.originalName } : {}),
+        ...(data.isPublic !== undefined ? { isPublic: data.isPublic } : {}),
+      },
+    });
+    await this.logFileAction('file.update', id, tenantId, undefined, data);
+    return updated;
+  }
+
   async findOne(id: string) {
     const file = await this.prisma.file.findUnique({
       where: { id },

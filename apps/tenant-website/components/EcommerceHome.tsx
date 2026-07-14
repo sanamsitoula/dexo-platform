@@ -1,9 +1,10 @@
 import Link from 'next/link';
 import type { SiteTheme } from '@/lib/site-theme';
-import type { Product, ProductCategory } from '@/lib/api';
+import type { Product, ProductCategory, PublicPageSection } from '@/lib/api';
 import SiteNav from './SiteNav';
 import SiteFooter from './SiteFooter';
 import AddToCartButton from './AddToCartButton';
+import PageSectionRenderer from './PageSectionRenderer';
 
 /**
  * Ecommerce storefront homepage — hero, category grid, featured products,
@@ -19,6 +20,8 @@ export default function EcommerceHome({
   categories,
   featured,
   latest,
+  realSections,
+  subdomain,
 }: {
   theme: SiteTheme;
   name: string;
@@ -26,6 +29,12 @@ export default function EcommerceHome({
   categories: ProductCategory[];
   featured: Product[];
   latest: Product[];
+  /** Real, tenant-editable Page Builder sections from the auto-seeded "Home"
+   * page — same data/component used by the fitness/template homepage and
+   * any custom /<slug> page, so ecommerce tenants get the same editable
+   * content system instead of a permanently-fixed storefront layout. */
+  realSections?: PublicPageSection[];
+  subdomain?: string;
 }) {
   const cardStyle = {
     backgroundColor: 'var(--site-surface)',
@@ -79,6 +88,11 @@ export default function EcommerceHome({
           </Link>
         </div>
       </section>
+
+      {/* Real, editable Page Builder sections (from the auto-seeded Home page) */}
+      {realSections?.map((section) => (
+        <PageSectionRenderer key={section.id} section={section} colorPrimary="var(--site-primary)" subdomain={subdomain || ''} />
+      ))}
 
       {/* Category grid */}
       {categories.length > 0 && (

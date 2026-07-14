@@ -7,16 +7,15 @@ async function resolveDomainCode(slug: string): Promise<string | null> {
     const res = await fetch(`${API_URL}/api/tenants/subdomain/${slug}`, { cache: 'no-store' });
     if (res.ok) {
       const tenant = await res.json();
-      // The real business type lives on the TenantDomain relation
-      // (tenant.domains[0].domain.code, per tenant.service.ts's
-      // findBySubdomain include) — NOT a flat tenant.domainCode or
-      // settings.domainCode, neither of which exist on the Tenant model or
-      // its settings JSON. Reading those non-existent fields meant this
-      // always fell through to a hardcoded 'FITNESS_CENTER' default,
-      // showing every salon/restaurant/school tenant a fitness-branded
-      // dashboard fetching fitness member counts regardless of their real
-      // business.
-      return tenant?.domains?.[0]?.domain?.code || null;
+      // tenant.service.ts's findBySubdomain() flattens the TenantDomain
+      // relation into a plain tenant.domainCode string and strips `domains`
+      // from the response entirely (see its own comment there). The
+      // previous domains[0].domain.code path here always silently
+      // evaluated to undefined and fell through to a hardcoded
+      // 'FITNESS_CENTER' default, showing every salon/restaurant/school
+      // tenant a fitness-branded dashboard fetching fitness member counts
+      // regardless of their real business.
+      return tenant?.domainCode || null;
     }
   } catch {}
   return null;

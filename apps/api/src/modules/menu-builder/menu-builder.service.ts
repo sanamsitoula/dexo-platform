@@ -17,6 +17,18 @@ function slugify(input: string): string {
     .slice(0, 80) || 'item';
 }
 
+// Top-level menu slugs render as public-site paths (/<slug>). "admin" and
+// "portal" are reserved by nginx's path-based routing to the tenant-admin
+// and tenant-app upstreams — a menu claiming either would be shadowed and
+// unreachable, so it's rejected at creation/rename time instead.
+const RESERVED_MENU_SLUGS = new Set(['admin', 'portal', 'api']);
+
+function assertNotReservedSlug(slug: string) {
+  if (RESERVED_MENU_SLUGS.has(slug)) {
+    throw new ForbiddenException(`"${slug}" is a reserved path and can't be used as a menu slug.`);
+  }
+}
+
 /**
  * Tenant-scoped Menu Builder — named, ordered (optionally hierarchical)
  * collections of MenuItems rendered on the public site per a display
@@ -56,6 +68,7 @@ export class MenuBuilderService {
 
   async createMenu(ctx: ActorCtx, dto: any) {
     const slug = dto.slug ? slugify(dto.slug) : slugify(dto.name);
+    assertNotReservedSlug(slug);
     const menu = await this.prisma.menu.create({
       data: {
         tenantId: ctx.tenantId,
@@ -78,7 +91,10 @@ export class MenuBuilderService {
     const existing = await this.mustOwnMenu(ctx.tenantId, menuId);
     const data: any = { updatedBy: ctx.userId };
     if (dto.name !== undefined) data.name = dto.name;
-    if (dto.slug !== undefined) data.slug = slugify(dto.slug);
+    if (dto.slug !== undefined) {
+      data.slug = slugify(dto.slug);
+      assertNotReservedSlug(data.slug);
+    }
     if (dto.type !== undefined) data.type = dto.type;
     if (dto.displayTemplate !== undefined) data.displayTemplate = dto.displayTemplate;
     if (dto.maxDepth !== undefined) data.maxDepth = dto.maxDepth;

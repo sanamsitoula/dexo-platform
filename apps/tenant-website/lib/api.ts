@@ -55,6 +55,81 @@ export async function getPublicMenus(subdomain: string): Promise<PublicMenu[]> {
   }
 }
 
+export interface PublicPageSection {
+  id: string
+  componentType: string
+  content: Record<string, any>
+}
+
+export interface PublicPage {
+  id: string
+  name: string
+  slug: string
+  template: string
+  metaTitle: string | null
+  metaDescription: string | null
+  ogImage: string | null
+  canonicalUrl: string | null
+  robotsIndex: boolean
+  robotsFollow: boolean
+  sections: PublicPageSection[]
+}
+
+/** Published Page Builder page by slug — no auth, draft sections excluded server-side. */
+export async function getPublicPage(subdomain: string, slug: string): Promise<PublicPage | null> {
+  try {
+    const res = await fetch(`${API_BASE_URL}/pages/public/${subdomain}/${encodeURIComponent(slug)}`, { cache: 'no-store' })
+    if (!res.ok) return null
+    const page = await res.json()
+    return page || null
+  } catch {
+    return null
+  }
+}
+
+export interface PublicFormField {
+  id: string
+  type: string
+  label: string
+  placeholder: string | null
+  required: boolean
+  options: string[]
+}
+
+export interface PublicForm {
+  id: string
+  submitLabel: string
+  fields: PublicFormField[]
+}
+
+/** Published form definition — used by PublicFormRenderer (client component,
+ * since this also needs to POST the submission interactively). */
+export async function getPublicForm(subdomain: string, formId: string): Promise<PublicForm | null> {
+  try {
+    const res = await fetch(`${API_BASE_URL}/forms/public/${subdomain}/${formId}`, { cache: 'no-store' })
+    if (!res.ok) return null
+    const form = await res.json()
+    return form || null
+  } catch {
+    return null
+  }
+}
+
+export async function submitPublicForm(subdomain: string, formId: string, data: Record<string, any>): Promise<{ ok: boolean; message: string }> {
+  try {
+    const res = await fetch(`${API_BASE_URL}/forms/public/${subdomain}/${formId}/submit`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(data),
+    })
+    const body = await res.json().catch(() => ({}))
+    if (!res.ok) return { ok: false, message: body.message || 'Submission failed — please try again.' }
+    return { ok: true, message: body.message || 'Submitted — thank you!' }
+  } catch {
+    return { ok: false, message: 'Network error — please try again.' }
+  }
+}
+
 export interface FitnessInfo {
   id: string
   name: string
@@ -84,7 +159,11 @@ export interface FitnessPlan {
   branchAccess: string
 }
 
-/** Public landing-page info for a fitness tenant (no auth). */
+/** Public landing-page info for a fitness tenant (no auth). Fitness-only —
+ * hits /api/fitness/public/:subdomain/info, which 404s for every other
+ * business type. Use getGenericTenantInfo() as the fallback so non-fitness
+ * tenants don't silently show the hardcoded "Fitness Center" placeholder
+ * copy on /about, /services, etc. */
 export async function getFitnessInfo(subdomain: string): Promise<FitnessInfo | null> {
   try {
     const res = await fetch(`${API_BASE_URL}/fitness/public/${subdomain}/info`, { cache: 'no-store' })
@@ -92,6 +171,28 @@ export async function getFitnessInfo(subdomain: string): Promise<FitnessInfo | n
     return await res.json()
   } catch {
     return null
+  }
+}
+
+/** Domain-agnostic tenant info, shaped like FitnessInfo so it's a drop-in
+ * fallback for any business type (salon, restaurant, ecommerce, ...) on the
+ * shared /about, /services, /book pages — built from the tenant record
+ * itself (name/branding), not a business-type-specific endpoint. */
+export async function getGenericTenantInfo(subdomain: string): Promise<FitnessInfo | null> {
+  const tenant = await getTenantBySubdomain(subdomain)
+  if (!tenant) return null
+  const branding = (tenant.settings as any)?.branding || {}
+  return {
+    id: tenant.id,
+    name: tenant.name,
+    subdomain: tenant.subdomain ?? subdomain,
+    tagline: branding.tagline || '',
+    description: branding.description || '',
+    logoUrl: branding.logo || null,
+    colorPrimary: branding.colorPrimary || '#4F46E5',
+    colorAccent: branding.colorAccent || '#818CF8',
+    branchCount: 0,
+    contact: null,
   }
 }
 

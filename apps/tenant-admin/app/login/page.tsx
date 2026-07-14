@@ -32,10 +32,10 @@ export default function LoginPage() {
   // Resolved client-side only, in an effect — resolveTenantAdminSubdomain()
   // reads window.location.hostname, which doesn't exist during the server
   // render. Computing it directly in the render body gave the server render
-  // a different value ('vrfitness' fallback) than the client's first
-  // hydration pass (the real host-resolved slug), causing a React hydration
-  // mismatch. Starting at '' matches on both sides; the effect below fills
-  // in the real value right after mount.
+  // a different value than the client's first hydration pass (the real
+  // host-resolved slug), causing a React hydration mismatch. Starting at ''
+  // matches on both sides; the effect below fills in the real value right
+  // after mount.
   const [tenantSlug, setTenantSlug] = useState('');
 
   useEffect(() => {
@@ -54,7 +54,7 @@ export default function LoginPage() {
           logo: b.logo || null,
           colorPrimary: b.colorPrimary || '#4F46E5',
           colorAccent: b.colorAccent || '#818CF8',
-          domainLabel: humanizeDomainCode(t.domains?.[0]?.domain?.code),
+          domainLabel: humanizeDomainCode(t.domainCode),
         });
       })
       .catch(() => {});

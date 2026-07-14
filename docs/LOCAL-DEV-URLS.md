@@ -14,28 +14,32 @@ subdomains already work **without nginx or hosts-file edits**:
 | Platform admin | http://localhost:3002 |
 | API / Swagger | http://localhost:4000 · /api/docs |
 | Tenant public site | http://bishnufit.localhost:4005 |
-| Tenant admin | http://bishnufit.localhost:4006 (or plain :4006 + login subdomain) |
-| Customer app | http://bishnufit.localhost:4007 |
+| Tenant admin | http://bishnufit.localhost:4006/admin (basePath baked into the build) |
+| Customer app | http://bishnufit.localhost:4007/portal (basePath baked into the build) |
 
-The tenant middlewares resolve the slug from the host (`bishnufit.localhost` →
-`bishnufit`), falling back to `DEV_TENANT` env, then `vrfitness`.
+The tenant middlewares resolve the slug from the host's first label
+(`bishnufit.localhost` → `bishnufit`), falling back to `DEV_TENANT` env, then
+unresolved (no more hardcoded demo-tenant fallback).
 
 ## 2. Production-style domains via nginx (`deploy/nginx/dexo.conf`)
 
-**Host-based** routing — one hostname per app, wildcard subdomains per tenant.
-This is deliberately *not* path-prefix routing (`/dexo`, `/dexo/admin`, …):
-Next.js apps emit root-relative asset URLs (`/_next/...`), so path prefixes
-would require a `basePath` rebuild of every app **and** would break host-based
-tenant resolution. Host routing is what production uses, so dev matches prod.
+**Path-based** routing for the tenant surfaces — one hostname per tenant,
+with `/admin` and `/portal` sub-paths for the admin and customer apps.
+`apps/tenant-admin` and `apps/tenant-app` are built with
+`basePath: '/admin'` / `basePath: '/portal'` (see their `next.config.js`),
+so their assets are already prefixed and nginx can route both paths to the
+same tenant host without a second-level wildcard cert. All three
+`middleware.ts` files resolve the tenant from the host's first label only —
+no `admin.`/`portal.` prefix parsing.
 
-| Host | → App |
+| Host / path | → App |
 |---|---|
 | `dexo.com` / `dexo.localhost` | Platform web (3001) |
 | `admin.dexo.com` | Platform admin (3002) |
 | `api.dexo.com` | API (4000) — Swagger at `/api/docs` |
 | `<tenant>.dexo.com` (e.g. `bishnufit.dexo.com`) | Tenant website (4005) |
-| `admin.<tenant>.dexo.com` | Tenant admin (4006) |
-| `portal.<tenant>.dexo.com` | Customer app (4007) |
+| `<tenant>.dexo.com/admin` | Tenant admin (4006, basePath) |
+| `<tenant>.dexo.com/portal` | Customer app (4007, basePath) |
 
 Setup (WSL/Linux; on Windows use nginx-for-Windows with the same conf):
 
@@ -50,8 +54,12 @@ For a local `dexo.com`, add hosts-file entries (Windows:
 
 ```
 127.0.0.1 dexo.com admin.dexo.com api.dexo.com
-127.0.0.1 bishnufit.dexo.com admin.bishnufit.dexo.com portal.bishnufit.dexo.com
+127.0.0.1 bishnufit.dexo.com
 ```
+
+(admin/portal are now paths — `bishnufit.dexo.com/admin`,
+`bishnufit.dexo.com/portal` — not separate hosts, so no extra hosts-file
+entries are needed for them.)
 
 (hosts files don't support wildcards — add a line per tenant you test, or use
 `*.localhost` which needs none.)
@@ -83,7 +91,7 @@ Recipes:
 
 | Goal | Command |
 |---|---|
-| Demo the customer app for one gym | `ngrok http 4007` → open `…/?tenant=bishnufit` |
+| Demo the customer app for one gym | `ngrok http 4007` → open `…/portal/?tenant=bishnufit` |
 | Demo the tenant website | `ngrok http 4005` → open `…/?tenant=bishnufit` |
 | Expose the API (mobile app / webhooks / payment callbacks) | `ngrok http 4000` → set the frontend's `NEXT_PUBLIC_API_URL=https://<id>.ngrok-free.app` |
 | Everything at once behind nginx | `ngrok http 80` → tunnel serves whichever `server_name _;`/default block matches; use `?tenant=` on tenant apps |

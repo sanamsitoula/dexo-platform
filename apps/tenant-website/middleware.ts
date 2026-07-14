@@ -9,14 +9,13 @@ import { NextRequest, NextResponse } from 'next/server';
  * being pinned to one business.
  *
  * Supported host shapes:
- *   vrfitness.onedexo.com          (prod)   -> "vrfitness"
- *   ramgym.onedexo.com             (prod)   -> "ramgym"
- *   vrfitness.localhost:4005    (dev)    -> "vrfitness"
- *   localhost:4005              (dev)    -> DEV_TENANT env or "vrfitness"
+ *   <tenant>.onedexo.com          (prod)   -> "<tenant>"
+ *   <tenant>.localhost:4005       (dev)    -> "<tenant>"
+ *   localhost:4005                (dev)    -> DEV_TENANT env, else unresolved
  *
  * To test multiple tenants locally, no /etc/hosts edits are needed — modern
  * browsers resolve any `*.localhost` to 127.0.0.1 automatically. Just open
- * http://vrfitness.localhost:4005 or http://spicegarden.localhost:4005.
+ * http://<any-tenant-slug>.localhost:4005.
  */
 
 // Subdomains that are never a tenant slug.

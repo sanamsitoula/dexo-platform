@@ -209,22 +209,23 @@ templates, seeded tenant states, and the `/api/health` endpoint.
 | API Server             | 4000 | http://localhost:4000     | Shared backend                   |
 | Swagger Docs           | 4000 | http://localhost:4000/api/docs | Interactive API docs        |
 | Tenant Website (vrfitness) | 4005 | http://localhost:4005 | Tenant public website        |
-| Tenant Admin Portal    | 4006 | http://localhost:4006     | Tenant owner + staff portal      |
-| Tenant Customer App    | 4007 | http://localhost:4007     | Tenant customer-facing app       |
+| Tenant Admin Portal    | 4006 | http://localhost:4006/admin | Tenant owner + staff portal      |
+| Tenant Customer App    | 4007 | http://localhost:4007/portal | Tenant customer-facing app       |
 
 > **Production URL map (nginx, onedexo.com):** `onedexo.com` → platform-web ·
 > `admin.onedexo.com` → platform-admin · `api.onedexo.com` → API ·
-> `<tenant>.onedexo.com` → tenant-website · `admin.<tenant>.onedexo.com` → tenant-admin ·
-> `portal.<tenant>.onedexo.com` → tenant-app (canonical member portal) ·
+> `<tenant>.onedexo.com` → tenant-website · `<tenant>.onedexo.com/admin` → tenant-admin (basePath) ·
+> `<tenant>.onedexo.com/portal` → tenant-app (canonical member portal, basePath) ·
 > custom domains → tenant-website via `/api/tenants/resolve`.
-> Subdomain routing is fully dynamic (wildcard server blocks — no per-tenant nginx edits);
-> custom-domain SSL fragments are generated per tenant by `scripts/nginx-tenant-sync.ts`
-> into `/etc/nginx/dexo-tenants/` (fractional rebuild + graceful reload).
+> Subdomain routing is fully dynamic (wildcard server blocks — no per-tenant nginx edits, and
+> only one wildcard cert `*.onedexo.com` is needed since admin/portal are path prefixes, not
+> second-level subdomains); custom-domain SSL fragments are generated per tenant by
+> `scripts/nginx-tenant-sync.ts` into `/etc/nginx/dexo-tenants/` (fractional rebuild + graceful reload).
 > See `infra/nginx/dexo.conf` and `docs/CUSTOM_DOMAINS.md`.
-| Tenant Reports (admin) | 4006 | http://localhost:4006/reports | NFRS + IRD financial reports |
-| Tenant Finance (admin) | 4006 | http://localhost:4006/finance | Chart of accounts, journal entries, invoices |
-| Tenant Invoices (admin) | 4006 | http://localhost:4006/finance/invoices | Invoice list + print/PDF + reprint copy |
-| Tenant WhatsApp settings | 4006 | http://localhost:4006/whatsapp | WhatsApp Business Cloud config |
+| Tenant Reports (admin) | 4006 | http://localhost:4006/admin/reports | NFRS + IRD financial reports |
+| Tenant Finance (admin) | 4006 | http://localhost:4006/admin/finance | Chart of accounts, journal entries, invoices |
+| Tenant Invoices (admin) | 4006 | http://localhost:4006/admin/finance/invoices | Invoice list + print/PDF + reprint copy |
+| Tenant WhatsApp settings | 4006 | http://localhost:4006/admin/whatsapp | WhatsApp Business Cloud config |
 | Tenant Contact Us (public) | 4005 | http://localhost:4005/contact | Public contact form + branches |
 | Mobile (Expo)          | 8081 | http://localhost:8081     | Mobile-optimized interface        |
 | MinIO Console          | 9001 | http://localhost:9001     | S3 file storage console           |
@@ -240,9 +241,9 @@ DEV_TENANT=spicegarden npm run dev --workspace=@dexo/tenant-website
 # Option B — X-Dev-Tenant header (no restart, set by the API client / NGINX)
 
 # Option C — hostname (production-style, add to your hosts file)
-#   vrfitness.localhost         → tenant vrfitness
-#   admin.vrfitness.localhost   → vrfitness admin
-#   portal.vrfitness.localhost  → vrfitness customer app
+#   vrfitness.localhost              → tenant vrfitness (website, :4005)
+#   vrfitness.localhost:4006/admin    → vrfitness admin
+#   vrfitness.localhost:4007/portal   → vrfitness customer app
 ```
 
 ---
@@ -251,7 +252,7 @@ DEV_TENANT=spicegarden npm run dev --workspace=@dexo/tenant-website
 
 Double-entry bookkeeping with IRD electronic-billing compliance. NPR currency, VAT 13%, TDS, CBMS, fiscal years.
 
-**Tenant Admin → http://localhost:4006/finance**
+**Tenant Admin → http://localhost:4006/admin/finance**
 
 | Page | What it does |
 |------|--------------|
@@ -297,7 +298,7 @@ curl -X POST http://localhost:4000/api/auth/register -H "Content-Type: applicati
 The fitness business type is fully wired end-to-end: API (`apps/api/src/modules/fitness/*`),
 staff admin (**:4006**) and the customer mobile app (**:4007**, mobile-first PWA).
 
-### Customer app — http://localhost:4007
+### Customer app — http://localhost:4007/portal
 Onboarding → membership → training journey, all self-service:
 - **Onboarding**: register (welcome email is sent automatically), goals & profile setup
 - **Workout journey**: AI/trainer workout plans, logging, streaks, progress charts, body assessments
@@ -310,7 +311,7 @@ Onboarding → membership → training journey, all self-service:
 - **Coach chat** (`/coach`), **referrals** (`/referrals`), **badges** (`/badges`),
   **check-in + my attendance** (`/checkin` — QR, manual and biometric punches)
 
-### Tenant admin — http://localhost:4006
+### Tenant admin — http://localhost:4006/admin
 Members, plans, trainers, classes, check-in, **workouts** (AI generate + approve), **diet plans**
 (AI generate + approve), **assessments**, **equipment & maintenance**, **badges**, **referrals**,
 **food DB**, plus finance/accounting.
@@ -383,17 +384,17 @@ type / tenant**, not just fitness.
 ### FITNESS_CENTER tenant — `vrfitness` (subdomain)
 | App                        | URL                  | Email                          | Password      |
 |----------------------------|----------------------|--------------------------------|---------------|
-| Tenant Admin Portal (:4006) | http://localhost:4006 | `admin@vrfitness.com`       | `Admin123!`   |
-| Tenant Admin Portal (:4006) | http://localhost:4006 | `manager@vrfitness.com`     | `Manager123!` |
-| Tenant Admin Portal (:4006) | http://localhost:4006 | `trainer1@vrfitness.com`    | `Trainer123!` |
-| Tenant Customer App (:4007)  | http://localhost:4007 | `member1@vrfitness.com`     | `Member123!`  |
+| Tenant Admin Portal (:4006) | http://localhost:4006/admin | `admin@vrfitness.com`       | `Admin123!`   |
+| Tenant Admin Portal (:4006) | http://localhost:4006/admin | `manager@vrfitness.com`     | `Manager123!` |
+| Tenant Admin Portal (:4006) | http://localhost:4006/admin | `trainer1@vrfitness.com`    | `Trainer123!` |
+| Tenant Customer App (:4007)  | http://localhost:4007/portal | `member1@vrfitness.com`     | `Member123!`  |
 
 ### RESTAURANT_AND_CAFE tenant — `spicegarden` (subdomain)
 | App                        | URL                  | Email                          | Password      |
 |----------------------------|----------------------|--------------------------------|---------------|
-| Tenant Admin Portal (:4006) | http://localhost:4006 | `admin@spicegarden.com`     | `Admin123!`   |
-| Tenant Admin Portal (:4006) | http://localhost:4006 | `manager@spicegarden.com`   | `Manager123!` |
-| Tenant Admin Portal (:4006) | http://localhost:4006 | `waiter1@spicegarden.com`   | `Staff123!`   |
+| Tenant Admin Portal (:4006) | http://localhost:4006/admin | `admin@spicegarden.com`     | `Admin123!`   |
+| Tenant Admin Portal (:4006) | http://localhost:4006/admin | `manager@spicegarden.com`   | `Manager123!` |
+| Tenant Admin Portal (:4006) | http://localhost:4006/admin | `waiter1@spicegarden.com`   | `Staff123!`   |
 
 ### Infra service consoles
 | Service  | URL                     | Username        | Password        |
@@ -472,31 +473,40 @@ creates the `Tenant` + `TenantLifecycle` + `TenantOnboarding` and returns
 app instance serves every tenant; the tenant is selected by hostname (prod) or
 `DEV_TENANT` (dev).
 
-**Production — one subdomain per tenant, role paths underneath (one instance,
+**Production — one host per tenant, admin/portal as sub-paths (one instance,
 many tenants):**
 
 | What | URL | Who logs in |
 |------|-----|-------------|
 | Public website | `https://<slug>.onedexo.com` | (public, no login) |
-| Owner / staff admin login + dashboard | `https://<slug>.onedexo.com/admin/login` | owner, manager, trainers/waiters/staff (role-routed to `/admin/dashboard` or `/admin/staff/dashboard`) |
-| Customer app | `https://<slug>.onedexo.com/app/login` | members / customers |
-| Custom domain | `https://customer.com` (DNS TXT verified) | same as above |
+| Owner / staff admin login + dashboard | `https://<slug>.onedexo.com/admin/login` | owner, manager, trainers/waiters/staff (role-routed to `/dashboard` or `/staff/dashboard`) |
+| Customer app | `https://<slug>.onedexo.com/portal/login` | members / customers |
+| Custom domain | `https://customer.com` (DNS TXT verified) | same as above (public website only — admin/portal always stay on the `<slug>.onedexo.com` host) |
 
-Tenant-admin and tenant-app each run with a Next.js `basePath` (`/admin`,
-`/app` — `TENANT_PATH_MODE=true`), so one running process serves every tenant
-without a per-tenant subdomain cert (the wildcard cert only covers one
-subdomain level, so `admin.<slug>.onedexo.com` is **not** used). A generic,
-tenant-less entry point also still works for staff who don't know their
-subdomain: `https://admin.onedexo.com/login` (tenant resolved from the
-account, since email is globally unique) and
-`https://app.onedexo.com/login?tenant=<slug>`.
+This is **path-based** routing: `tenant-website` serves the bare tenant host,
+while `tenant-admin` and `tenant-app` are separate Next.js apps built with
+`basePath: '/admin'` and `basePath: '/portal'` respectively (see
+`apps/tenant-admin/next.config.js`, `apps/tenant-app/next.config.js`), so
+their asset URLs are already prefixed and can be routed from within the same
+tenant host. There is only **one wildcard cert needed** (`*.onedexo.com`) —
+no second-level wildcard (`admin.*.onedexo.com` / `portal.*.onedexo.com`) and
+no Cloudflare Advanced Certificate Manager. All three `middleware.ts` files
+(`apps/tenant-website`, `apps/tenant-admin`, `apps/tenant-app`) resolve the
+tenant from the host's first label only — no `admin.`/`portal.` prefix
+parsing. There is no generic tenant-less `onedexo.com/admin/login` or
+`onedexo.com/portal/login` entry point; a bare host with no tenant label
+returns 404 (see the nginx configs). Staff who don't know their subdomain
+should use the platform login at `https://onedexo.com/login`, which resolves
+their tenant from the account (email is globally unique) and redirects to
+`https://<slug>.onedexo.com/admin/login`.
 
-nginx reads the hostname (and, for the wildcard tenant block, the `/admin` /
-`/app` path prefix), sets `X-Tenant-Slug`, and routes to the shared
-`tenant-website` / `tenant-admin` / `tenant-app` upstream. See
+nginx reads the hostname, sets `X-Tenant-Slug`, and routes to the shared
+`tenant-website` / `tenant-admin` / `tenant-app` upstream for that one
+tenant host, with `/admin` and `/portal` path prefixes dispatched to the
+`tenant-admin` and `tenant-app` upstreams inside the same server block. See
 `/etc/nginx/sites-available/onedexo.conf` on the production host (not checked
 into the repo) and `deploy/nginx/dexo.conf` / `infra/nginx/dexo.conf` for
-local/legacy reference templates.
+local/production reference templates.
 
 **Dev — one tenant per running instance (switch with `DEV_TENANT`):**
 
@@ -506,18 +516,18 @@ apps take the active tenant from the `DEV_TENANT` env var (default `vrfitness`).
 | What | How to reach it |
 |------|-----------------|
 | Public website | `set DEV_TENANT=<slug>` then (restart) `npm run dev --workspace=@dexo/tenant-website` → http://localhost:4005 |
-| Owner/admin dashboard | http://localhost:4006/login → log in with the owner email → redirects to `/dashboard` |
-| Staff dashboard | http://localhost:4006/login → log in with a staff/trainer email → redirects to `/staff/dashboard` |
-| Customer app | `set DEV_TENANT=<slug>` then `npm run dev --workspace=@dexo/tenant-app` → http://localhost:4007 |
+| Owner/admin dashboard | http://localhost:4006/admin/login → log in with the owner email → redirects to `/admin/dashboard` |
+| Staff dashboard | http://localhost:4006/admin/login → log in with a staff/trainer email → redirects to `/admin/staff/dashboard` |
+| Customer app | `set DEV_TENANT=<slug>` then `npm run dev --workspace=@dexo/tenant-app` → http://localhost:4007/portal |
 | Mobile | open the Expo app → pick the tenant from the **searchable dropdown** on the login screen |
 
 Worked example — a brand-new tenant `acme-fitness` whose owner signed up as
 `owner@acme.com`:
 1. Point the dev apps at it: `set DEV_TENANT=acme-fitness` and restart `:4005 / :4006 / :4007`.
 2. http://localhost:4005 → `acme-fitness` public website.
-3. http://localhost:4006/login → `owner@acme.com` / their password → `/dashboard` (owner).
-4. In that dashboard, add staff → a trainer logs in at `:4006/login` → `/staff/dashboard`.
-5. http://localhost:4007 (or mobile with `acme-fitness` selected) → customer/member experience.
+3. http://localhost:4006/admin/login → `owner@acme.com` / their password → `/admin/dashboard` (owner).
+4. In that dashboard, add staff → a trainer logs in at `:4006/admin/login` → `/admin/staff/dashboard`.
+5. http://localhost:4007/portal (or mobile with `acme-fitness` selected) → customer/member experience.
 
 > ⚠️ Dev limitation: `apps/tenant-website/app/layout.tsx` maps `DEV_TENANT` →
 > domain template via `slugToDomainType()`, which today only knows `vrfitness`

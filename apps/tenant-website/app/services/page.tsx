@@ -1,9 +1,10 @@
 import Link from 'next/link';
 import { headers } from 'next/headers';
-import { getFitnessInfo, getFitnessPlans, type FitnessInfo, type FitnessPlan } from '@/lib/api';
+import { getFitnessInfo, getFitnessPlans, getGenericTenantInfo, getPublicPage, type FitnessInfo, type FitnessPlan } from '@/lib/api';
 import { getSiteTheme } from '@/lib/site-theme';
 import SiteNav from '@/components/SiteNav';
 import SiteFooter from '@/components/SiteFooter';
+import PageSectionRenderer from '@/components/PageSectionRenderer';
 
 function resolveSubdomain(): string {
   const h = headers();
@@ -42,12 +43,27 @@ const card = {
 
 export default async function ServicesPage() {
   const subdomain = resolveSubdomain();
-  const [info, plans, theme] = await Promise.all([
+  const [info, plans, theme, realPage] = await Promise.all([
     getFitnessInfo(subdomain),
     getFitnessPlans(subdomain),
     getSiteTheme(subdomain),
+    getPublicPage(subdomain, 'services'),
   ]);
-  const t = info || FALLBACK;
+  // See apps/tenant-website/app/about/page.tsx — getFitnessInfo() is
+  // fitness-only and 404s for every other business type.
+  const t = info || (await getGenericTenantInfo(subdomain)) || FALLBACK;
+
+  if (realPage && realPage.sections.length > 0) {
+    return (
+      <div style={{ background: 'var(--site-bg)', color: 'var(--site-text)', minHeight: '100vh' }}>
+        <SiteNav theme={theme} name={t.name} active="/services" />
+        {realPage.sections.map((section) => (
+          <PageSectionRenderer key={section.id} section={section} colorPrimary="var(--site-primary)" subdomain={subdomain} />
+        ))}
+        <SiteFooter theme={theme} name={t.name} contact={t.contact} />
+      </div>
+    );
+  }
 
   return (
     <div style={{ background: 'var(--site-bg)', color: 'var(--site-text)', minHeight: '100vh' }}>

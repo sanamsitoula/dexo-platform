@@ -3,15 +3,17 @@ import { NextRequest, NextResponse } from 'next/server';
 /**
  * Host-based tenant resolution for the customer app.
  *
- * The tenant-app is largely client-rendered, so besides the `x-tenant-slug`
- * request header we also stamp a non-httpOnly `dexo_tenant` cookie that client
- * code (lib/api.ts `resolveSubdomain`) can read reliably — this removes any
- * ambiguity from parsing `window.location.hostname` on odd dev hosts.
+ * Path-based routing: this app is always reached at
+ * <tenant>.onedexo.com/portal — nginx dispatches by the `/portal` path
+ * prefix, not by a `portal.<tenant>.` subdomain, so tenant resolution here
+ * is host-only. The tenant-app is largely client-rendered, so besides the
+ * `x-tenant-slug` request header we also stamp a non-httpOnly `dexo_tenant`
+ * cookie that client code (lib/api.ts `resolveSubdomain`) can read reliably.
  *
  * Host shapes (see tenant-website/middleware.ts for the full rationale):
- *   vrfitness.onedexo.com         -> "vrfitness"
- *   ramgym.localhost:4007      -> "ramgym"
- *   localhost:4007             -> DEV_TENANT env or "vrfitness"
+ *   <tenant>.onedexo.com        -> "<tenant>"
+ *   <tenant>.localhost:4007     -> "<tenant>"
+ *   localhost:4007              -> DEV_TENANT env, else unresolved
  */
 
 const RESERVED = new Set(['www', 'app', 'api', 'admin', 'portal', 'localhost', 'dexo', 'onedexo', 'chatwoot']);
@@ -26,10 +28,6 @@ function extractSlug(host: string): string | null {
   const hostname = (host || '').split(':')[0].toLowerCase();
   if (!hostname || isTunnelHost(hostname)) return null;
   const parts = hostname.split('.');
-  // Canonical member-portal host: portal.<tenant>.onedexo.com / portal.<tenant>.localhost
-  if ((parts[0] === 'portal' || parts[0] === 'admin') && parts.length >= 3 && !RESERVED.has(parts[1])) {
-    return parts[1];
-  }
   if (hostname.endsWith('.localhost') && parts.length >= 2 && !RESERVED.has(parts[0])) {
     return parts[0];
   }
@@ -94,7 +92,11 @@ export async function middleware(req: NextRequest) {
   if (!slug) {
     const requestHeaders = new Headers(req.headers);
     requestHeaders.set('x-attempted-host', host);
-    return NextResponse.rewrite(new URL('/tenant-not-found', req.url), { request: { headers: requestHeaders } });
+    // req.nextUrl.clone() (not `new URL(path, req.url)`) so basePath
+    // ('/portal') is correctly re-applied when the rewritten URL is serialized.
+    const notFoundUrl = req.nextUrl.clone();
+    notFoundUrl.pathname = '/tenant-not-found';
+    return NextResponse.rewrite(notFoundUrl, { request: { headers: requestHeaders } });
   }
 
   const requestHeaders = new Headers(req.headers);

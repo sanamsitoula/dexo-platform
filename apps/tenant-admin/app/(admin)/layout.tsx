@@ -52,6 +52,21 @@ const NAV_SECTIONS: { heading: string; items: { href: string; label: string }[] 
     ],
   },
   {
+    // Every sub-tool gets its own sidebar link (not just the /website hub
+    // page) — previously only "Website Builder" was listed, so Theme/Pages/
+    // Menus/Forms/Media were only reachable by first landing on /website
+    // and clicking a card, with no way back except browser back.
+    heading: 'Website',
+    items: [
+      { href: '/website', label: 'Overview' },
+      { href: '/website/theme', label: 'Theme Builder' },
+      { href: '/website/pages', label: 'Pages' },
+      { href: '/website/menus', label: 'Homepage Sections' },
+      { href: '/website/forms', label: 'Forms' },
+      { href: '/website/media', label: 'Media Library' },
+    ],
+  },
+  {
     heading: 'Settings',
     items: [
       { href: '/users', label: 'Users' },
@@ -59,7 +74,6 @@ const NAV_SECTIONS: { heading: string; items: { href: string; label: string }[] 
       { href: '/documents', label: 'Documents' },
       { href: '/settings', label: 'Gym Settings' },
       { href: '/settings/payments', label: 'Payments' },
-      { href: '/website', label: 'Website Builder' },
       { href: '/domain', label: 'Domain' },
       { href: '/onboarding', label: 'Onboarding' },
     ],

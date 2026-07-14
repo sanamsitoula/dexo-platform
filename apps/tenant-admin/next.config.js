@@ -5,11 +5,10 @@ const nextConfig = {
   env: {
     NEXT_PUBLIC_API_URL: process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000',
   },
-  ...(process.env.ENABLE_PATH_ROUTING === 'true'
-    ? { basePath: '/dexo/tenant-admin' }
-    : process.env.TENANT_PATH_MODE === 'true'
-      ? { basePath: '/admin' }
-      : {}),
+  // Path-based tenant routing: this app is always reached at
+  // <tenant>.onedexo.com/admin (nginx dispatches by path, not by an
+  // admin.<tenant>. subdomain — see infra/nginx/dexo.conf).
+  basePath: '/admin',
   async rewrites() {
     return [
       {

@@ -93,9 +93,14 @@ The TXT verification record still has to exist wherever the domain's DNS lives.
 
 ## Automated per-tenant nginx fragments (implemented)
 
-Platform subdomains need NO per-tenant nginx config — the wildcard server
-blocks in `infra/nginx/dexo.conf` match every provisioned tenant automatically
-(`<t>.onedexo.com`, `admin.<t>.`, `portal.<t>.`).
+Platform subdomains need NO per-tenant nginx config — the single wildcard
+server block in `infra/nginx/dexo.conf` for `<t>.onedexo.com` matches every
+provisioned tenant automatically, with `/admin` and `/portal` location blocks
+inside that same server block routing to tenant-admin and tenant-app (both
+built with a Next.js `basePath`). There are no separate `admin.<t>.` /
+`portal.<t>.` wildcard server blocks anymore — path routing lives inside the
+single tenant wildcard block, so only one wildcard cert (`*.onedexo.com`) is
+required.
 
 For verified custom domains, run on the VM (after verification or via cron):
 
@@ -112,7 +117,7 @@ per-domain cert is issued).
 
 ## Canonical member-portal URL
 
-The customer app is always `portal.<tenant>.onedexo.com` (dev:
-`portal.<tenant>.localhost:4007`). Configure via
-`NEXT_PUBLIC_TENANT_APP_URL=https://portal.{slug}.onedexo.com` — the `{slug}`
+The customer app is always `<tenant>.onedexo.com/portal` (dev:
+`<tenant>.localhost:4007/portal`). Configure via
+`NEXT_PUBLIC_TENANT_APP_URL=https://{slug}.onedexo.com/portal` — the `{slug}`
 placeholder is substituted per tenant (see `apps/tenant-website/lib/portal.ts`).

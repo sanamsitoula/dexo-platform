@@ -3,20 +3,24 @@
 This is the missing piece behind the "admin/portal always redirects" problem:
 `infra/nginx/dexo.conf` only takes effect once it's actually **installed and
 reloaded** on the VM. If you haven't run the install steps below (or nginx
-isn't running at all), every request — including `admin.<tenant>.onedexo.com`
+isn't running at all), every request — including `<tenant>.onedexo.com/admin`
 — falls through to whatever default web server/redirect the VM had before,
 which is exactly the symptom reported ("always redirected").
 
 ## 0. First, fix the immediate URL mistake
 
-Tenant Admin is **subdomain-routed**, not path-routed:
+Tenant Admin and Tenant App are **path-routed** under the single tenant
+host, not subdomain-routed:
 
-- ❌ `subhangym.onedexo.com/admin` — this hits the tenant **website** app
-  (no `/admin` route exists there → 404/fallback, easy to mistake for "redirected").
-- ✅ `admin.subhangym.onedexo.com` — this is the actual Tenant Admin console.
-- ✅ `portal.subhangym.onedexo.com` — the customer app (member portal).
+- ✅ `subhangym.onedexo.com/admin` — the actual Tenant Admin console
+  (`apps/tenant-admin`, built with Next.js `basePath: '/admin'`).
+- ✅ `subhangym.onedexo.com/portal` — the customer app / member portal
+  (`apps/tenant-app`, built with Next.js `basePath: '/portal'`).
+- ❌ `admin.subhangym.onedexo.com` / `portal.subhangym.onedexo.com` — these
+  are the OLD scheme and no longer route anywhere in the current nginx
+  config; don't use them.
 
-If you type the subdomain form and it *still* redirects/fails, it's the
+If you type the path form and it *still* redirects/fails, it's the
 nginx-not-deployed issue below.
 
 ## 1. Prerequisites
@@ -46,8 +50,7 @@ port also looks like "redirects to nowhere."
 
 ## 2. DNS
 
-At your DNS provider (Cloudflare recommended — it can wildcard-proxy
-multi-level subdomains):
+At your DNS provider:
 
 ```
 onedexo.com            A      <VM public IP>
@@ -56,23 +59,18 @@ admin.onedexo.com      A      <VM public IP>
 api.onedexo.com        A      <VM public IP>
 ```
 
-`*.onedexo.com` only covers **one** level (`<tenant>.onedexo.com`). Two-level
-hosts (`admin.<tenant>.onedexo.com`, `portal.<tenant>.onedexo.com`) need
-either:
-- **Cloudflare proxied (orange-cloud) DNS** — a single `*.onedexo.com`
-  wildcard, proxied, actually resolves `admin.subhangym.onedexo.com` too
-  (Cloudflare handles the multi-level match at their edge), **or**
-- explicit records per level: `*.onedexo.com` AND `admin.*.onedexo.com` /
-  `portal.*.onedexo.com` — most DNS providers don't support double-wildcards,
-  so Cloudflare proxy is the practical path.
+`*.onedexo.com` only needs to cover **one** level (`<tenant>.onedexo.com`) —
+admin and portal are now `/admin` and `/portal` paths under that same host,
+not separate second-level subdomains, so a single standard wildcard record
+is sufficient. No Cloudflare orange-cloud proxying, double-wildcard DNS
+records, or Cloudflare Advanced Certificate Manager are needed anymore.
 
 Verify DNS is actually resolving to your VM before debugging nginx:
 ```bash
-dig +short admin.subhangym.onedexo.com
 dig +short subhangym.onedexo.com
-# both should print your VM's public IP
+# should print your VM's public IP
 ```
-If these print nothing (or a different IP), the problem is DNS, not nginx —
+If this prints nothing (or a different IP), the problem is DNS, not nginx —
 fix DNS first, nginx can't help if the request never reaches the VM.
 
 ## 3. Install nginx + the OneDexo config
@@ -102,8 +100,10 @@ that file must exist before nginx will even start with this config.
 sudo certbot certonly --nginx -d onedexo.com -d www.onedexo.com -d admin.onedexo.com -d api.onedexo.com
 ```
 
-For the wildcard (`*.onedexo.com`, needed for every tenant subdomain), you
-need DNS-01 (HTTP-01 can't prove ownership of a wildcard):
+For the wildcard (`*.onedexo.com`, needed for every tenant subdomain — this
+single-level wildcard now covers admin and portal too, since they're paths
+not subdomains), you need DNS-01 (HTTP-01 can't prove ownership of a
+wildcard):
 ```bash
 sudo certbot certonly --manual --preferred-challenges dns -d "*.onedexo.com" -d onedexo.com
 # or, non-interactively with the Cloudflare DNS plugin:
@@ -116,12 +116,12 @@ Then `sudo systemctl reload nginx` again once the cert exists.
 ## 5. Verify — this is the actual test for "does admin work now"
 
 ```bash
-curl -sI https://admin.subhangym.onedexo.com | head -5
-# Expect: HTTP/2 200 (or 302 to /login, which is correct — tenant-admin
+curl -sI https://subhangym.onedexo.com/admin | head -5
+# Expect: HTTP/2 200 (or 302 to /admin/login, which is correct — tenant-admin
 # redirects unauthenticated users to its own login page, that's NOT the bug)
 
 curl -sI https://subhangym.onedexo.com | head -5
-curl -sI https://portal.subhangym.onedexo.com | head -5
+curl -sI https://subhangym.onedexo.com/portal | head -5
 curl -sI https://chatwoot.onedexo.com | head -5
 # Expect a Chatwoot response, NOT a tenant-website page. If chatwoot.onedexo.com
 # is missing its own server_name block in infra/nginx/dexo.conf, it falls

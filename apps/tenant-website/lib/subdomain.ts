@@ -23,5 +23,5 @@ export function resolveClientSubdomain(): string {
       return parts[0]
     }
   }
-  return process.env.NEXT_PUBLIC_DEV_TENANT || 'vrfitness'
+  return process.env.NEXT_PUBLIC_DEV_TENANT || ''
 }

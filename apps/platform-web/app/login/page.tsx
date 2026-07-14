@@ -10,8 +10,8 @@ const IS_DEV = typeof window !== 'undefined' && window.location.hostname.endsWit
 
 function tenantAdminUrl(subdomain: string) {
   return IS_DEV
-    ? `http://admin.${subdomain}.localhost:4006/login`
-    : `https://admin.${subdomain}.onedexo.com/login`;
+    ? `http://${subdomain}.localhost:4006/admin/login`
+    : `https://${subdomain}.onedexo.com/admin/login`;
 }
 
 export default function LoginPage() {

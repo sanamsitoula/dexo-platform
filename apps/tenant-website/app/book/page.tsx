@@ -1,5 +1,5 @@
 import { headers } from 'next/headers';
-import { getFitnessInfo, getFitnessPlans, type FitnessInfo } from '@/lib/api';
+import { getFitnessInfo, getFitnessPlans, getGenericTenantInfo, type FitnessInfo } from '@/lib/api';
 import { getSiteTheme } from '@/lib/site-theme';
 import SiteNav from '@/components/SiteNav';
 import SiteFooter from '@/components/SiteFooter';
@@ -36,7 +36,7 @@ export default async function BookPage({ searchParams }: { searchParams?: { serv
     getFitnessPlans(subdomain),
     getSiteTheme(subdomain),
   ]);
-  const t = info || FALLBACK;
+  const t = info || (await getGenericTenantInfo(subdomain)) || FALLBACK;
 
   // Same data source as /services: base catalogue + a trial option per plan
   // that includes classes (live from the public plans endpoint).

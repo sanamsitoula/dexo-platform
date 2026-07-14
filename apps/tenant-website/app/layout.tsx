@@ -52,13 +52,13 @@ async function getTenantContext() {
   };
 }
 
-// Resolve a tenant's business/domain type from the TenantDomain relation
-// (tenant.domains[0].domain.code, per tenant.service.ts's findBySubdomain
-// include) so ANY business (any gym, any restaurant, any salon) renders
-// correctly — no per-slug hardcoding. settings.domainCode/theme and a flat
-// tenant.domainCode don't exist on this response, so reading those always
-// fell through to a hardcoded FITNESS_CENTER default regardless of the
-// tenant's real business type.
+// Resolve a tenant's business/domain type. tenant.service.ts's
+// findBySubdomain() deliberately flattens the TenantDomain relation into a
+// plain `tenant.domainCode` string and strips `domains` from the response
+// entirely — reading tenant.domains[0].domain.code (the old assumption)
+// always silently evaluated to undefined, so this fell through to the
+// hardcoded FITNESS_CENTER fallback below regardless of the tenant's real
+// business type.
 async function resolveDomainType(slug: string, apiUrl: string): Promise<string | null> {
   try {
     const res = await fetch(`${apiUrl}/api/tenants/subdomain/${slug}`, {
@@ -67,7 +67,7 @@ async function resolveDomainType(slug: string, apiUrl: string): Promise<string |
     });
     if (res.ok) {
       const tenant = await res.json();
-      return tenant?.domains?.[0]?.domain?.code || null;
+      return tenant?.domainCode || null;
     }
   } catch {
     // ignore — fall through to null

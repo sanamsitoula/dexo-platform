@@ -17,12 +17,16 @@ export default function SiteNav({ theme, name, active, memberLoginUrl, showShop 
 }) {
   const t = theme;
   const nav = t.tpl?.navigationStyle || 'classic';
+  // Blog/Book previously showed for EVERY tenant unconditionally, regardless
+  // of whether they'd ever created a blog post or wanted a booking-request
+  // page public — now gated by settings.branding.navFlags (tenant-admin
+  // Website Builder → Navigation), enabled by default.
   const links: Array<[href: string, label: string]> = [
     ['/about', 'About'],
     ['/services', 'Services'],
     ...(showShop ? ([['/shop', 'Shop']] as Array<[string, string]>) : []),
-    ['/blog', 'Blog'],
-    ['/book', 'Book'],
+    ...(t.blogEnabled ? ([['/blog', 'Blog']] as Array<[string, string]>) : []),
+    ...(t.bookEnabled ? ([['/book', 'Book']] as Array<[string, string]>) : []),
     ['/contact', 'Contact'],
   ];
 

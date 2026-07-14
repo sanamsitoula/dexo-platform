@@ -41,7 +41,9 @@ async function fetchApi<T>(
         localStorage.removeItem(`tenant-token-${subdomain}`)
         localStorage.removeItem('token')
         if (!window.location.pathname.includes('/login')) {
-          window.location.href = '/login'
+          // basePath ('/admin') isn't auto-prepended for raw window.location
+          // assignments the way <Link>/router.push handle it.
+          window.location.href = '/admin/login'
         }
         return { error: 'Session expired — please sign in again' }
       }
@@ -399,6 +401,100 @@ export const menuBuilderApi = {
   removeItem: (s: string, itemId: string) => fetchApi<any>(`/menus/items/${itemId}`, s, { method: 'DELETE' }),
   reorderItem: (s: string, itemId: string, direction: 'up' | 'down') =>
     fetchApi<any>(`/menus/items/${itemId}/reorder`, s, { method: 'POST', body: JSON.stringify({ direction }) }),
+}
+
+export const aiApi = {
+  /** Routes through the shared AI Gateway (POST /api/ai/chat) — agentKey
+   * 'website.content-writer' is a text-only agent registered by
+   * apps/api/src/modules/website-ai; it never writes to the DB, the caller
+   * (Menu Builder / RichTextEditor) always saves the result explicitly. */
+  writeContent: (s: string, brief: string) =>
+    fetchApi<{ reply: string }>('/ai/chat', s, {
+      method: 'POST',
+      body: JSON.stringify({ agentKey: 'website.content-writer', message: brief, screen: 'website-builder' }),
+    }),
+}
+
+export const pageBuilderApi = {
+  list: (s: string) => fetchApi<any[]>('/pages', s),
+  get: (s: string, pageId: string) => fetchApi<any>(`/pages/${pageId}`, s),
+  create: (s: string, data: any) => fetchApi<any>('/pages', s, { method: 'POST', body: JSON.stringify(data) }),
+  update: (s: string, pageId: string, data: any) => fetchApi<any>(`/pages/${pageId}`, s, { method: 'PUT', body: JSON.stringify(data) }),
+  remove: (s: string, pageId: string) => fetchApi<any>(`/pages/${pageId}`, s, { method: 'DELETE' }),
+
+  submitForReview: (s: string, pageId: string) => fetchApi<any>(`/pages/${pageId}/submit-review`, s, { method: 'POST' }),
+  approve: (s: string, pageId: string) => fetchApi<any>(`/pages/${pageId}/approve`, s, { method: 'POST' }),
+  publishNow: (s: string, pageId: string) => fetchApi<any>(`/pages/${pageId}/publish`, s, { method: 'POST' }),
+  schedule: (s: string, pageId: string, publishAt: string) =>
+    fetchApi<any>(`/pages/${pageId}/schedule`, s, { method: 'POST', body: JSON.stringify({ publishAt }) }),
+  archive: (s: string, pageId: string) => fetchApi<any>(`/pages/${pageId}/archive`, s, { method: 'POST' }),
+  revertToDraft: (s: string, pageId: string) => fetchApi<any>(`/pages/${pageId}/revert-to-draft`, s, { method: 'POST' }),
+
+  createSection: (s: string, pageId: string, data: any) => fetchApi<any>(`/pages/${pageId}/sections`, s, { method: 'POST', body: JSON.stringify(data) }),
+  updateSection: (s: string, sectionId: string, data: any) => fetchApi<any>(`/pages/sections/${sectionId}`, s, { method: 'PUT', body: JSON.stringify(data) }),
+  removeSection: (s: string, sectionId: string) => fetchApi<any>(`/pages/sections/${sectionId}`, s, { method: 'DELETE' }),
+  reorderSection: (s: string, sectionId: string, direction: 'up' | 'down') =>
+    fetchApi<any>(`/pages/sections/${sectionId}/reorder`, s, { method: 'POST', body: JSON.stringify({ direction }) }),
+  reorderSections: (s: string, pageId: string, orderedIds: string[]) =>
+    fetchApi<any>(`/pages/${pageId}/sections/reorder-all`, s, { method: 'PUT', body: JSON.stringify({ orderedIds }) }),
+}
+
+export const formsBuilderApi = {
+  list: (s: string) => fetchApi<any[]>('/forms', s),
+  get: (s: string, formId: string) => fetchApi<any>(`/forms/${formId}`, s),
+  create: (s: string, data: any) => fetchApi<any>('/forms', s, { method: 'POST', body: JSON.stringify(data) }),
+  update: (s: string, formId: string, data: any) => fetchApi<any>(`/forms/${formId}`, s, { method: 'PUT', body: JSON.stringify(data) }),
+  remove: (s: string, formId: string) => fetchApi<any>(`/forms/${formId}`, s, { method: 'DELETE' }),
+  submissions: (s: string, formId: string) => fetchApi<any[]>(`/forms/${formId}/submissions`, s),
+
+  createField: (s: string, formId: string, data: any) => fetchApi<any>(`/forms/${formId}/fields`, s, { method: 'POST', body: JSON.stringify(data) }),
+  updateField: (s: string, fieldId: string, data: any) => fetchApi<any>(`/forms/fields/${fieldId}`, s, { method: 'PUT', body: JSON.stringify(data) }),
+  removeField: (s: string, fieldId: string) => fetchApi<any>(`/forms/fields/${fieldId}`, s, { method: 'DELETE' }),
+  reorderField: (s: string, fieldId: string, direction: 'up' | 'down') =>
+    fetchApi<any>(`/forms/fields/${fieldId}/reorder`, s, { method: 'POST', body: JSON.stringify({ direction }) }),
+}
+
+export const themeBuilderApi = {
+  list: (s: string) => fetchApi<any[]>('/themes', s),
+  get: (s: string, themeId: string) => fetchApi<any>(`/themes/${themeId}`, s),
+  create: (s: string, data: any) => fetchApi<any>('/themes', s, { method: 'POST', body: JSON.stringify(data) }),
+  duplicate: (s: string, fromThemeId: string | undefined, name: string) =>
+    fetchApi<any>('/themes/duplicate', s, { method: 'POST', body: JSON.stringify({ fromThemeId, name }) }),
+  update: (s: string, themeId: string, data: any) => fetchApi<any>(`/themes/${themeId}`, s, { method: 'PUT', body: JSON.stringify(data) }),
+  remove: (s: string, themeId: string) => fetchApi<any>(`/themes/${themeId}`, s, { method: 'DELETE' }),
+  activate: (s: string, themeId: string) => fetchApi<any>(`/themes/${themeId}/activate`, s, { method: 'POST' }),
+  deactivate: (s: string, themeId: string) => fetchApi<any>(`/themes/${themeId}/deactivate`, s, { method: 'POST' }),
+}
+
+export const mediaApi = {
+  list: (s: string) => fetchApi<any[]>('/files/media/library', s),
+  remove: (s: string, id: string) => fetchApi<any>(`/files/${id}`, s, { method: 'DELETE' }),
+  rename: (s: string, id: string, originalName: string) =>
+    fetchApi<any>(`/files/${id}`, s, { method: 'PUT', body: JSON.stringify({ originalName }) }),
+
+  /** Multipart upload bypasses fetchApi (which always sends JSON) — the
+   * browser must set its own multipart Content-Type boundary. */
+  async upload(s: string, file: File): Promise<ApiResponse<any>> {
+    const form = new FormData()
+    form.append('file', file)
+    form.append('documentType', 'MEDIA')
+    form.append('isPublic', 'true')
+    const token = getToken(s)
+    try {
+      const response = await fetch(`${API_BASE_URL}/files/upload`, {
+        method: 'POST',
+        headers: token ? { Authorization: `Bearer ${token}` } : undefined,
+        body: form,
+      })
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({}))
+        return { error: errorData.message || `HTTP ${response.status}` }
+      }
+      return { data: await response.json() }
+    } catch (error) {
+      return { error: error instanceof Error ? error.message : 'Network error' }
+    }
+  },
 }
 
 export const tenantSettingsApi = {

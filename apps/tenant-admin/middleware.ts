@@ -3,24 +3,21 @@ import { NextRequest, NextResponse } from 'next/server';
 /**
  * Host-based tenant resolution for the tenant-admin app.
  *
- * Mirrors apps/tenant-website/middleware.ts: maps the request Host header to a
- * tenant subdomain and exposes it via the `x-tenant-slug` request header (for
- * server components) and the non-httpOnly `dexo_tenant` cookie (for client
- * components).
- *
- * NOTE: today the admin pages resolve their tenant client-side via
- * `useParams()?.subdomain` with a 'vrfitness' fallback — that behaviour is
- * untouched. This middleware adds the same host-derived cookie/header the
- * tenant-website uses so future code (and shared components) can rely on it.
+ * Path-based routing: this app is always reached at
+ * <tenant>.onedexo.com/admin — nginx dispatches by the `/admin` path
+ * prefix, not by an `admin.<tenant>.` subdomain, so tenant resolution here
+ * is host-only, identical to apps/tenant-website/middleware.ts. Exposes the
+ * tenant via the `x-tenant-slug` request header (server components) and the
+ * non-httpOnly `dexo_tenant` cookie (client components).
  *
  * Supported host shapes:
- *   vrfitness.admin.onedexo.com     (prod)   -> "vrfitness"
- *   vrfitness.localhost:4006     (dev)    -> "vrfitness"
- *   localhost:4006               (dev)    -> DEV_TENANT env or "vrfitness"
+ *   <tenant>.onedexo.com        (prod)   -> "<tenant>"
+ *   <tenant>.localhost:4006     (dev)    -> "<tenant>"
+ *   localhost:4006              (dev)    -> DEV_TENANT env, else unresolved
  */
 
 // Subdomains that are never a tenant slug.
-const RESERVED = new Set(['www', 'app', 'api', 'admin', 'localhost', 'dexo', 'chatwoot']);
+const RESERVED = new Set(['www', 'app', 'api', 'admin', 'portal', 'localhost', 'dexo', 'chatwoot']);
 
 // Tunnel hosts (ngrok, cloudflared, localtunnel) have random first labels that
 // must NOT be treated as tenant subdomains. On these hosts the tenant comes
@@ -33,12 +30,7 @@ function extractSlug(host: string): string | null {
   if (!hostname || isTunnelHost(hostname)) return null;
   const parts = hostname.split('.');
 
-  // Canonical tenant-admin host: admin.<tenant>.onedexo.com / admin.<tenant>.localhost
-  // (this app is hosted "admin" FIRST, tenant SECOND — see lib/subdomain.ts).
-  if (parts[0] === 'admin' && parts.length >= 3 && !RESERVED.has(parts[1])) {
-    return parts[1];
-  }
-  // sub.localhost -> ["sub", "localhost"]  (no "admin." prefix, some local setups)
+  // sub.localhost -> ["sub", "localhost"]
   if (hostname.endsWith('.localhost') && parts.length >= 2 && !RESERVED.has(parts[0])) {
     return parts[0];
   }
@@ -65,7 +57,11 @@ export function middleware(req: NextRequest) {
   if (!slug) {
     const requestHeaders = new Headers(req.headers);
     requestHeaders.set('x-attempted-host', host);
-    return NextResponse.rewrite(new URL('/tenant-not-found', req.url), { request: { headers: requestHeaders } });
+    // req.nextUrl.clone() (not `new URL(path, req.url)`) so basePath
+    // ('/admin') is correctly re-applied when the rewritten URL is serialized.
+    const notFoundUrl = req.nextUrl.clone();
+    notFoundUrl.pathname = '/tenant-not-found';
+    return NextResponse.rewrite(notFoundUrl, { request: { headers: requestHeaders } });
   }
 
   const requestHeaders = new Headers(req.headers);

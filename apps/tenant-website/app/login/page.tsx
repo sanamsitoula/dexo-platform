@@ -1,5 +1,5 @@
 import { headers } from 'next/headers';
-import { getFitnessInfo, type FitnessInfo } from '@/lib/api';
+import { getFitnessInfo, getGenericTenantInfo, type FitnessInfo } from '@/lib/api';
 import { getSiteTheme } from '@/lib/site-theme';
 import SiteNav from '@/components/SiteNav';
 import SiteFooter from '@/components/SiteFooter';
@@ -20,7 +20,7 @@ const FALLBACK: FitnessInfo = {
 export default async function LoginPage() {
   const subdomain = resolveSubdomain();
   const [info, theme] = await Promise.all([getFitnessInfo(subdomain), getSiteTheme(subdomain)]);
-  const t = info || FALLBACK;
+  const t = info || (await getGenericTenantInfo(subdomain)) || FALLBACK;
 
   return (
     <div style={{ background: 'var(--site-bg)', color: 'var(--site-text)', minHeight: '100vh' }}>

@@ -35,8 +35,8 @@ export default function SignupSuccess() {
   // behind the ingress, so URLs must be clean https:// without ports.
   const isDev = typeof window !== 'undefined' && window.location.hostname.endsWith('localhost');
   const adminUrl = isDev
-    ? `http://admin.${sub}.localhost:4006/login`
-    : `https://admin.${sub}.onedexo.com/login`;
+    ? `http://${sub}.localhost:4006/admin/login`
+    : `https://${sub}.onedexo.com/admin/login`;
   const siteUrl = isDev
     ? `http://${sub}.localhost:4005`
     : `https://${sub}.onedexo.com`;

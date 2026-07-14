@@ -160,7 +160,7 @@ export default function TenantSelectScreen() {
         logo: tenant.logo,
         primaryColor: tenant.primaryColor || res.data.settings?.branding?.primaryColor || '#4f46e5',
         siteTitle: res.data.name,
-        domainCode: res.data.settings?.theme || tenant.domainCode,
+        domainCode: res.data.domainCode || tenant.domainCode,
       };
       // Try to load brand from localStorage (saved by builder)
       try {

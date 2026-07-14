@@ -1,9 +1,10 @@
 import Link from 'next/link';
 import { headers } from 'next/headers';
-import { getFitnessInfo, type FitnessInfo } from '@/lib/api';
+import { getFitnessInfo, getGenericTenantInfo, getPublicPage, type FitnessInfo } from '@/lib/api';
 import { getSiteTheme } from '@/lib/site-theme';
 import SiteNav from '@/components/SiteNav';
 import SiteFooter from '@/components/SiteFooter';
+import PageSectionRenderer from '@/components/PageSectionRenderer';
 
 function resolveSubdomain(): string {
   const h = headers();
@@ -40,8 +41,32 @@ const card = {
 
 export default async function AboutPage() {
   const subdomain = resolveSubdomain();
-  const [info, theme] = await Promise.all([getFitnessInfo(subdomain), getSiteTheme(subdomain)]);
-  const t = info || FALLBACK;
+  const [info, theme, realPage] = await Promise.all([
+    getFitnessInfo(subdomain),
+    getSiteTheme(subdomain),
+    getPublicPage(subdomain, 'about'),
+  ]);
+  // getFitnessInfo() is fitness-only and returns null for every other
+  // business type — getGenericTenantInfo() (tenant name/branding, not a
+  // domain-specific endpoint) is the correct fallback before the hardcoded
+  // placeholder, so a salon/restaurant/ecommerce tenant shows ITS OWN name
+  // instead of "Fitness Center" / "Transform your body...".
+  const t = info || (await getGenericTenantInfo(subdomain)) || FALLBACK;
+
+  // Real, tenant-editable content (Pages → About) takes over this route
+  // entirely once it exists — previously this page was always the
+  // hardcoded copy below regardless of anything set in tenant-admin.
+  if (realPage && realPage.sections.length > 0) {
+    return (
+      <div style={{ background: 'var(--site-bg)', color: 'var(--site-text)', minHeight: '100vh' }}>
+        <SiteNav theme={theme} name={t.name} active="/about" />
+        {realPage.sections.map((section) => (
+          <PageSectionRenderer key={section.id} section={section} colorPrimary="var(--site-primary)" subdomain={subdomain} />
+        ))}
+        <SiteFooter theme={theme} name={t.name} contact={t.contact} />
+      </div>
+    );
+  }
 
   return (
     <div style={{ background: 'var(--site-bg)', color: 'var(--site-text)', minHeight: '100vh' }}>

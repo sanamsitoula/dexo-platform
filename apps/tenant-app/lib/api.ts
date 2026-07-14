@@ -6,7 +6,7 @@ const API_BASE = `${API_HOST}/api`;
  *   - authoritative: the `dexo_tenant` cookie set by middleware.ts from the Host
  *   - fallback: parse window.location.hostname (handles `*.localhost` in dev and
  *     `sub.domain.tld` in prod)
- *   - last resort: NEXT_PUBLIC_DEV_TENANT env, then "vrfitness". */
+ *   - last resort: NEXT_PUBLIC_DEV_TENANT env, otherwise unresolved. */
 const RESERVED_SUBDOMAINS = new Set(['www', 'app', 'api', 'admin', 'localhost', 'dexo']);
 // Tunnel hosts (ngrok etc.) — their random first label is never a tenant slug.
 const TUNNEL_SUFFIXES = ['.ngrok-free.app', '.ngrok-free.dev', '.ngrok.app', '.ngrok.io', '.ngrok.dev', '.trycloudflare.com', '.loca.lt'];
@@ -19,10 +19,6 @@ export function resolveSubdomain(): string {
   if (typeof window !== 'undefined' && !TUNNEL_SUFFIXES.some((s) => window.location.hostname.toLowerCase().endsWith(s))) {
     const hostname = window.location.hostname.toLowerCase();
     const parts = hostname.split('.');
-    // Canonical member-portal host: portal.<tenant>.onedexo.com / portal.<tenant>.localhost
-    if ((parts[0] === 'portal' || parts[0] === 'admin') && parts.length >= 3 && !RESERVED_SUBDOMAINS.has(parts[1])) {
-      return parts[1];
-    }
     if (hostname.endsWith('.localhost') && parts.length >= 2 && !RESERVED_SUBDOMAINS.has(parts[0])) {
       return parts[0];
     }
@@ -30,7 +26,7 @@ export function resolveSubdomain(): string {
       return parts[0];
     }
   }
-  return process.env.NEXT_PUBLIC_DEV_TENANT || 'vrfitness';
+  return process.env.NEXT_PUBLIC_DEV_TENANT || '';
 }
 
 const TOKEN_KEY = 'dexo_token';

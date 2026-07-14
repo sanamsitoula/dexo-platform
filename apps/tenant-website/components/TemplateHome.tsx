@@ -1,5 +1,7 @@
 import Link from 'next/link';
 import type { WebsiteTemplate } from '@dexo/shared/src/themes';
+import type { PublicPageSection } from '@/lib/api';
+import PageSectionRenderer from './PageSectionRenderer';
 
 /**
  * Full-page renderer for the OneDexo template ecosystem. Given the tenant's
@@ -17,11 +19,32 @@ export interface TemplateHomeProps {
   description?: string | null;
   colorPrimary?: string | null;
   colorAccent?: string | null;
+  /** Theme Builder overrides — previously only colorPrimary/colorAccent
+   * could override the fixed template at all; background/surface/text/
+   * radius always came straight from tpl.palette regardless of what a
+   * tenant set in Theme Builder, so those tokens never reached this page. */
+  colorBackground?: string | null;
+  colorSurface?: string | null;
+  colorText?: string | null;
+  colorTextSecondary?: string | null;
+  themeBorderRadius?: number | null;
   contact?: { branch?: string; address?: string; phone?: string; email?: string } | null;
   /** Pre-rendered pricing/plans section (industry-specific), slotted into the journey. */
   plansSlot?: React.ReactNode;
   /** Published Menu Builder sections (Services/Team/Locations/FAQ/...), rendered after plans. */
   menusSlot?: React.ReactNode;
+  /** Real, tenant-editable Page Builder sections (from the auto-seeded "Home"
+   * page — see provisioning.service.ts) rendered via the SAME PageSectionRenderer
+   * used by custom /<slug> pages, in place of the old hardcoded placeholder
+   * "journey" cards below ("Explore trainers at {name}."). Falls back to the
+   * placeholder cards only if a tenant genuinely has none yet (e.g. provisioned
+   * before this existed and not yet backfilled), so nothing regresses. */
+  realSections?: PublicPageSection[];
+  subdomain?: string;
+  /** settings.branding.navFlags.bookEnabled — defaults to true (enabled)
+   * when the tenant hasn't touched the toggle. No blogEnabled here: this
+   * shell's own nav never had a Blog link to begin with. */
+  bookEnabled?: boolean;
 }
 
 const SECTION_LABELS: Record<string, string> = {
@@ -40,14 +63,22 @@ const SECTION_LABELS: Record<string, string> = {
   'team': 'Our Team', 'causes': 'Our Causes', 'impact-stats': 'Our Impact', 'volunteers': 'Volunteers',
 };
 
-export default function TemplateHome({ tpl, name, tagline, description, colorPrimary, colorAccent, contact, plansSlot, menusSlot }: TemplateHomeProps) {
+export default function TemplateHome({
+  tpl, name, tagline, description, colorPrimary, colorAccent,
+  colorBackground, colorSurface, colorText, colorTextSecondary, themeBorderRadius,
+  contact, plansSlot, menusSlot, realSections, subdomain, bookEnabled = true,
+}: TemplateHomeProps) {
   const p = {
     ...tpl.palette,
     primary: colorPrimary || tpl.palette.primary,
     accent: colorAccent || tpl.palette.accent,
+    background: colorBackground || tpl.palette.background,
+    surface: colorSurface || tpl.palette.surface,
+    text: colorText || tpl.palette.text,
+    textSecondary: colorTextSecondary || tpl.palette.textSecondary,
   };
   const dark = tpl.family === 'nocturne';
-  const radius = Math.min(tpl.borderRadius, 16);
+  const radius = Math.min(themeBorderRadius ?? tpl.borderRadius, 16);
   const heroTitle = tagline || tpl.hero.title;
   const heroSub = description || tpl.hero.subtitle;
   const journeySections = tpl.sections.filter((s) => !['hero', 'footer', 'pricing', 'contact'].includes(s)).slice(0, 4);
@@ -56,7 +87,7 @@ export default function TemplateHome({ tpl, name, tagline, description, colorPri
     <>
       <Link href="/about" className="opacity-80 hover:opacity-100">About</Link>
       <Link href="/services" className="opacity-80 hover:opacity-100">Services</Link>
-      <Link href="/book" className="opacity-80 hover:opacity-100">Book</Link>
+      {bookEnabled && <Link href="/book" className="opacity-80 hover:opacity-100">Book</Link>}
       <a href="#plans" className="opacity-80 hover:opacity-100">Plans</a>
       <Link href="/contact" className="opacity-80 hover:opacity-100">Contact</Link>
     </>
@@ -74,7 +105,7 @@ export default function TemplateHome({ tpl, name, tagline, description, colorPri
   );
 
   return (
-    <div style={{ background: p.background, color: p.text, minHeight: '100vh', fontFamily: tpl.family === 'maison' ? 'Georgia, serif' : undefined }}>
+    <div style={{ background: p.background, color: p.text, minHeight: '100vh', fontFamily: `var(--site-body-font, ${tpl.family === 'maison' ? 'Georgia, serif' : 'inherit'})` }}>
       {/* ---------- Navigation ---------- */}
       {tpl.navigationStyle === 'centered' ? (
         <nav className="px-6 py-5 max-w-6xl mx-auto text-center border-b" style={{ borderColor: `${p.textSecondary}25` }}>
@@ -169,26 +200,36 @@ export default function TemplateHome({ tpl, name, tagline, description, colorPri
         </section>
       )}
 
-      {/* ---------- Journey sections (labels from the template's story order) ---------- */}
-      <section className="px-6 py-16 max-w-6xl mx-auto">
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
-          {journeySections.map((s, i) => (
-            <div key={s} className="p-6 border"
-              style={{
-                borderRadius: radius,
-                backgroundColor: dark ? '#ffffff0d' : p.surface,
-                borderColor: tpl.family === 'bloc' ? p.text : `${p.textSecondary}25`,
-                borderWidth: tpl.family === 'bloc' ? 3 : 1,
-              }}>
-              <span className="block h-1.5 w-10 mb-4" style={{ backgroundColor: i % 2 ? p.accent : p.primary }} />
-              <h3 className="font-bold text-lg">{SECTION_LABELS[s] || s}</h3>
-              <p className="mt-1 text-sm" style={{ color: p.textSecondary }}>
-                Explore {SECTION_LABELS[s]?.toLowerCase() || s} at {name}.
-              </p>
-            </div>
-          ))}
-        </div>
-      </section>
+      {/* ---------- Real, editable Page Builder sections (preferred) ---------- */}
+      {realSections && realSections.length > 0 ? (
+        realSections.map((section) => (
+          <PageSectionRenderer key={section.id} section={section} colorPrimary={p.primary} subdomain={subdomain || ''} />
+        ))
+      ) : (
+        /* ---------- Fallback: placeholder "journey" cards ----------
+         * Only reached when a tenant has no real Home-page sections yet
+         * (provisioned before this existed, not yet backfilled) — see
+         * scripts/backfill-homepage.ts. */
+        <section className="px-6 py-16 max-w-6xl mx-auto">
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
+            {journeySections.map((s, i) => (
+              <div key={s} className="p-6 border"
+                style={{
+                  borderRadius: radius,
+                  backgroundColor: dark ? '#ffffff0d' : p.surface,
+                  borderColor: tpl.family === 'bloc' ? p.text : `${p.textSecondary}25`,
+                  borderWidth: tpl.family === 'bloc' ? 3 : 1,
+                }}>
+                <span className="block h-1.5 w-10 mb-4" style={{ backgroundColor: i % 2 ? p.accent : p.primary }} />
+                <h3 className="font-bold text-lg">{SECTION_LABELS[s] || s}</h3>
+                <p className="mt-1 text-sm" style={{ color: p.textSecondary }}>
+                  Explore {SECTION_LABELS[s]?.toLowerCase() || s} at {name}.
+                </p>
+              </div>
+            ))}
+          </div>
+        </section>
+      )}
 
       {/* ---------- Plans (industry data slot) ---------- */}
       {plansSlot}
@@ -219,7 +260,7 @@ export default function TemplateHome({ tpl, name, tagline, description, colorPri
           <Link href="/">Home</Link>
           <Link href="/about">About</Link>
           <Link href="/services">Services</Link>
-          <Link href="/book">Book</Link>
+          {bookEnabled && <Link href="/book">Book</Link>}
           <Link href="/register">Join</Link>
           <Link href="/contact">Contact</Link>
         </div>

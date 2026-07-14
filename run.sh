@@ -338,13 +338,14 @@ echo "    Swagger Docs:               http://localhost:4000/api/docs"
 echo ""
 echo "  DEFAULT TENANT (vrfitness — via DEV_TENANT):"
 echo "    Tenant Website (public):   http://localhost:4005   (admin@vrfitness.com)"
-echo "    Tenant Admin (owner):      http://localhost:4006   (admin@vrfitness.com)"
-echo "    Tenant App (customer):     http://localhost:4007   (member1@vrfitness.com)"
+echo "    Tenant Admin (owner):      http://localhost:4006/admin   (admin@vrfitness.com)"
+echo "    Tenant App (customer):     http://localhost:4007/portal (member1@vrfitness.com)"
 echo ""
 echo "  SUBDOMAIN-BASED TENANT ACCESS (no DEV_TENANT restart needed —"
 echo "  browsers resolve *.localhost to 127.0.0.1 automatically):"
 echo "    http://vrfitness.localhost:4005     http://spicegarden.localhost:4005"
-echo "    (tenant-admin/tenant-app resolve their tenant from login, not the URL)"
+echo "    http://vrfitness.localhost:4006/admin   http://vrfitness.localhost:4007/portal"
+echo "    (tenant-admin/tenant-app resolve their tenant from the host's first label)"
 echo ""
 echo "  Mobile (Expo):                http://localhost:8081   | Scan QR with Expo Go"
 echo ""
@@ -389,12 +390,12 @@ echo ""
 
 # Best-effort browser open (no-op on a headless server).
 if command -v xdg-open &> /dev/null; then
-  for url in http://localhost:3001 http://localhost:3002 http://localhost:4005 http://localhost:4006 http://localhost:4007 http://localhost:4000/api/docs; do
+  for url in http://localhost:3001 http://localhost:3002 http://localhost:4005 http://localhost:4006/admin http://localhost:4007/portal http://localhost:4000/api/docs; do
     xdg-open "$url" >/dev/null 2>&1 &
   done
   echo "Browsers opened (or attempted — no-op on headless servers)."
 elif command -v open &> /dev/null; then
-  for url in http://localhost:3001 http://localhost:3002 http://localhost:4005 http://localhost:4006 http://localhost:4007 http://localhost:4000/api/docs; do
+  for url in http://localhost:3001 http://localhost:3002 http://localhost:4005 http://localhost:4006/admin http://localhost:4007/portal http://localhost:4000/api/docs; do
     open "$url" >/dev/null 2>&1 &
   done
   echo "Browsers opened."

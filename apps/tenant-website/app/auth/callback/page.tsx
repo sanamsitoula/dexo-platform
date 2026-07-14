@@ -19,7 +19,7 @@ function resolveSubdomain(): string {
     if (hostname.endsWith('.localhost') && parts.length >= 2 && !RESERVED_SUBDOMAINS.has(parts[0])) return parts[0];
     if (parts.length >= 3 && !RESERVED_SUBDOMAINS.has(parts[0])) return parts[0];
   }
-  return process.env.NEXT_PUBLIC_DEV_TENANT || 'vrfitness';
+  return process.env.NEXT_PUBLIC_DEV_TENANT || '';
 }
 
 /** Landing point for the tenant OAuth flow — the API redirects here with

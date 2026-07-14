@@ -5,6 +5,7 @@ import Link from 'next/link';
 import { menuBuilderApi } from '@/lib/api';
 import { resolveTenantAdminSubdomain } from '@/lib/subdomain';
 import { PageHeader, Card, Btn, Badge, EmptyState, Field, Input } from '../../_ui';
+import WebsiteSubNav from '@/components/WebsiteSubNav';
 
 export default function MenusListPage() {
   const subdomain = resolveTenantAdminSubdomain();
@@ -40,7 +41,8 @@ export default function MenusListPage() {
 
   return (
     <div className="max-w-4xl">
-      <PageHeader title="Menus" subtitle="Reusable content sections — services, team, locations, FAQ, pricing, gallery — rendered on your public site."
+      <WebsiteSubNav />
+      <PageHeader title="Homepage Sections" subtitle="Reusable content sections — services, team, locations, FAQ, pricing, gallery — rendered on your homepage. For standalone pages (About, Careers, Landing Pages), use Pages instead."
         action={<Btn onClick={() => setCreating(true)}>+ New menu</Btn>} />
 
       {creating && (

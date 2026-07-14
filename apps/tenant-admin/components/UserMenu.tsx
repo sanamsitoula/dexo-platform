@@ -49,7 +49,8 @@ export default function UserMenu() {
     ['token', 'refreshToken', 'user', `tenant-token-${subdomain}`, `tenant-user-${subdomain}`].forEach((k) =>
       localStorage.removeItem(k),
     );
-    window.location.href = '/login';
+    // basePath ('/admin') isn't auto-prepended for raw window.location assignments.
+    window.location.href = '/admin/login';
   }
 
   const name = user ? `${user.firstName ?? ''} ${user.lastName ?? ''}`.trim() || user.email : '…';
@@ -57,7 +58,10 @@ export default function UserMenu() {
     user?.roles ??
     (user?.userRoles ?? []).map((r: any) => r?.role?.name ?? r?.role?.code).filter(Boolean);
   const initial = (user?.firstName || user?.email || 'U').charAt(0).toUpperCase();
-  const domainCode = tenant?.domains?.[0]?.domain?.code;
+  // tenant.domains[0].domain.code doesn't exist on this response — the API
+  // flattens it into a plain tenant.domainCode string (see
+  // tenant.service.ts's findBySubdomain()).
+  const domainCode = tenant?.domainCode;
 
   return (
     <div className="relative" ref={ref}>

@@ -14,7 +14,7 @@ export function tenantMiddleware(
 ) {
   const host = request.headers.get('host') ?? '';
   const devTenantHeader = request.headers.get('x-dev-tenant');
-  const devTenantEnv = options.devTenantEnv || process.env.DEV_TENANT || 'vrfitness';
+  const devTenantEnv = options.devTenantEnv || process.env.DEV_TENANT || '';
 
   const subdomain = parseSubdomain(host);
   const slug = subdomain && !RESERVED.has(subdomain)
