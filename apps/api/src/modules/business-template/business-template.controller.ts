@@ -1,7 +1,8 @@
 import { Body, Controller, Delete, Get, NotFoundException, Param, Post, Put, UseGuards } from '@nestjs/common';
 import { ApiTags, ApiOperation } from '@nestjs/swagger';
 import { JwtAuthGuard, PlatformAdminGuard, Public } from '@dexo/auth';
-import { BusinessTemplateService, CreateBusinessTemplateInput, UpdateBusinessTemplateInput } from './business-template.service';
+import { BusinessTemplateService } from './business-template.service';
+import type { CreateBusinessTemplateInput, UpdateBusinessTemplateInput } from './business-template.service';
 
 @ApiTags('business-templates')
 @Controller('business-templates')
