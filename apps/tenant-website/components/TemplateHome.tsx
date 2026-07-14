@@ -1,7 +1,11 @@
 import Link from 'next/link';
 import type { WebsiteTemplate } from '@dexo/shared/src/themes';
-import type { PublicPageSection } from '@/lib/api';
+import type { PublicPageSection, SiteNavLink } from '@/lib/api';
+import type { SiteTheme, FooterConfig } from '@/lib/site-theme';
+import { resolveCardStyle, resolveCtaStyle, resolveIconStyle, cardClasses, ctaButtonClasses, ctaButtonStyle, iconAccentClasses, iconAccentStyle } from '@/lib/style-tokens';
 import PageSectionRenderer from './PageSectionRenderer';
+import SiteNav from './SiteNav';
+import SiteFooter from './SiteFooter';
 
 /**
  * Full-page renderer for the OneDexo template ecosystem. Given the tenant's
@@ -28,6 +32,27 @@ export interface TemplateHomeProps {
   colorText?: string | null;
   colorTextSecondary?: string | null;
   themeBorderRadius?: number | null;
+  /** Workstream B item 1 (website_builder_remaining.md): Theme Builder's
+   * `heroLayout` token, if the tenant has ever set one — overrides
+   * `tpl.heroType` (the original template's permanently-fixed choice) so a
+   * tenant can change hero layout independent of which of the 60 base
+   * templates they originally picked at signup. Falls back to `tpl.heroType`
+   * when unset (backward compatible, zero behavior change otherwise). */
+  heroLayout?: string | null;
+  /** Workstream B item 3 (website_builder_remaining.md): Theme Builder's
+   * `footerConfig` token, if the tenant has ever set one — passed straight
+   * through to the SAME shared `SiteFooter` component every other public
+   * page already renders. Falls back to SiteFooter's own hardcoded default
+   * when unset. */
+  footerConfig?: FooterConfig | null;
+  /** Workstream B item 4 (website_builder_remaining.md): Theme Builder's
+   * `cardStyle`/`ctaStyle`/`iconStyle` tokens, if the tenant has ever set
+   * them — override `tpl.cardStyle`/`tpl.ctaStyle`/`tpl.iconStyle` (the
+   * original template's permanently-fixed choices). Fall back to the
+   * template's own values when unset, same pattern as heroLayout. */
+  cardStyle?: string | null;
+  ctaStyle?: string | null;
+  iconStyle?: string | null;
   contact?: { branch?: string; address?: string; phone?: string; email?: string } | null;
   /** Pre-rendered pricing/plans section (industry-specific), slotted into the journey. */
   plansSlot?: React.ReactNode;
@@ -42,9 +67,15 @@ export interface TemplateHomeProps {
   realSections?: PublicPageSection[];
   subdomain?: string;
   /** settings.branding.navFlags.bookEnabled — defaults to true (enabled)
-   * when the tenant hasn't touched the toggle. No blogEnabled here: this
-   * shell's own nav never had a Blog link to begin with. */
+   * when the tenant hasn't touched the toggle. Only used as a legacy
+   * fallback now that navItems (below) is the preferred source. */
   bookEnabled?: boolean;
+  /** Workstream A: resolved Site Navigation links (lib/api.ts getSiteNav) —
+   * the SAME list SiteNav.tsx renders on every inner page, replacing this
+   * shell's own previously-separate hardcoded nav links. */
+  navItems?: SiteNavLink[];
+  /** Ecommerce-domain tenants only — adds a cart/orders badge. */
+  showShop?: boolean;
 }
 
 const SECTION_LABELS: Record<string, string> = {
@@ -65,9 +96,21 @@ const SECTION_LABELS: Record<string, string> = {
 
 export default function TemplateHome({
   tpl, name, tagline, description, colorPrimary, colorAccent,
-  colorBackground, colorSurface, colorText, colorTextSecondary, themeBorderRadius,
-  contact, plansSlot, menusSlot, realSections, subdomain, bookEnabled = true,
+  colorBackground, colorSurface, colorText, colorTextSecondary, themeBorderRadius, heroLayout, footerConfig,
+  cardStyle, ctaStyle, iconStyle,
+  contact, plansSlot, menusSlot, realSections, subdomain, bookEnabled = true, navItems, showShop,
 }: TemplateHomeProps) {
+  // Resolved hero layout: Theme Builder's heroLayout token (if ever set)
+  // wins over the original template's hardcoded heroType. Validated against
+  // the same 5 known HeroType values so a corrupt/stale token never falls
+  // through to "no hero rendered".
+  const KNOWN_HERO_TYPES = ['split', 'fullscreen', 'floating-cards', 'editorial', 'bold-block'];
+  const resolvedHeroType = (heroLayout && KNOWN_HERO_TYPES.includes(heroLayout) ? heroLayout : tpl.heroType) as typeof tpl.heroType;
+  // Workstream B item 4: card/button/icon style tokens (Theme Builder's, if
+  // ever set — otherwise the tenant's original template's own values).
+  const resolvedCardStyle = resolveCardStyle(cardStyle, tpl.cardStyle);
+  const resolvedCtaStyle = resolveCtaStyle(ctaStyle, tpl.ctaStyle);
+  const resolvedIconStyle = resolveIconStyle(iconStyle, tpl.iconStyle);
   const p = {
     ...tpl.palette,
     primary: colorPrimary || tpl.palette.primary,
@@ -83,59 +126,29 @@ export default function TemplateHome({
   const heroSub = description || tpl.hero.subtitle;
   const journeySections = tpl.sections.filter((s) => !['hero', 'footer', 'pricing', 'contact'].includes(s)).slice(0, 4);
 
-  const navLinks = (
-    <>
-      <Link href="/about" className="opacity-80 hover:opacity-100">About</Link>
-      <Link href="/services" className="opacity-80 hover:opacity-100">Services</Link>
-      {bookEnabled && <Link href="/book" className="opacity-80 hover:opacity-100">Book</Link>}
-      <a href="#plans" className="opacity-80 hover:opacity-100">Plans</a>
-      <Link href="/contact" className="opacity-80 hover:opacity-100">Contact</Link>
-    </>
-  );
-  const authLinks = (
-    <>
-      <Link href="/login" className="px-4 py-2 font-semibold border hover:opacity-80"
-        style={{ borderColor: dark ? '#ffffff40' : `${p.text}30`, borderRadius: radius }}>
-        Member Login
-      </Link>
-      <Link href="/register" className="px-4 py-2 font-semibold text-white" style={{ background: p.primary, borderRadius: radius }}>
-        {tpl.hero.cta}
-      </Link>
-    </>
-  );
+  // Minimal SiteTheme-shaped object so this shell can share the SAME nav
+  // component/markup every inner page uses (SiteNav.tsx) instead of its own
+  // second, separately-hardcoded nav (Workstream A unification). Only the
+  // fields SiteNav actually reads are populated; colors are already applied
+  // globally via CSS vars set in the root layout from the real getSiteTheme().
+  const navTheme: SiteTheme = {
+    tpl,
+    dark,
+    bg: p.background, surface: p.surface, border: `${p.textSecondary}25`, text: p.text, sub: p.textSecondary,
+    primary: p.primary, onPrimary: '#ffffff', accent: p.accent, onAccent: '#ffffff',
+    radius: `${radius}px`,
+    blogEnabled: (navItems?.some((i) => i.href === '/blog')) ?? false,
+    bookEnabled,
+    footerConfig: footerConfig || undefined,
+  };
 
   return (
     <div style={{ background: p.background, color: p.text, minHeight: '100vh', fontFamily: `var(--site-body-font, ${tpl.family === 'maison' ? 'Georgia, serif' : 'inherit'})` }}>
-      {/* ---------- Navigation ---------- */}
-      {tpl.navigationStyle === 'centered' ? (
-        <nav className="px-6 py-5 max-w-6xl mx-auto text-center border-b" style={{ borderColor: `${p.textSecondary}25` }}>
-          <div className="text-2xl font-bold tracking-[0.25em] uppercase">{name}</div>
-          <div className="mt-3 flex justify-center gap-6 text-xs tracking-widest uppercase items-center">
-            {navLinks}
-            <Link href="/register" className="px-3 py-1.5 font-semibold text-white" style={{ background: p.primary, borderRadius: radius }}>
-              {tpl.hero.cta}
-            </Link>
-          </div>
-        </nav>
-      ) : tpl.navigationStyle === 'minimal' ? (
-        <nav className="flex items-center justify-between px-6 py-4 max-w-4xl mx-auto">
-          <div className="text-lg font-bold">{name}</div>
-          <div className="flex gap-5 text-sm items-center">{navLinks}{authLinks}</div>
-        </nav>
-      ) : tpl.navigationStyle === 'bottom-bar' ? (
-        <nav className="flex items-center justify-between px-6 py-4 border-b-4" style={{ borderColor: p.text }}>
-          <div className="text-xl font-black uppercase">{name}</div>
-          <div className="flex gap-4 text-sm font-bold uppercase items-center">{navLinks}{authLinks}</div>
-        </nav>
-      ) : (
-        <nav className="flex items-center justify-between px-6 py-4 max-w-6xl mx-auto">
-          <div className="text-xl font-extrabold" style={{ color: p.primary }}>{name}</div>
-          <div className="flex gap-4 text-sm items-center">{navLinks}{authLinks}</div>
-        </nav>
-      )}
+      {/* ---------- Navigation (shared with every inner page — see SiteNav.tsx) ---------- */}
+      <SiteNav theme={navTheme} name={name} showShop={showShop} navItems={navItems} ctaLabel={tpl.hero.cta} memberLoginUrl="/login" />
 
       {/* ---------- Hero ---------- */}
-      {tpl.heroType === 'fullscreen' && (
+      {resolvedHeroType === 'fullscreen' && (
         <section className="text-center px-4 py-32 text-white" style={{ background: `linear-gradient(180deg, ${p.primary}E6, ${dark ? '#000' : '#1c1917'}E6)` }}>
           <h1 className="text-5xl sm:text-6xl font-bold leading-tight max-w-3xl mx-auto">{heroTitle}</h1>
           <p className="mt-5 text-lg opacity-80 max-w-xl mx-auto">{heroSub}</p>
@@ -144,7 +157,7 @@ export default function TemplateHome({
           </Link>
         </section>
       )}
-      {tpl.heroType === 'floating-cards' && (
+      {resolvedHeroType === 'floating-cards' && (
         <section className="relative overflow-hidden px-6 py-24 max-w-6xl mx-auto"
           style={{ backgroundImage: `radial-gradient(circle at 75% 20%, ${p.primary}44, transparent 55%)` }}>
           <div className="max-w-xl">
@@ -161,7 +174,7 @@ export default function TemplateHome({
             style={{ backgroundColor: '#ffffff18', borderColor: '#ffffff30', borderRadius: radius, transform: 'rotate(-3deg)' }} />
         </section>
       )}
-      {tpl.heroType === 'editorial' && (
+      {resolvedHeroType === 'editorial' && (
         <section className="px-6 py-20 max-w-4xl mx-auto">
           <h1 className="text-6xl font-bold tracking-tight leading-[1.05]">{heroTitle}</h1>
           <div className="h-px w-full my-8" style={{ backgroundColor: `${p.textSecondary}55` }} />
@@ -171,7 +184,7 @@ export default function TemplateHome({
           </Link>
         </section>
       )}
-      {tpl.heroType === 'bold-block' && (
+      {resolvedHeroType === 'bold-block' && (
         <section className="px-6 py-10 max-w-6xl mx-auto">
           <div className="border-4 p-10 sm:p-16" style={{ borderColor: p.text, background: p.primary }}>
             <h1 className="text-5xl sm:text-6xl font-black uppercase leading-tight text-white">{heroTitle}</h1>
@@ -182,7 +195,7 @@ export default function TemplateHome({
           </div>
         </section>
       )}
-      {tpl.heroType === 'split' && (
+      {resolvedHeroType === 'split' && (
         <section className="px-6 py-20 max-w-6xl mx-auto grid grid-cols-1 lg:grid-cols-2 gap-10 items-center">
           <div>
             <h1 className="text-5xl font-bold leading-tight">{heroTitle}</h1>
@@ -203,24 +216,30 @@ export default function TemplateHome({
       {/* ---------- Real, editable Page Builder sections (preferred) ---------- */}
       {realSections && realSections.length > 0 ? (
         realSections.map((section) => (
-          <PageSectionRenderer key={section.id} section={section} colorPrimary={p.primary} subdomain={subdomain || ''} />
+          <PageSectionRenderer key={section.id} section={section} colorPrimary={p.primary} subdomain={subdomain || ''}
+            cardStyle={resolvedCardStyle} ctaStyle={resolvedCtaStyle} iconStyle={resolvedIconStyle} />
         ))
       ) : (
         /* ---------- Fallback: placeholder "journey" cards ----------
          * Only reached when a tenant has no real Home-page sections yet
          * (provisioned before this existed, not yet backfilled) — see
-         * scripts/backfill-homepage.ts. */
+         * scripts/backfill-homepage.ts.
+         *
+         * Workstream B item 4: card surface + icon accent now driven by
+         * the resolved cardStyle/iconStyle tokens (`style-tokens.ts`)
+         * instead of the single ad-hoc `tpl.family === 'bloc'` special
+         * case that used to be the only per-family variance here. */
         <section className="px-6 py-16 max-w-6xl mx-auto">
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
             {journeySections.map((s, i) => (
-              <div key={s} className="p-6 border"
+              <div key={s} className={`p-6 ${cardClasses(resolvedCardStyle)}`}
                 style={{
                   borderRadius: radius,
                   backgroundColor: dark ? '#ffffff0d' : p.surface,
-                  borderColor: tpl.family === 'bloc' ? p.text : `${p.textSecondary}25`,
-                  borderWidth: tpl.family === 'bloc' ? 3 : 1,
+                  borderColor: resolvedCardStyle === 'thick-border' ? p.text : `${p.textSecondary}25`,
                 }}>
-                <span className="block h-1.5 w-10 mb-4" style={{ backgroundColor: i % 2 ? p.accent : p.primary }} />
+                <span className={`block w-8 h-8 mb-4 ${iconAccentClasses(resolvedIconStyle)}`}
+                  style={iconAccentStyle(resolvedIconStyle, i % 2 ? p.accent : p.primary)} />
                 <h3 className="font-bold text-lg">{SECTION_LABELS[s] || s}</h3>
                 <p className="mt-1 text-sm" style={{ color: p.textSecondary }}>
                   Explore {SECTION_LABELS[s]?.toLowerCase() || s} at {name}.
@@ -238,34 +257,39 @@ export default function TemplateHome({
       {menusSlot}
 
       {/* ---------- CTA ---------- */}
+      {/* Workstream B item 4: section + button treatment now keyed on the
+       * resolved ctaStyle token instead of the previous ad-hoc
+       * `tpl.family === 'bloc'` / `dark` special-casing — the fallback
+       * (resolvedCtaStyle === tpl.ctaStyle, since no theme override is set)
+       * reproduces each family's existing look 1:1 (sticky-bar === bloc's
+       * thick-border banner, floating-glow === nocturne's dark gradient +
+       * glow button, gradient-banner/full-width-banner/inline-text render
+       * the same solid-accent-section look every other family already had,
+       * now differentiated by button treatment). */}
       <section className="px-4 py-20 text-center"
-        style={tpl.family === 'bloc'
+        style={resolvedCtaStyle === 'sticky-bar'
           ? { background: p.accent, color: '#000', borderTop: `4px solid ${p.text}`, borderBottom: `4px solid ${p.text}` }
-          : { background: dark ? `linear-gradient(120deg, ${p.primary}33, transparent)` : p.accent, color: dark ? p.text : '#111' }}>
+          : resolvedCtaStyle === 'floating-glow'
+            ? { background: `linear-gradient(120deg, ${p.primary}33, transparent)`, color: p.text }
+            : { background: p.accent, color: '#111' }}>
         <h2 className="text-3xl font-bold">{tpl.hero.subtitle}</h2>
-        <Link href="/register" className="mt-6 inline-block px-8 py-3 font-semibold text-white"
-          style={{ background: dark ? p.primary : '#000', borderRadius: tpl.family === 'bloc' ? 0 : radius }}>
+        <Link href="/register" className={`mt-6 inline-block px-8 py-3 ${ctaButtonClasses(resolvedCtaStyle)}`}
+          style={ctaButtonStyle(resolvedCtaStyle, dark ? p.primary : '#000')}>
           {tpl.hero.cta}
         </Link>
       </section>
 
       {/* ---------- Footer ---------- */}
-      <footer className="py-10 text-center text-sm" style={{ color: p.textSecondary }}>
-        {contact && (
-          <p className="mb-2">
-            {contact.branch}{contact.address ? ` · ${contact.address}` : ''}{contact.phone ? ` · ${contact.phone}` : ''}
-          </p>
-        )}
-        <div className="space-x-3 mb-2">
-          <Link href="/">Home</Link>
-          <Link href="/about">About</Link>
-          <Link href="/services">Services</Link>
-          {bookEnabled && <Link href="/book">Book</Link>}
-          <Link href="/register">Join</Link>
-          <Link href="/contact">Contact</Link>
-        </div>
-        <div>© {new Date().getFullYear()} {name} · {tpl.templateName} template · Powered by OneDexo</div>
-      </footer>
+      {/* Workstream B item 3 (website_builder_remaining.md): this shell now
+       * renders the SAME shared SiteFooter component every other public
+       * page (about/services/contact/shop/...) already uses, instead of its
+       * own separately-hardcoded <footer> block — this collapses the
+       * "second hardcoded footer" the same way Workstream A collapsed the
+       * second hardcoded nav. `navTheme.footerConfig` carries the resolved
+       * Theme Builder token through; SiteFooter falls back to its own
+       * hardcoded default (which matches what this block used to render)
+       * when unset, so nothing changes for tenants who never touch it. */}
+      <SiteFooter theme={navTheme} name={name} contact={contact} />
     </div>
   );
 }

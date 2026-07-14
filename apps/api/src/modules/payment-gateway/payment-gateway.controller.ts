@@ -1,12 +1,63 @@
-import { Controller, Get, Post, Put, Body, Param, Query, UseGuards, Req, Res } from '@nestjs/common';
+import { Controller, Get, Post, Put, Body, Param, Query, UseGuards, Req, Res, BadRequestException } from '@nestjs/common';
 import { ApiTags, ApiOperation, ApiBearerAuth } from '@nestjs/swagger';
 import { JwtAuthGuard } from '@dexo/auth';
 import { PaymentGatewayService } from './payment-gateway.service';
+import { StripeConnectService } from './stripe-connect.service';
 
 @ApiTags('Payment Gateway')
 @Controller('payment-gateway')
 export class PaymentGatewayController {
-  constructor(private paymentGatewayService: PaymentGatewayService) {}
+  constructor(
+    private paymentGatewayService: PaymentGatewayService,
+    private stripeConnectService: StripeConnectService,
+  ) {}
+
+  /**
+   * Stripe Connect onboarding — tenant clicks "Connect Stripe" in
+   * tenant-admin, we create (or reuse) their Express connected account and
+   * hand back Stripe's hosted onboarding URL to redirect them to.
+   */
+  @Post('stripe-connect/onboard')
+  @UseGuards(JwtAuthGuard)
+  @ApiBearerAuth()
+  @ApiOperation({ summary: 'Start (or resume) Stripe Connect onboarding for the tenant' })
+  async startStripeConnectOnboarding(
+    @Req() req: any,
+    @Body() body: { email: string; name?: string; refreshUrl: string; returnUrl: string },
+  ) {
+    if (!body.email || !body.refreshUrl || !body.returnUrl) {
+      throw new BadRequestException('email, refreshUrl, and returnUrl are required');
+    }
+    return this.stripeConnectService.startOnboarding(req.user.tenantId, body);
+  }
+
+  @Get('stripe-connect/status')
+  @UseGuards(JwtAuthGuard)
+  @ApiBearerAuth()
+  @ApiOperation({ summary: "Get the tenant's Stripe Connect account status" })
+  async getStripeConnectStatus(@Req() req: any) {
+    return this.stripeConnectService.getStatus(req.user.tenantId);
+  }
+
+  /**
+   * Stripe webhook (platform-level, no auth — verified via signature).
+   * main.ts enables `rawBody: true` so `req.rawBody` here is the exact
+   * bytes Stripe signed, independent of the global JSON body parser.
+   */
+  @Post('webhook/stripe')
+  @ApiOperation({ summary: 'Stripe webhook (account.updated, etc.)' })
+  async stripeWebhook(@Req() req: any, @Res() res: any) {
+    const signature = req.headers['stripe-signature'];
+    try {
+      const event = this.stripeConnectService.verifyWebhookSignature(req.rawBody, signature);
+      if (event.type === 'account.updated') {
+        await this.stripeConnectService.handleAccountUpdated(event.data.object as any);
+      }
+      res.status(200).json({ received: true });
+    } catch (err: any) {
+      res.status(400).send(`Webhook Error: ${err.message}`);
+    }
+  }
 
   @Get('providers')
   @ApiOperation({ summary: 'Get available provider types' })

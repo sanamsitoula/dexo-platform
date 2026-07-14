@@ -1,6 +1,6 @@
 import Link from 'next/link';
 import { headers } from 'next/headers';
-import { getFitnessInfo, getFitnessPlans, getGenericTenantInfo, getPublicPage, type FitnessInfo, type FitnessPlan } from '@/lib/api';
+import { getFitnessInfo, getFitnessPlans, getGenericTenantInfo, getPublicPage, getSiteNav, type FitnessInfo, type FitnessPlan } from '@/lib/api';
 import { getSiteTheme } from '@/lib/site-theme';
 import SiteNav from '@/components/SiteNav';
 import SiteFooter from '@/components/SiteFooter';
@@ -43,11 +43,12 @@ const card = {
 
 export default async function ServicesPage() {
   const subdomain = resolveSubdomain();
-  const [info, plans, theme, realPage] = await Promise.all([
+  const [info, plans, theme, realPage, navItems] = await Promise.all([
     getFitnessInfo(subdomain),
     getFitnessPlans(subdomain),
     getSiteTheme(subdomain),
     getPublicPage(subdomain, 'services'),
+    getSiteNav(subdomain),
   ]);
   // See apps/tenant-website/app/about/page.tsx — getFitnessInfo() is
   // fitness-only and 404s for every other business type.
@@ -56,7 +57,7 @@ export default async function ServicesPage() {
   if (realPage && realPage.sections.length > 0) {
     return (
       <div style={{ background: 'var(--site-bg)', color: 'var(--site-text)', minHeight: '100vh' }}>
-        <SiteNav theme={theme} name={t.name} active="/services" />
+        <SiteNav theme={theme} name={t.name} active="/services" navItems={navItems} />
         {realPage.sections.map((section) => (
           <PageSectionRenderer key={section.id} section={section} colorPrimary="var(--site-primary)" subdomain={subdomain} />
         ))}
@@ -67,7 +68,7 @@ export default async function ServicesPage() {
 
   return (
     <div style={{ background: 'var(--site-bg)', color: 'var(--site-text)', minHeight: '100vh' }}>
-      <SiteNav theme={theme} name={t.name} active="/services" />
+      <SiteNav theme={theme} name={t.name} active="/services" navItems={navItems} />
 
       {/* Hero */}
       <section className="text-center px-4 py-20 max-w-3xl mx-auto">

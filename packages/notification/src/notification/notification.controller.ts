@@ -49,4 +49,12 @@ export class NotificationController {
     // Tenant scope always comes from the JWT — never from the request body.
     return this.notificationService.sendNotification({ ...data, tenantId: req.user.tenantId });
   }
+
+  @Get('announcements')
+  @UseGuards(JwtAuthGuard)
+  @ApiBearerAuth()
+  @ApiOperation({ summary: "This tenant's recent announcements (any authenticated user, including members)" })
+  async getAnnouncements(@Req() req: any) {
+    return this.notificationService.getAnnouncements(req.user.tenantId);
+  }
 }

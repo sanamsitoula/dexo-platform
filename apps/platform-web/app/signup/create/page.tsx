@@ -26,9 +26,12 @@ interface Template {
   description: string;
   colorPrimary: string;
   features: Record<string, boolean>;
+  icon?: string | null;
 }
 
-/** Emoji for an industry card, keyed by fuzzy domainType match. */
+/** Emoji for an industry card. Prefers the platform-admin-managed `icon` field
+ * on the template itself; the fuzzy domainType match below is only a fallback
+ * for templates seeded before that field existed. */
 function industryEmoji(domainType: string): string {
   const d = domainType.toLowerCase();
   const map: Array<[string, string]> = [
@@ -308,6 +311,11 @@ export default function SignupWizard() {
       colorAccent: d.themeId ? d.colorAccent : (recommended?.colors.accent || d.colorAccent),
       logo: d.logo || recommended?.logo || '',
     }));
+    // Picking an industry is always a complete, valid answer for this step —
+    // advance immediately instead of making the user also press "Continue".
+    // Small delay so the selected-card highlight is visible before the
+    // step transitions (matches the existing .step-anim transition timing).
+    setTimeout(() => setStep((s) => (s < STEPS.length - 1 ? s + 1 : s)), 200);
   }
 
   function pickTemplate(t: WebsiteTemplate) {
@@ -667,7 +675,7 @@ export default function SignupWizard() {
                         }`}
                       >
                         <div className="flex items-center gap-2 mb-2">
-                          <span className="text-2xl">{industryEmoji(t.domainType)}</span>
+                          <span className="text-2xl">{t.icon || industryEmoji(t.domainType)}</span>
                           <span className="h-2 w-8 rounded-full" style={{ backgroundColor: t.colorPrimary }} />
                         </div>
                         <div className="font-semibold text-gray-900">{t.name}</div>
@@ -975,7 +983,9 @@ export default function SignupWizard() {
                     </div>
                     <div className="p-4 grid grid-cols-2 gap-y-2 text-sm">
                       <span className="text-gray-500">Business</span>
-                      <span className="font-semibold text-gray-900 text-right">{data.name || '—'} {industryEmoji(data.domainType)}</span>
+                      <span className="font-semibold text-gray-900 text-right">
+                        {data.name || '—'} {templates.find((t) => t.domainType === data.domainType)?.icon || industryEmoji(data.domainType)}
+                      </span>
                       <span className="text-gray-500">Template</span>
                       <span className="font-semibold text-gray-900 text-right">
                         {selectedTemplate ? `${selectedTemplate.templateName} (${selectedTemplate.style})` : selectedTheme?.name || '—'}

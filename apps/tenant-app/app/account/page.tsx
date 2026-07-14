@@ -3,6 +3,7 @@
 import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { useAuth } from '../../lib/auth';
+import Link from 'next/link';
 import { fitnessApi, publicApi, authApi, resolveSubdomain } from '../../lib/api';
 import { useTenantInfo } from '../../lib/tenant-info';
 import FileUpload from '../_components/FileUpload';
@@ -99,6 +100,25 @@ export default function AccountPage() {
             {member.branch?.name ? ` · ${member.branch.name}` : ''}
           </div>
         )}
+      </div>
+
+      {/* More */}
+      <div className="mt-3 rounded-xl border border-gray-200 divide-y divide-gray-100 overflow-hidden">
+        <Link href="/explore" className="flex items-center gap-3 px-4 py-3 hover:bg-gray-50">
+          <span className="text-lg">🔎</span>
+          <span className="flex-1 text-sm font-semibold text-gray-800">Explore</span>
+          <span className="text-gray-300">›</span>
+        </Link>
+        <Link href="/announcements" className="flex items-center gap-3 px-4 py-3 hover:bg-gray-50">
+          <span className="text-lg">📣</span>
+          <span className="flex-1 text-sm font-semibold text-gray-800">Announcements</span>
+          <span className="text-gray-300">›</span>
+        </Link>
+        <Link href="/contact" className="flex items-center gap-3 px-4 py-3 hover:bg-gray-50">
+          <span className="text-lg">✉️</span>
+          <span className="flex-1 text-sm font-semibold text-gray-800">Contact us</span>
+          <span className="text-gray-300">›</span>
+        </Link>
       </div>
 
       <button onClick={signOut} className="mt-4 w-full rounded-lg py-2.5 border border-red-200 text-red-600 font-semibold">

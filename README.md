@@ -21,7 +21,7 @@ permissions, and a branded theme — with zero code changes.
 - ✅ Domain-driven dynamic menus, dashboards, and themes
 - ✅ Multi-branch management (per-tenant, branch-level financial isolation)
 - ✅ 6 OAuth social login providers (Google, GitHub, Apple, Facebook, Microsoft, LinkedIn)
-- ✅ 5 payment gateways (eSewa, Fonepay, ConnectIPS, Stripe, PayPal)
+- ✅ 5 payment gateways (eSewa, Fonepay, ConnectIPS, Stripe, PayPal) + Stripe Connect for direct-to-tenant payouts — see [`stripe_implement.md`](./stripe_implement.md)
 - ✅ NFRS-compliant double-entry finance module
 - ✅ IRD Electronic Billing reports (Schedule 6D sales-book, purchase-book, VAT return, TDS, aging, cancelled-bills, reprint-log, audit-trail, CBMS sync status) — 11 endpoints + tenant-admin UI
 - ✅ **Accounting & bookkeeping** — Chart of Accounts (ledger heads + sub-accounts, 46-account Nepal NFRS template), manual double-entry journal entries (draft/post/reverse), GL auto-posting from invoices & payments, trial balance / balance sheet / income statement now reflect real data

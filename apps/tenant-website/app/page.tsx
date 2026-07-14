@@ -1,6 +1,6 @@
 import Link from 'next/link';
 import { headers } from 'next/headers';
-import { getFitnessInfo, getFitnessPlans, getGenericTenantInfo, getTenantBySubdomain, getCategories, getProducts, getPublicMenus, getPublicPage, type FitnessInfo, type FitnessPlan } from '@/lib/api';
+import { getFitnessInfo, getFitnessPlans, getGenericTenantInfo, getTenantBySubdomain, getCategories, getProducts, getPublicMenus, getPublicPage, getSiteNav, type FitnessInfo, type FitnessPlan } from '@/lib/api';
 import { getTemplate } from '@dexo/shared/src/themes';
 import TemplateHome from '@/components/TemplateHome';
 import EcommerceHome from '@/components/EcommerceHome';
@@ -68,8 +68,9 @@ function TemplatePlans({ plans, color, name }: { plans: FitnessPlan[]; color: st
   );
 }
 
-export default async function Home() {
+export default async function Home({ searchParams }: { searchParams?: { theme_preview?: string } }) {
   const subdomain = resolveSubdomain();
+  const themePreviewToken = searchParams?.theme_preview;
   const tenant = await getTenantBySubdomain(subdomain);
   // tenant.service.ts's findBySubdomain() deliberately FLATTENS the
   // TenantDomain relation into a plain `tenant.domainCode` string and
@@ -81,12 +82,13 @@ export default async function Home() {
   const domainCode = tenant?.domainCode;
 
   if (isEcommerceDomainCode(domainCode)) {
-    const [theme, categories, featured, latest, ecomHomePage] = await Promise.all([
-      getSiteTheme(subdomain),
+    const [theme, categories, featured, latest, ecomHomePage, navItems] = await Promise.all([
+      getSiteTheme(subdomain, undefined, undefined, themePreviewToken),
       getCategories(subdomain),
       getProducts(subdomain, { featured: true }),
       getProducts(subdomain),
       getPublicPage(subdomain, 'home'),
+      getSiteNav(subdomain),
     ]);
     return (
       <EcommerceHome
@@ -98,15 +100,17 @@ export default async function Home() {
         latest={latest}
         realSections={ecomHomePage?.sections}
         subdomain={subdomain}
+        navItems={navItems}
       />
     );
   }
 
-  const [info, plans, menus, homePage] = await Promise.all([
+  const [info, plans, menus, homePage, navItems] = await Promise.all([
     getFitnessInfo(subdomain),
     getFitnessPlans(subdomain),
     getPublicMenus(subdomain),
     getPublicPage(subdomain, 'home'),
+    getSiteNav(subdomain),
   ]);
   // getFitnessInfo() is fitness-only and 404s for every other business type
   // — this branch is only reached when a tenant has no chosen template at
@@ -126,7 +130,7 @@ export default async function Home() {
     // previously this branch never called it at all, so Theme Builder's
     // background/surface/text/radius tokens (everything except the two
     // legacy colorPrimary/colorAccent fields) never reached the homepage.
-    const theme = await getSiteTheme(subdomain, branding.colorPrimary, branding.colorAccent);
+    const theme = await getSiteTheme(subdomain, branding.colorPrimary, branding.colorAccent, themePreviewToken);
     return (
       <TemplateHome
         tpl={tpl}
@@ -140,12 +144,19 @@ export default async function Home() {
         colorText={theme.text}
         colorTextSecondary={theme.sub}
         themeBorderRadius={parseInt(theme.radius, 10) || undefined}
+        heroLayout={theme.heroLayout}
+        footerConfig={theme.footerConfig}
+        cardStyle={theme.cardStyle}
+        ctaStyle={theme.ctaStyle}
+        iconStyle={theme.iconStyle}
         bookEnabled={theme.bookEnabled}
         contact={t.contact}
         plansSlot={<TemplatePlans plans={plans} color={theme.primary} name={t.name} />}
         menusSlot={<>{menus.map((m) => <MenuSection key={m.id} menu={m} colorPrimary={theme.primary} />)}</>}
         realSections={homePage?.sections}
         subdomain={subdomain}
+        navItems={navItems}
+        showShop={isEcommerceDomainCode(domainCode)}
       />
     );
   }

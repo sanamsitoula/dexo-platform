@@ -83,10 +83,41 @@ export default function PaymentSettingsPage() {
   const [credentials, setCredentials] = useState<Record<string, string>>({});
   const [saving, setSaving] = useState(false);
 
+  // Stripe Connect — separate from the manual-credentials flow above. The
+  // tenant onboards a Stripe Express account and payments route through
+  // Dexo's platform Stripe account via transfer_data, so no secret key ever
+  // needs to be typed in here.
+  const [connectStatus, setConnectStatus] = useState<{ connected: boolean; chargesEnabled: boolean; payoutsEnabled: boolean; detailsSubmitted: boolean } | null>(null);
+  const [connectEmail, setConnectEmail] = useState('');
+  const [connecting, setConnecting] = useState(false);
+
   useEffect(() => {
     fetchProviders();
+    fetchConnectStatus();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [subdomain]);
+
+  async function fetchConnectStatus() {
+    const r = await paymentGatewayApi.getStripeConnectStatus(subdomain);
+    if (r.data) setConnectStatus(r.data);
+  }
+
+  async function handleConnectStripe() {
+    if (!connectEmail.trim()) {
+      alert('Enter the business email to use for your Stripe account');
+      return;
+    }
+    setConnecting(true);
+    const returnUrl = window.location.href;
+    const r = await paymentGatewayApi.startStripeConnectOnboarding(subdomain, {
+      email: connectEmail.trim(),
+      refreshUrl: returnUrl,
+      returnUrl,
+    });
+    setConnecting(false);
+    if (r.error) alert(r.error);
+    else if (r.data?.url) window.location.href = r.data.url;
+  }
 
   async function fetchProviders() {
     setLoading(true);
@@ -169,6 +200,40 @@ export default function PaymentSettingsPage() {
       />
 
       {error && <div className="mb-4 bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-lg text-sm">{error}</div>}
+
+      <Card className="mb-6 p-5">
+        <div className="flex items-center justify-between gap-4 flex-wrap">
+          <div>
+            <div className="flex items-center gap-2">
+              <span className="font-semibold text-gray-900">Stripe Connect</span>
+              {connectStatus?.chargesEnabled ? (
+                <Badge color="green">Active — can accept payments</Badge>
+              ) : connectStatus?.connected ? (
+                <Badge color="amber">Onboarding incomplete</Badge>
+              ) : (
+                <Badge color="gray">Not connected</Badge>
+              )}
+            </div>
+            <p className="text-sm text-gray-500 mt-1 max-w-xl">
+              Connect your own Stripe account so customer payments go straight to you — no secret keys to manage.
+              Dexo routes each charge to your account automatically.
+            </p>
+          </div>
+          {!connectStatus?.chargesEnabled && (
+            <div className="flex items-center gap-2">
+              <Input
+                value={connectEmail}
+                onChange={(e: any) => setConnectEmail(e.target.value)}
+                placeholder="business@yourcompany.com"
+                className="w-56"
+              />
+              <Btn onClick={handleConnectStripe} disabled={connecting}>
+                {connecting ? 'Redirecting…' : connectStatus?.connected ? 'Finish onboarding' : 'Connect with Stripe'}
+              </Btn>
+            </div>
+          )}
+        </div>
+      </Card>
 
       <Card>
         {loading ? (

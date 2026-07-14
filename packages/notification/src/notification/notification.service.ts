@@ -91,6 +91,7 @@ export class NotificationService {
     title?: string;
     message?: string;
     audience?: string;
+    memberIds?: string[];
     tenantId?: string;
   }) {
     // Announcement broadcast path (no template needed).
@@ -100,6 +101,7 @@ export class NotificationService {
         title: data.title!,
         message: data.message!,
         audience: data.audience || 'all',
+        memberIds: data.memberIds,
       });
     }
 
@@ -132,18 +134,26 @@ export class NotificationService {
    * Broadcast an announcement to a tenant's members: emails the selected
    * audience through the tenant's SMTP (best-effort) and stores the last 20
    * announcements in Setting key "announcements" for in-app display.
+   *
+   * `memberIds`, when given, targets exactly those members (e.g. a trainer's
+   * hand-picked or "select all" client list) instead of an audience segment —
+   * the two are mutually exclusive, `memberIds` wins if both are present.
    */
-  async sendAnnouncement(tenantId: string, dto: { title: string; message: string; audience: string }) {
+  async sendAnnouncement(tenantId: string, dto: { title: string; message: string; audience: string; memberIds?: string[] }) {
     if (!dto.title || !dto.message) throw new BadRequestException('title and message are required');
     const audience = (dto.audience || 'all').toLowerCase();
 
     const where: any = { tenantId };
-    if (audience.includes('active')) where.status = 'ACTIVE';
-    if (audience.includes('expir')) {
-      where.status = 'ACTIVE';
-      where.memberships = {
-        some: { status: 'ACTIVE', endDate: { lte: new Date(Date.now() + 14 * 86400000), gte: new Date() } },
-      };
+    if (dto.memberIds?.length) {
+      where.id = { in: dto.memberIds };
+    } else {
+      if (audience.includes('active')) where.status = 'ACTIVE';
+      if (audience.includes('expir')) {
+        where.status = 'ACTIVE';
+        where.memberships = {
+          some: { status: 'ACTIVE', endDate: { lte: new Date(Date.now() + 14 * 86400000), gte: new Date() } },
+        };
+      }
     }
     const members = await this.prisma.member.findMany({
       where,
@@ -154,7 +164,13 @@ export class NotificationService {
     // Persist for in-app announcement feeds (last 20).
     const existing = await this.prisma.setting.findFirst({ where: { tenantId, key: 'announcements' } });
     const list = Array.isArray(existing?.value) ? (existing!.value as any[]) : [];
-    const entry = { title: dto.title, message: dto.message, audience, sentAt: new Date().toISOString(), recipients: recipients.length };
+    const entry = {
+      title: dto.title,
+      message: dto.message,
+      audience: dto.memberIds?.length ? `${dto.memberIds.length} selected client${dto.memberIds.length === 1 ? '' : 's'}` : audience,
+      sentAt: new Date().toISOString(),
+      recipients: recipients.length,
+    };
     const updated = [entry, ...list].slice(0, 20);
     if (existing) {
       await this.prisma.setting.update({ where: { id: existing.id }, data: { value: updated as any } });
@@ -175,5 +191,14 @@ export class NotificationService {
     }
 
     return { message: 'Announcement sent', audience, audienceCount: recipients.length, emailsSent: sent };
+  }
+
+  /** The last 20 announcements broadcast for this tenant (see `sendAnnouncement`,
+   * which persists them to Setting key "announcements") — read by both
+   * tenant-admin and the member-facing tenant-app so members can see what
+   * staff have announced without needing email. */
+  async getAnnouncements(tenantId: string) {
+    const setting = await this.prisma.setting.findFirst({ where: { tenantId, key: 'announcements' } });
+    return Array.isArray(setting?.value) ? (setting!.value as any[]) : [];
   }
 }

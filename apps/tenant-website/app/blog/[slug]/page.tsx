@@ -2,7 +2,7 @@ import Link from 'next/link';
 import { notFound } from 'next/navigation';
 import { headers } from 'next/headers';
 import DOMPurify from 'isomorphic-dompurify';
-import { getTenantBySubdomain, getBlogBySlug } from '@/lib/api';
+import { getTenantBySubdomain, getBlogBySlug, getSiteNav } from '@/lib/api';
 import { getSiteTheme } from '@/lib/site-theme';
 import SiteNav from '@/components/SiteNav';
 import SiteFooter from '@/components/SiteFooter';
@@ -28,10 +28,11 @@ export async function generateMetadata({ params }: { params: { slug: string } })
 
 export default async function BlogDetailPage({ params }: { params: { slug: string } }) {
   const subdomain = resolveSubdomain();
-  const [tenant, theme, post] = await Promise.all([
+  const [tenant, theme, post, navItems] = await Promise.all([
     getTenantBySubdomain(subdomain),
     getSiteTheme(subdomain),
     getBlogBySlug(params.slug),
+    getSiteNav(subdomain),
   ]);
   const name = tenant?.name || 'Blog';
 
@@ -44,7 +45,7 @@ export default async function BlogDetailPage({ params }: { params: { slug: strin
 
   return (
     <div style={{ background: 'var(--site-bg)', color: 'var(--site-text)', minHeight: '100vh' }}>
-      <SiteNav theme={theme} name={name} active="/blog" />
+      <SiteNav theme={theme} name={name} active="/blog" navItems={navItems} />
 
       <article className="px-4 py-16 max-w-3xl mx-auto">
         <Link href="/blog" className="text-sm font-semibold hover:underline" style={{ color: 'var(--site-primary)' }}>

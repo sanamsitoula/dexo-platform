@@ -3,6 +3,7 @@
 // Submits to /api/contact with subdomain → stored as ContactMessage (tenant-scoped)
 
 import { headers } from 'next/headers';
+import { getSiteNav } from '@/lib/api';
 import { getSiteTheme } from '@/lib/site-theme';
 import SiteNav from '@/components/SiteNav';
 import SiteFooter from '@/components/SiteFooter';
@@ -62,11 +63,12 @@ export default async function ContactPage() {
   const h = headers();
   const subdomain = h.get('x-tenant-slug') || '';
 
-  const [branches, tenant, whatsapp, theme] = await Promise.all([
+  const [branches, tenant, whatsapp, theme, navItems] = await Promise.all([
     getBranches(subdomain),
     getTenantInfo(subdomain),
     getPublicWhatsApp(subdomain),
     getSiteTheme(subdomain),
+    getSiteNav(subdomain),
   ]);
 
   const hq = branches.find((b: any) => b.isHeadquarters) ?? branches[0];
@@ -78,7 +80,7 @@ export default async function ContactPage() {
 
   return (
     <div style={{ background: 'var(--site-bg)', color: 'var(--site-text)', minHeight: '100vh' }}>
-      <SiteNav theme={theme} name={tenantName} active="/contact" />
+      <SiteNav theme={theme} name={tenantName} active="/contact" navItems={navItems} />
 
       {/* Hero */}
       <section className="text-center px-4 py-16 max-w-3xl mx-auto">

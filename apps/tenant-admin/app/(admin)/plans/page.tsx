@@ -3,9 +3,10 @@
 import { useEffect, useState, useCallback } from 'react';
 import { gymApi } from '@/lib/api';
 import { resolveTenantAdminSubdomain } from '@/lib/subdomain';
+import { tenantWebsiteUrl } from '@/lib/portal';
 import { PageHeader, Card, Btn, SlideOver, Field, Input, EmptyState, Badge } from '../_ui';
 
-const EMPTY_FORM = { name: '', type: 'MONTHLY', durationDays: 30, priceNpr: 2000, vatPercent: 13, includesTrainer: false, includesClasses: true, description: '' };
+const EMPTY_FORM = { name: '', type: 'MONTHLY', durationDays: 30, priceNpr: 2000, vatPercent: 13, includesTrainer: false, includesClasses: true, description: '', isActive: true };
 
 export default function PlansPage() {
   const subdomain = resolveTenantAdminSubdomain();
@@ -36,10 +37,15 @@ export default function PlansPage() {
     setForm({
       name: p.name, type: p.type, durationDays: p.durationDays, priceNpr: Number(p.priceNpr),
       vatPercent: Number(p.vatPercent), includesTrainer: !!p.includesTrainer, includesClasses: !!p.includesClasses,
-      description: p.description || '',
+      description: p.description || '', isActive: p.isActive !== false,
     });
     setErr(null);
     setOpen(true);
+  }
+
+  async function toggleActive(p: any) {
+    await gymApi.plans.update(subdomain, p.id, { isActive: p.isActive === false });
+    load();
   }
 
   async function save() {
@@ -59,8 +65,13 @@ export default function PlansPage() {
 
   return (
     <div>
-      <PageHeader title="Membership Plans" subtitle="What members can buy · NPR + 13% VAT"
-        action={<Btn onClick={openNew}>+ New plan</Btn>} />
+      <PageHeader title="Membership Plans" subtitle="What members can buy · NPR + 13% VAT · shown live on your public Services page"
+        action={
+          <div className="flex items-center gap-3">
+            <a href={`${tenantWebsiteUrl(subdomain)}/services`} target="_blank" rel="noreferrer" className="text-sm text-indigo-600 hover:underline">View on site ↗</a>
+            <Btn onClick={openNew}>+ New plan</Btn>
+          </div>
+        } />
 
       {loading ? <div className="text-gray-400">Loading…</div> : plans.length === 0 ? (
         <Card><EmptyState icon="🎟️" title="No plans yet" msg="Create your first membership plan." /></Card>
@@ -80,7 +91,12 @@ export default function PlansPage() {
                 {p.includesClasses && <Badge color="indigo">Classes</Badge>}
                 {p.includesDietPlan && <Badge color="indigo">Diet</Badge>}
               </div>
-              <button onClick={() => openEdit(p)} className="mt-4 text-sm text-indigo-600 hover:underline font-medium">Edit →</button>
+              <div className="flex items-center gap-3 mt-4">
+                <button onClick={() => openEdit(p)} className="text-sm text-indigo-600 hover:underline font-medium">Edit →</button>
+                <button onClick={() => toggleActive(p)} className="text-sm text-gray-500 hover:underline ml-auto">
+                  {p.isActive === false ? 'Activate' : 'Deactivate (hide from site)'}
+                </button>
+              </div>
             </Card>
           ))}
         </div>

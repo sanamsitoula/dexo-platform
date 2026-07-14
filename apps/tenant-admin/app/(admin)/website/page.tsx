@@ -54,9 +54,6 @@ export default function WebsiteBuilderPage() {
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [msg, setMsg] = useState<{ ok: boolean; text: string } | null>(null);
-  const [blogEnabled, setBlogEnabled] = useState(true);
-  const [bookEnabled, setBookEnabled] = useState(true);
-  const [navMsg, setNavMsg] = useState<string | null>(null);
 
   useEffect(() => {
     if (!subdomain) return;
@@ -68,20 +65,9 @@ export default function WebsiteBuilderPage() {
       setTemplateId(branding.templateId || '');
       setTagline(branding.tagline || '');
       setDescription(branding.description || '');
-      const navFlags = branding.navFlags || {};
-      setBlogEnabled(navFlags.blogEnabled ?? true);
-      setBookEnabled(navFlags.bookEnabled ?? true);
       setLoading(false);
     })();
   }, [subdomain]);
-
-  async function saveNavFlags(next: { blogEnabled?: boolean; bookEnabled?: boolean }) {
-    const merged = { blogEnabled, bookEnabled, ...next };
-    setBlogEnabled(merged.blogEnabled);
-    setBookEnabled(merged.bookEnabled);
-    const r = await tenantApi.updateOwnBranding(subdomain, { navFlags: merged });
-    if (!r.error) { setNavMsg('Saved'); setTimeout(() => setNavMsg(null), 1500); }
-  }
 
   // tenant.service.ts's findBySubdomain() flattens TenantDomain into a plain
   // tenant.domainCode string and strips `domains` entirely — the
@@ -144,22 +130,6 @@ export default function WebsiteBuilderPage() {
           current template's exact colors are copied in automatically as an editable theme, so nothing
           changes on your live site until you edit it there.
         </p>
-      </Card>
-
-      <Card className="p-6 mb-4">
-        <div className="font-bold text-gray-900 mb-1">Navigation</div>
-        <p className="text-xs text-gray-500 mb-3">Show or hide these links in your site's nav bar. Enabled by default. The pages themselves stay reachable by direct link either way — this only controls whether they're advertised in the menu.</p>
-        <div className="flex flex-col gap-2">
-          <label className="flex items-center gap-2 text-sm text-gray-700">
-            <input type="checkbox" checked={blogEnabled} onChange={(e) => saveNavFlags({ blogEnabled: e.target.checked })} />
-            Show "Blog" in nav
-          </label>
-          <label className="flex items-center gap-2 text-sm text-gray-700">
-            <input type="checkbox" checked={bookEnabled} onChange={(e) => saveNavFlags({ bookEnabled: e.target.checked })} />
-            Show "Book" in nav
-          </label>
-        </div>
-        {navMsg && <p className="text-xs text-green-600 mt-2">{navMsg}</p>}
       </Card>
 
       <Card className="p-6 mb-4">
@@ -229,7 +199,10 @@ export default function WebsiteBuilderPage() {
         </div>
       </Card>
 
-      <p className="text-xs text-gray-400 mt-4">Navigation links, logo/colors and social links are managed in <b>{settingsLabel}</b> and the Domain tools — this page controls your template and homepage copy.</p>
+      <p className="text-xs text-gray-400 mt-4">
+        What shows in your nav bar is managed in <Link href="/website/navigation" className="text-indigo-600 hover:underline">Navigation</Link> —
+        logo/colors and social links are managed in <b>{settingsLabel}</b> and the Domain tools; this page controls your template and homepage copy.
+      </p>
     </div>
   );
 }

@@ -21,13 +21,22 @@ export class StripeProvider implements IPaymentProvider {
       : 'https://api.stripe.com/v1';
   }
 
+  /** Tenants that have gone through Stripe Connect onboarding don't hold
+   * their own secret key — payments run through Dexo's platform Stripe
+   * account and are routed to the tenant via transfer_data.destination. */
   private getAuth(config: PaymentProviderConfig): string {
-    const secretKey = config.credentials?.secretKey;
+    const secretKey = config.credentials?.secretKey || process.env.STRIPE_SECRET_KEY;
     return `Bearer ${secretKey}`;
   }
 
+  private getConnectAccountId(config: PaymentProviderConfig): string | undefined {
+    return config.config?.connect?.accountId;
+  }
+
   isConfigured(config: PaymentProviderConfig): boolean {
-    return !!(config.credentials?.secretKey && config.credentials?.publishableKey);
+    const hasOwnKeys = !!(config.credentials?.secretKey && config.credentials?.publishableKey);
+    const hasConnectAccount = !!this.getConnectAccountId(config) && config.config?.connect?.chargesEnabled;
+    return hasOwnKeys || hasConnectAccount;
   }
 
   async initPayment(
@@ -63,6 +72,11 @@ export class StripeProvider implements IPaymentProvider {
         }
       }
       params.append('metadata[orderId]', request.orderId);
+
+      const connectAccountId = this.getConnectAccountId(config);
+      if (connectAccountId) {
+        params.append('payment_intent_data[transfer_data][destination]', connectAccountId);
+      }
 
       const response = await axios.post(`${apiBase}/checkout/sessions`, params, {
         headers: {

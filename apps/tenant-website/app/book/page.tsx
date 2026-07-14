@@ -1,5 +1,5 @@
 import { headers } from 'next/headers';
-import { getFitnessInfo, getFitnessPlans, getGenericTenantInfo, type FitnessInfo } from '@/lib/api';
+import { getFitnessInfo, getFitnessPlans, getGenericTenantInfo, getSiteNav, type FitnessInfo } from '@/lib/api';
 import { getSiteTheme } from '@/lib/site-theme';
 import SiteNav from '@/components/SiteNav';
 import SiteFooter from '@/components/SiteFooter';
@@ -31,10 +31,11 @@ const BASE_SERVICES = [
 
 export default async function BookPage({ searchParams }: { searchParams?: { service?: string } }) {
   const subdomain = resolveSubdomain();
-  const [info, plans, theme] = await Promise.all([
+  const [info, plans, theme, navItems] = await Promise.all([
     getFitnessInfo(subdomain),
     getFitnessPlans(subdomain),
     getSiteTheme(subdomain),
+    getSiteNav(subdomain),
   ]);
   const t = info || (await getGenericTenantInfo(subdomain)) || FALLBACK;
 
@@ -50,7 +51,7 @@ export default async function BookPage({ searchParams }: { searchParams?: { serv
 
   return (
     <div style={{ background: 'var(--site-bg)', color: 'var(--site-text)', minHeight: '100vh' }}>
-      <SiteNav theme={theme} name={t.name} active="/book" />
+      <SiteNav theme={theme} name={t.name} active="/book" navItems={navItems} />
 
       {/* Hero */}
       <section className="text-center px-4 py-14 max-w-2xl mx-auto">

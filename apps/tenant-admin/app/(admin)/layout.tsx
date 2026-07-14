@@ -60,8 +60,10 @@ const NAV_SECTIONS: { heading: string; items: { href: string; label: string }[] 
     items: [
       { href: '/website', label: 'Overview' },
       { href: '/website/theme', label: 'Theme Builder' },
+      { href: '/website/navigation', label: 'Navigation' },
       { href: '/website/pages', label: 'Pages' },
       { href: '/website/menus', label: 'Homepage Sections' },
+      { href: '/plans', label: 'Membership Plans' },
       { href: '/website/forms', label: 'Forms' },
       { href: '/website/media', label: 'Media Library' },
     ],

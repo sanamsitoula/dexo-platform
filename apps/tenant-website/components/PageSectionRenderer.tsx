@@ -1,13 +1,33 @@
 import DOMPurify from 'isomorphic-dompurify';
 import type { PublicPageSection } from '@/lib/api';
 import PublicFormRenderer from './PublicFormRenderer';
+import { cardClasses, ctaButtonClasses, ctaButtonStyle, iconAccentClasses, iconAccentStyle } from '@/lib/style-tokens';
 
 /** Renders one PageSection per its componentType — the Component Library's
  * public-facing counterpart to tenant-admin's editable field forms (see
- * packages/shared/src/page-builder/components.ts for the field defs). */
-export default function PageSectionRenderer({ section, colorPrimary, subdomain }: { section: PublicPageSection; colorPrimary?: string; subdomain: string }) {
+ * packages/shared/src/page-builder/components.ts for the field defs).
+ *
+ * Workstream B item 4 (website_builder_remaining.md): `cardStyle`/
+ * `ctaStyle`/`iconStyle` are the resolved Theme Builder tokens (from
+ * getSiteTheme()), threaded through from callers that have them
+ * (TemplateHome.tsx, EcommerceHome.tsx). Callers that don't pass them
+ * (about/services/[slug]/preview pages) render exactly as before —
+ * cardClasses/ctaButtonClasses/iconAccentClasses all fall back to the
+ * literal class strings hardcoded here previously when the token is
+ * undefined. */
+export default function PageSectionRenderer({ section, colorPrimary, subdomain, cardStyle, ctaStyle, iconStyle }: {
+  section: PublicPageSection;
+  colorPrimary?: string;
+  subdomain: string;
+  cardStyle?: string;
+  ctaStyle?: string;
+  iconStyle?: string;
+}) {
   const color = colorPrimary || '#4F46E5';
   const c = section.content || {};
+  const cardCls = cardClasses(cardStyle);
+  const ctaCls = ctaButtonClasses(ctaStyle);
+  const ctaSty = ctaButtonStyle(ctaStyle, color);
 
   switch (section.componentType) {
     case 'form':
@@ -20,7 +40,7 @@ export default function PageSectionRenderer({ section, colorPrimary, subdomain }
             {c.title && <h1 className={`text-4xl font-extrabold ${c.image ? 'text-white' : ''}`}>{c.title}</h1>}
             {c.subtitle && <p className={`mt-4 text-lg ${c.image ? 'text-white/90' : 'opacity-70'}`}>{c.subtitle}</p>}
             {c.ctaLabel && c.ctaUrl && (
-              <a href={c.ctaUrl} className="inline-block mt-6 px-6 py-3 rounded-lg font-semibold text-white" style={{ backgroundColor: color }}>{c.ctaLabel}</a>
+              <a href={c.ctaUrl} className={`inline-block mt-6 px-6 py-3 ${ctaCls}`} style={ctaSty}>{c.ctaLabel}</a>
             )}
           </div>
         </section>
@@ -37,7 +57,7 @@ export default function PageSectionRenderer({ section, colorPrimary, subdomain }
           {c.title && <h2 className="text-2xl font-bold">{c.title}</h2>}
           {c.subtitle && <p className="mt-2 opacity-70">{c.subtitle}</p>}
           {c.ctaLabel && c.ctaUrl && (
-            <a href={c.ctaUrl} className="inline-block mt-5 px-6 py-3 rounded-lg font-semibold text-white" style={{ backgroundColor: color }}>{c.ctaLabel}</a>
+            <a href={c.ctaUrl} className={`inline-block mt-5 px-6 py-3 ${ctaCls}`} style={ctaSty}>{c.ctaLabel}</a>
           )}
         </section>
       );
@@ -48,7 +68,8 @@ export default function PageSectionRenderer({ section, colorPrimary, subdomain }
           {c.title && <h2 className="text-3xl font-bold text-center mb-10">{c.title}</h2>}
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
             {(c.items || []).map((it: any, i: number) => (
-              <div key={i} className="p-6 rounded-xl border border-gray-200">
+              <div key={i} className={`p-6 ${cardCls}`}>
+                <span className={`block w-8 h-8 mb-3 ${iconAccentClasses(iconStyle)}`} style={iconAccentStyle(iconStyle, color)} />
                 <h3 className="font-bold text-lg">{it.title}</h3>
                 {it.description && <p className="text-sm opacity-70 mt-2">{it.description}</p>}
               </div>
@@ -63,7 +84,7 @@ export default function PageSectionRenderer({ section, colorPrimary, subdomain }
           {c.title && <h2 className="text-3xl font-bold text-center mb-10">{c.title}</h2>}
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
             {(c.items || []).map((it: any, i: number) => (
-              <blockquote key={i} className="p-6 rounded-xl border border-gray-200">
+              <blockquote key={i} className={`p-6 ${cardCls}`}>
                 {it.photo && <img src={it.photo} alt={it.author} className="w-12 h-12 rounded-full object-cover mb-3" />}
                 <p className="italic opacity-80">&ldquo;{it.quote}&rdquo;</p>
                 {it.author && <footer className="mt-3 font-semibold text-sm">— {it.author}</footer>}
@@ -79,7 +100,7 @@ export default function PageSectionRenderer({ section, colorPrimary, subdomain }
           {c.title && <h2 className="text-3xl font-bold text-center mb-10">{c.title}</h2>}
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
             {(c.items || []).map((it: any, i: number) => (
-              <div key={i} className="p-6 rounded-xl border border-gray-200 flex flex-col">
+              <div key={i} className={`p-6 flex flex-col ${cardCls}`}>
                 <h3 className="font-bold text-lg">{it.name}</h3>
                 {it.price && <div className="text-2xl font-extrabold mt-2" style={{ color }}>{it.price}</div>}
                 {it.description && <p className="text-sm opacity-70 mt-3 flex-1">{it.description}</p>}
@@ -155,7 +176,7 @@ export default function PageSectionRenderer({ section, colorPrimary, subdomain }
           {c.subtitle && <p className="mt-2 opacity-70">{c.subtitle}</p>}
           <form className="mt-5 flex gap-2 max-w-sm mx-auto">
             <input type="email" required placeholder="you@example.com" className="flex-1 rounded-lg border border-gray-300 px-3 py-2 text-sm" />
-            <button type="submit" className="px-4 py-2 rounded-lg font-semibold text-white text-sm" style={{ backgroundColor: color }}>{c.ctaLabel || 'Subscribe'}</button>
+            <button type="submit" className={`px-4 py-2 text-sm ${ctaCls}`} style={ctaSty}>{c.ctaLabel || 'Subscribe'}</button>
           </form>
         </section>
       );

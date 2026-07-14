@@ -66,6 +66,28 @@ export default function ProductForm({
     onChange({ ...values, [key]: value });
   }
 
+  const NEW_OPTION = '__new__';
+
+  async function handleCategorySelect(value: string) {
+    if (value !== NEW_OPTION) { set('categoryId', value); return; }
+    const name = window.prompt('New category name');
+    if (!name?.trim()) return;
+    const r = await ecommerceApi.categories.create(subdomain, { name: name.trim() });
+    if (r.error || !r.data) { alert(r.error || 'Could not create category'); return; }
+    setCategories((prev) => [...prev, r.data]);
+    set('categoryId', (r.data as any).id);
+  }
+
+  async function handleBrandSelect(value: string) {
+    if (value !== NEW_OPTION) { set('brandId', value); return; }
+    const name = window.prompt('New brand name');
+    if (!name?.trim()) return;
+    const r = await ecommerceApi.brands.create(subdomain, { name: name.trim() });
+    if (r.error || !r.data) { alert(r.error || 'Could not create brand'); return; }
+    setBrands((prev) => [...prev, r.data]);
+    set('brandId', (r.data as any).id);
+  }
+
   function addImage() {
     const url = imageInput.trim();
     if (url && !values.images.includes(url)) set('images', [...values.images, url]);
@@ -104,25 +126,27 @@ export default function ProductForm({
           <Field label="Category">
             <select
               value={values.categoryId}
-              onChange={(e) => set('categoryId', e.target.value)}
+              onChange={(e) => handleCategorySelect(e.target.value)}
               className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm"
             >
               <option value="">Select category</option>
               {categories.map((c) => (
                 <option key={c.id} value={c.id}>{c.name}</option>
               ))}
+              <option value={NEW_OPTION}>+ New category…</option>
             </select>
           </Field>
           <Field label="Brand">
             <select
               value={values.brandId}
-              onChange={(e) => set('brandId', e.target.value)}
+              onChange={(e) => handleBrandSelect(e.target.value)}
               className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm"
             >
               <option value="">Select brand</option>
               {brands.map((b) => (
                 <option key={b.id} value={b.id}>{b.name}</option>
               ))}
+              <option value={NEW_OPTION}>+ New brand…</option>
             </select>
           </Field>
         </div>

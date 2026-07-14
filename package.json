@@ -35,6 +35,8 @@
     "db:verify:fitness": "node scripts/verify-fitness-seed.js",
     "db:seed:restaurant": "ts-node --transpile-only scripts/seed/03-tenants/restaurant.ts",
     "db:seed:ecommerce-demo": "ts-node --transpile-only scripts/seed/09-ecommerce-demo.ts",
+    "backfill:homepage": "ts-node --transpile-only scripts/backfill-homepage.ts",
+    "backfill:navigation": "ts-node --transpile-only scripts/backfill-navigation.ts",
     "db:migrate:fresh": "npx prisma migrate reset --force && npm run db:seed",
     "db:studio": "prisma studio",
     "db:reset": "prisma migrate reset",

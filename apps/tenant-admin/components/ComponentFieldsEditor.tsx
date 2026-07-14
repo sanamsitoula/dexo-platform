@@ -160,17 +160,17 @@ function FieldEditor({
     const items: any[] = Array.isArray(value) ? value : []
     const itemFields = field.itemFields || []
 
-    function updateItem(i: number, key: string, v: any) {
+    const updateItem = (i: number, key: string, v: any) => {
       const next = items.slice()
       next[i] = { ...next[i], [key]: v }
       onChange(next)
     }
-    function addItem() {
+    const addItem = () => {
       const blank: Record<string, any> = {}
       for (const f of itemFields) blank[f.key] = ''
       onChange([...items, blank])
     }
-    function removeItem(i: number) {
+    const removeItem = (i: number) => {
       onChange(items.filter((_, idx) => idx !== i))
     }
 

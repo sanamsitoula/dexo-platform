@@ -158,12 +158,26 @@ export default function MembershipPage() {
             <div className="text-xl font-extrabold mt-5">{member?.user?.firstName || ''} {member?.user?.lastName || ''}</div>
             <div className="text-sm opacity-85">{active.plan?.name}</div>
             <div className="flex justify-center my-5"><QrGrid value={active.qrCode || active.id} size={150} /></div>
+            <div className="text-center text-xs opacity-80 font-semibold -mt-1 mb-3">
+              {active.startDate ? new Date(active.startDate).toLocaleDateString() : '—'} → {active.endDate ? new Date(active.endDate).toLocaleDateString() : '—'}
+            </div>
             <div className="flex justify-between text-xs">
               <div><div className="opacity-70 font-bold tracking-wider">DAYS LEFT</div><div className="text-base font-extrabold mt-0.5">{daysLeft}</div></div>
               <div className="text-right"><div className="opacity-70 font-bold tracking-wider">VALID UNTIL</div><div className="text-base font-extrabold mt-0.5">{active.endDate ? new Date(active.endDate).toLocaleDateString() : '—'}</div></div>
             </div>
             <div className="h-1.5 bg-white/25 rounded-full mt-3 overflow-hidden"><div className="h-1.5 bg-white rounded-full" style={{ width: `${pct * 100}%` }} /></div>
           </div>
+
+          {daysLeft <= 0 && status === 'ACTIVE' && (
+            <div className="mt-3 rounded-2xl bg-red-50 border border-red-200 px-4 py-3 text-sm text-red-700 font-semibold">
+              ⚠️ Your membership expired on {active.endDate ? new Date(active.endDate).toLocaleDateString() : 'recently'}. Renew to keep access.
+            </div>
+          )}
+          {daysLeft > 0 && daysLeft <= 3 && (
+            <div className="mt-3 rounded-2xl bg-amber-50 border border-amber-200 px-4 py-3 text-sm text-amber-700 font-semibold">
+              ⏳ Your membership expires in {daysLeft} day{daysLeft === 1 ? '' : 's'} — renew now to avoid a gap.
+            </div>
+          )}
 
           {/* Actions */}
           <div className="grid grid-cols-3 gap-3 mt-4">

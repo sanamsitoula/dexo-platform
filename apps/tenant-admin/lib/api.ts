@@ -89,13 +89,14 @@ export const tenantDashboardApi = {
 }
 
 export const tenantCrmApi = {
-  list: (subdomain: string, params?: { page?: number; limit?: number; channel?: string; status?: string; search?: string }) => {
+  list: (subdomain: string, params?: { page?: number; limit?: number; channel?: string; status?: string; search?: string; source?: string }) => {
     const searchParams = new URLSearchParams()
     if (params?.page) searchParams.append('page', params.page.toString())
     if (params?.limit) searchParams.append('limit', params.limit.toString())
     if (params?.channel && params.channel !== 'all') searchParams.append('channel', params.channel)
     if (params?.status && params.status !== 'all') searchParams.append('status', params.status)
     if (params?.search) searchParams.append('search', params.search)
+    if (params?.source && params.source !== 'all') searchParams.append('source', params.source)
     return fetchApi<any>(`/contact?${searchParams.toString()}`, subdomain)
   },
 
@@ -464,6 +465,17 @@ export const themeBuilderApi = {
   remove: (s: string, themeId: string) => fetchApi<any>(`/themes/${themeId}`, s, { method: 'DELETE' }),
   activate: (s: string, themeId: string) => fetchApi<any>(`/themes/${themeId}/activate`, s, { method: 'POST' }),
   deactivate: (s: string, themeId: string) => fetchApi<any>(`/themes/${themeId}/deactivate`, s, { method: 'POST' }),
+  publish: (s: string, themeId: string) => fetchApi<any>(`/themes/${themeId}/publish`, s, { method: 'POST' }),
+  revert: (s: string, themeId: string) => fetchApi<any>(`/themes/${themeId}/revert`, s, { method: 'POST' }),
+  previewToken: (s: string, themeId: string) => fetchApi<{ token: string; expiresAt: number }>(`/themes/${themeId}/preview-token`, s, { method: 'POST' }),
+}
+
+export const siteNavigationApi = {
+  list: (s: string) => fetchApi<any[]>('/site-navigation', s),
+  create: (s: string, data: any) => fetchApi<any>('/site-navigation', s, { method: 'POST', body: JSON.stringify(data) }),
+  update: (s: string, id: string, data: any) => fetchApi<any>(`/site-navigation/${id}`, s, { method: 'PUT', body: JSON.stringify(data) }),
+  remove: (s: string, id: string) => fetchApi<any>(`/site-navigation/${id}`, s, { method: 'DELETE' }),
+  reorderAll: (s: string, orderedIds: string[]) => fetchApi<any[]>('/site-navigation/reorder-all', s, { method: 'PUT', body: JSON.stringify({ orderedIds }) }),
 }
 
 export const mediaApi = {
@@ -497,15 +509,6 @@ export const mediaApi = {
   },
 }
 
-export const tenantSettingsApi = {
-  getBranding: (subdomain: string) => fetchApi<any>('/settings/branding', subdomain),
-  saveBranding: (subdomain: string, data: any) =>
-    fetchApi<any>('/settings/branding', subdomain, { method: 'PUT', body: JSON.stringify(data) }),
-  get: (subdomain: string) => fetchApi<any>('/settings', subdomain),
-  set: (subdomain: string, key: string, value: any) =>
-    fetchApi<any>('/settings', subdomain, { method: 'POST', body: JSON.stringify({ key, value }) }),
-}
-
 // Domain-specific APIs
 export const fitnessApi = {
   listMembers: (subdomain: string) =>
@@ -528,6 +531,7 @@ export const gymApi = {
     list: (s: string) => fetchApi<any>('/fitness/membership-plans', s),
     create: (s: string, data: any) => fetchApi<any>('/fitness/membership-plans', s, { method: 'POST', body: JSON.stringify(data) }),
     update: (s: string, id: string, data: any) => fetchApi<any>(`/fitness/membership-plans/${id}`, s, { method: 'PUT', body: JSON.stringify(data) }),
+    remove: (s: string, id: string) => fetchApi<any>(`/fitness/membership-plans/${id}`, s, { method: 'DELETE' }),
   },
   trainers: {
     list: (s: string) => fetchApi<any>('/fitness/trainers', s),
@@ -546,8 +550,12 @@ export const gymApi = {
     recordExpense: (s: string, data: any) => fetchApi<any>('/fitness/finance/expense', s, { method: 'POST', body: JSON.stringify(data) }),
   },
   announcements: {
-    send: (s: string, data: { title: string; message: string; audience?: string }) =>
+    send: (s: string, data: { title: string; message: string; audience?: string; memberIds?: string[] }) =>
       fetchApi<any>('/notifications/send', s, { method: 'POST', body: JSON.stringify({ type: 'ANNOUNCEMENT', ...data }) }),
+    /** Same GET /notifications/announcements the member app (tenant-app) reads —
+     * lets admin confirm a send actually landed for members. */
+    list: (s: string) =>
+      fetchApi<Array<{ title: string; message: string; audience?: string; sentAt: string; recipients?: number }>>('/notifications/announcements', s),
   },
   workouts: {
     list: (s: string, params?: { memberId?: string; status?: string }) => {
@@ -736,10 +744,95 @@ export const ecommerceApi = {
       const qs = p.toString() ? `?${p.toString()}` : ''
       return fetchApi<any[]>(`/ecommerce/products${qs}`, s)
     },
+    listPaginated: (
+      s: string,
+      params?: {
+        page?: number
+        limit?: number
+        categoryId?: string
+        brandId?: string
+        q?: string
+        status?: 'active' | 'inactive' | 'all'
+        featured?: boolean
+        stockStatus?: 'in_stock' | 'low_stock' | 'out_of_stock'
+        minPrice?: number
+        maxPrice?: number
+      }
+    ) => {
+      const p = new URLSearchParams()
+      if (params?.page) p.append('page', String(params.page))
+      if (params?.limit) p.append('limit', String(params.limit))
+      if (params?.categoryId) p.append('categoryId', params.categoryId)
+      if (params?.brandId) p.append('brandId', params.brandId)
+      if (params?.q) p.append('q', params.q)
+      if (params?.status && params.status !== 'all') p.append('status', params.status)
+      if (params?.featured) p.append('featured', 'true')
+      if (params?.stockStatus) p.append('stockStatus', params.stockStatus)
+      if (params?.minPrice != null) p.append('minPrice', String(params.minPrice))
+      if (params?.maxPrice != null) p.append('maxPrice', String(params.maxPrice))
+      const qs = p.toString() ? `?${p.toString()}` : ''
+      return fetchApi<{ items: any[]; total: number; page: number; limit: number; totalPages: number }>(`/ecommerce/products/paginated${qs}`, s)
+    },
     getById: (s: string, id: string) => fetchApi<any>(`/ecommerce/products/${id}`, s),
     create: (s: string, data: any) => fetchApi<any>('/ecommerce/products', s, { method: 'POST', body: JSON.stringify(data) }),
     update: (s: string, id: string, data: any) => fetchApi<any>(`/ecommerce/products/${id}`, s, { method: 'PUT', body: JSON.stringify(data) }),
     remove: (s: string, id: string) => fetchApi<{ message: string }>(`/ecommerce/products/${id}`, s, { method: 'DELETE' }),
+
+    /** Downloads the CSV export (auth'd fetch + blob, since a plain <a href> can't attach the bearer token). */
+    async exportCsv(s: string, params?: { categoryId?: string; brandId?: string; q?: string; status?: string; featured?: boolean }): Promise<ApiResponse<Blob>> {
+      const p = new URLSearchParams()
+      if (params?.categoryId) p.append('categoryId', params.categoryId)
+      if (params?.brandId) p.append('brandId', params.brandId)
+      if (params?.q) p.append('q', params.q)
+      if (params?.status && params.status !== 'all') p.append('status', params.status)
+      if (params?.featured) p.append('featured', 'true')
+      const qs = p.toString() ? `?${p.toString()}` : ''
+      const token = getToken(s)
+      try {
+        const response = await fetch(`${API_BASE_URL}/ecommerce/products/export${qs}`, {
+          headers: token ? { Authorization: `Bearer ${token}` } : undefined,
+        })
+        if (!response.ok) return { error: `HTTP ${response.status}` }
+        return { data: await response.blob() }
+      } catch (error) {
+        return { error: error instanceof Error ? error.message : 'Network error' }
+      }
+    },
+
+    /** Downloads the import sample/template CSV. */
+    async importSampleCsv(s: string): Promise<ApiResponse<Blob>> {
+      const token = getToken(s)
+      try {
+        const response = await fetch(`${API_BASE_URL}/ecommerce/products/import/sample`, {
+          headers: token ? { Authorization: `Bearer ${token}` } : undefined,
+        })
+        if (!response.ok) return { error: `HTTP ${response.status}` }
+        return { data: await response.blob() }
+      } catch (error) {
+        return { error: error instanceof Error ? error.message : 'Network error' }
+      }
+    },
+
+    /** Multipart upload — bypasses fetchApi so the browser sets its own multipart Content-Type boundary. */
+    async import(s: string, file: File): Promise<ApiResponse<{ created: number; updated: number; errors: { row: number; message: string }[] }>> {
+      const form = new FormData()
+      form.append('file', file)
+      const token = getToken(s)
+      try {
+        const response = await fetch(`${API_BASE_URL}/ecommerce/products/import`, {
+          method: 'POST',
+          headers: token ? { Authorization: `Bearer ${token}` } : undefined,
+          body: form,
+        })
+        if (!response.ok) {
+          const errorData = await response.json().catch(() => ({}))
+          return { error: errorData.message || `HTTP ${response.status}` }
+        }
+        return { data: await response.json() }
+      } catch (error) {
+        return { error: error instanceof Error ? error.message : 'Network error' }
+      }
+    },
   },
 
   warehouses: {
@@ -821,6 +914,13 @@ export const paymentGatewayApi = {
     fixedFee?: number
     supportedCurrencies?: string[]
   }) => fetchApi<any>('/payment-gateway/tenant/providers', s, { method: 'POST', body: JSON.stringify(data) }),
+  // Stripe Connect — tenant onboards their own Stripe Express account so
+  // customer payments route directly to them (Dexo's platform Stripe
+  // account collects the charge and transfers it via transfer_data).
+  startStripeConnectOnboarding: (s: string, data: { email: string; name?: string; refreshUrl: string; returnUrl: string }) =>
+    fetchApi<{ accountId: string; url: string }>('/payment-gateway/stripe-connect/onboard', s, { method: 'POST', body: JSON.stringify(data) }),
+  getStripeConnectStatus: (s: string) =>
+    fetchApi<{ connected: boolean; chargesEnabled: boolean; payoutsEnabled: boolean; detailsSubmitted: boolean; requirementsDue?: string[] }>('/payment-gateway/stripe-connect/status', s),
 }
 
 // Plan modules API — which modules the tenant's subscription plan enables.

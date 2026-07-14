@@ -217,6 +217,9 @@ export default function FitnessOnboarding() {
               })}
             </div>
             <PrimaryBtn primary={primary} disabled={!selectedPlan} onClick={() => setStep('pay')}>Continue to payment</PrimaryBtn>
+            <button onClick={() => router.replace('/')} className="w-full text-center text-sm font-semibold mt-4 py-2" style={{ color: primary }}>
+              Skip for now — explore first
+            </button>
           </div>
         )}
 

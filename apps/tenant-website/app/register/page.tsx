@@ -1,5 +1,5 @@
 import { headers } from 'next/headers';
-import { getFitnessInfo, getGenericTenantInfo, type FitnessInfo } from '@/lib/api';
+import { getFitnessInfo, getGenericTenantInfo, getSiteNav, type FitnessInfo } from '@/lib/api';
 import { getSiteTheme } from '@/lib/site-theme';
 import SiteNav from '@/components/SiteNav';
 import SiteFooter from '@/components/SiteFooter';
@@ -19,12 +19,12 @@ const FALLBACK: FitnessInfo = {
 
 export default async function RegisterPage() {
   const subdomain = resolveSubdomain();
-  const [info, theme] = await Promise.all([getFitnessInfo(subdomain), getSiteTheme(subdomain)]);
+  const [info, theme, navItems] = await Promise.all([getFitnessInfo(subdomain), getSiteTheme(subdomain), getSiteNav(subdomain)]);
   const t = info || (await getGenericTenantInfo(subdomain)) || FALLBACK;
 
   return (
     <div style={{ background: 'var(--site-bg)', color: 'var(--site-text)', minHeight: '100vh' }}>
-      <SiteNav theme={theme} name={t.name} />
+      <SiteNav theme={theme} name={t.name} navItems={navItems} />
       <section className="px-4 py-16 flex justify-center">
         <AuthPanel subdomain={subdomain} tenantId={t.id} tenantName={t.name} logoUrl={t.logoUrl} initialTab="register" />
       </section>

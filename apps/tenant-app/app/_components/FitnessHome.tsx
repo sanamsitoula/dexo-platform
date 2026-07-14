@@ -137,6 +137,7 @@ export default function FitnessHome() {
           <Quick href="/badges" icon="🏅" label="Badges" primary={primary} />
           <Quick href="/referrals" icon="🤝" label="Refer" primary={primary} />
           <Quick href="/bookings" icon="🗓️" label="Classes" primary={primary} />
+          <Quick href="/explore" icon="🔎" label="Explore" primary={primary} />
         </div>
       </div>
     </div>

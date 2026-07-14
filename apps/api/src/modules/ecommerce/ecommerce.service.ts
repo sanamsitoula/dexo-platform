@@ -124,6 +124,286 @@ export class EcommerceService {
     });
   }
 
+  /**
+   * Paginated, filterable product listing for the tenant-admin Products page.
+   * Server-side pagination + most filters map straight to a Prisma `where`;
+   * `stockStatus` is the one exception — total on-hand stock is an aggregate
+   * across StockItem rows with no denormalized column to filter/sort on in
+   * Prisma, so when it's requested we fetch the where-matching set (category/
+   * brand/status/featured/price/search applied), compute stock per product in
+   * JS, filter, then paginate the filtered array in memory. Fine at gym/shop
+   * catalog scale (hundreds–low thousands of SKUs); would need a materialized
+   * stock-total column to stay a single indexed query at larger scale.
+   */
+  async listProductsPaginated(
+    tenantId: string,
+    q: {
+      page?: number;
+      limit?: number;
+      categoryId?: string;
+      brandId?: string;
+      search?: string;
+      status?: 'active' | 'inactive' | 'all';
+      featured?: boolean;
+      stockStatus?: 'in_stock' | 'low_stock' | 'out_of_stock';
+      minPrice?: number;
+      maxPrice?: number;
+    },
+  ) {
+    const page = Math.max(1, q.page || 1);
+    const limit = Math.min(100, Math.max(1, q.limit || 10));
+
+    const where: any = {
+      tenantId,
+      categoryId: q.categoryId || undefined,
+      brandId: q.brandId || undefined,
+      isActive: q.status === 'active' ? true : q.status === 'inactive' ? false : undefined,
+      isFeatured: q.featured ? true : undefined,
+    };
+    if (q.search) {
+      where.OR = [
+        { name: { contains: q.search, mode: 'insensitive' as const } },
+        { sku: { contains: q.search, mode: 'insensitive' as const } },
+      ];
+    }
+    if (q.minPrice != null || q.maxPrice != null) {
+      where.sellingPrice = {
+        ...(q.minPrice != null ? { gte: q.minPrice } : {}),
+        ...(q.maxPrice != null ? { lte: q.maxPrice } : {}),
+      };
+    }
+
+    if (!q.stockStatus) {
+      const [items, total] = await Promise.all([
+        this.prisma.product.findMany({
+          where,
+          include: { category: true, brand: true, variants: true, stockItems: true },
+          orderBy: { createdAt: 'desc' },
+          skip: (page - 1) * limit,
+          take: limit,
+        }),
+        this.prisma.product.count({ where }),
+      ]);
+      return { items, total, page, limit, totalPages: Math.max(1, Math.ceil(total / limit)) };
+    }
+
+    // stockStatus set — fetch the full filtered set, filter by computed stock in JS, then paginate.
+    const all = await this.prisma.product.findMany({
+      where,
+      include: { category: true, brand: true, variants: true, stockItems: true },
+      orderBy: { createdAt: 'desc' },
+    });
+    const withStock = all.filter((p) => {
+      const stock = p.stockItems.reduce((s, si) => s + si.quantityOnHand, 0);
+      if (q.stockStatus === 'out_of_stock') return stock <= 0;
+      if (q.stockStatus === 'low_stock') return stock > 0 && p.reorderPoint != null && stock <= p.reorderPoint;
+      // in_stock
+      return stock > 0 && (p.reorderPoint == null || stock > p.reorderPoint);
+    });
+    const total = withStock.length;
+    const items = withStock.slice((page - 1) * limit, page * limit);
+    return { items, total, page, limit, totalPages: Math.max(1, Math.ceil(total / limit)) };
+  }
+
+  /** Full CSV export of the tenant's catalog, honoring the same filters as listProductsPaginated (minus pagination). */
+  async exportProductsCsv(
+    tenantId: string,
+    q: { categoryId?: string; brandId?: string; search?: string; status?: 'active' | 'inactive' | 'all'; featured?: boolean },
+  ) {
+    const where: any = {
+      tenantId,
+      categoryId: q.categoryId || undefined,
+      brandId: q.brandId || undefined,
+      isActive: q.status === 'active' ? true : q.status === 'inactive' ? false : undefined,
+      isFeatured: q.featured ? true : undefined,
+    };
+    if (q.search) {
+      where.OR = [
+        { name: { contains: q.search, mode: 'insensitive' as const } },
+        { sku: { contains: q.search, mode: 'insensitive' as const } },
+      ];
+    }
+    const products = await this.prisma.product.findMany({
+      where,
+      include: { category: true, brand: true },
+      orderBy: { createdAt: 'desc' },
+    });
+    return this.toCsv(this.csvHeaders(), products.map((p) => this.productToCsvRow(p)));
+  }
+
+  private csvHeaders() {
+    return ['name', 'sku', 'barcode', 'description', 'categoryName', 'brandName', 'sellingPrice', 'costPrice', 'taxRatePercent', 'trackInventory', 'isActive', 'isFeatured', 'reorderPoint'];
+  }
+
+  private productToCsvRow(p: any): string[] {
+    return [
+      p.name ?? '',
+      p.sku ?? '',
+      p.barcode ?? '',
+      p.description ?? '',
+      p.category?.name ?? '',
+      p.brand?.name ?? '',
+      String(p.sellingPrice ?? ''),
+      String(p.costPrice ?? ''),
+      String(p.taxRatePercent ?? ''),
+      String(p.trackInventory ?? ''),
+      String(p.isActive ?? ''),
+      String(p.isFeatured ?? ''),
+      p.reorderPoint != null ? String(p.reorderPoint) : '',
+    ];
+  }
+
+  private csvEscape(value: string): string {
+    if (/[",\n]/.test(value)) return `"${value.replace(/"/g, '""')}"`;
+    return value;
+  }
+
+  private toCsv(headers: string[], rows: string[][]): string {
+    return [headers, ...rows].map((row) => row.map((v) => this.csvEscape(String(v ?? ''))).join(',')).join('\n');
+  }
+
+  /** Downloadable CSV template for bulk product import, with two illustrative example rows. */
+  getImportSampleCsv(): string {
+    return this.toCsv(this.csvHeaders(), [
+      ['Whey Protein 1kg', 'SKU-WHEY-1KG', '8901234567890', 'Chocolate flavor whey protein', 'Supplements', 'MuscleTech', '3500', '2500', '13', 'true', 'true', 'true', '10'],
+      ['Yoga Mat', 'SKU-YOGA-01', '', 'Non-slip 6mm yoga mat', 'Accessories', 'Generic', '1200', '700', '13', 'true', 'true', 'false', '5'],
+    ]);
+  }
+
+  /** Minimal CSV line parser — handles quoted fields with embedded commas/newlines/escaped quotes. No external dependency needed for this well-defined column format. */
+  private parseCsv(text: string): string[][] {
+    const rows: string[][] = [];
+    let row: string[] = [];
+    let field = '';
+    let inQuotes = false;
+    const s = text.replace(/\r\n/g, '\n').replace(/\r/g, '\n');
+    for (let i = 0; i < s.length; i++) {
+      const c = s[i];
+      if (inQuotes) {
+        if (c === '"') {
+          if (s[i + 1] === '"') { field += '"'; i++; } else { inQuotes = false; }
+        } else {
+          field += c;
+        }
+      } else if (c === '"') {
+        inQuotes = true;
+      } else if (c === ',') {
+        row.push(field); field = '';
+      } else if (c === '\n') {
+        row.push(field); field = '';
+        rows.push(row); row = [];
+      } else {
+        field += c;
+      }
+    }
+    if (field.length > 0 || row.length > 0) { row.push(field); rows.push(row); }
+    return rows.filter((r) => !(r.length === 1 && r[0].trim() === ''));
+  }
+
+  /**
+   * Upserts products by SKU from a CSV buffer (same headers as getImportSampleCsv).
+   * Category/brand names are resolved to IDs, auto-creating them if they don't
+   * exist yet — same on-the-fly-create UX as the New Product form's category/
+   * brand dropdowns. Bad rows are skipped and reported rather than aborting
+   * the whole import.
+   */
+  async importProductsCsv(tenantId: string, buffer: Buffer): Promise<{ created: number; updated: number; errors: { row: number; message: string }[] }> {
+    const text = buffer.toString('utf-8');
+    const rows = this.parseCsv(text);
+    if (rows.length === 0) return { created: 0, updated: 0, errors: [{ row: 0, message: 'Empty file' }] };
+
+    const header = rows[0].map((h) => h.trim());
+    const idx = (col: string) => header.indexOf(col);
+    const need = ['name', 'sku', 'sellingPrice'];
+    for (const col of need) {
+      if (idx(col) === -1) {
+        return { created: 0, updated: 0, errors: [{ row: 0, message: `Missing required column "${col}"` }] };
+      }
+    }
+
+    const categoryCache = new Map<string, string>();
+    const brandCache = new Map<string, string>();
+    let created = 0;
+    let updated = 0;
+    const errors: { row: number; message: string }[] = [];
+
+    for (let r = 1; r < rows.length; r++) {
+      const rowNum = r + 1; // 1-based, header is row 1
+      const cols = rows[r];
+      try {
+        const get = (col: string) => (idx(col) >= 0 ? (cols[idx(col)] ?? '').trim() : '');
+        const name = get('name');
+        const sku = get('sku');
+        const sellingPriceStr = get('sellingPrice');
+        if (!name) throw new Error('missing name');
+        if (!sku) throw new Error('missing sku');
+        if (!sellingPriceStr) throw new Error('missing sellingPrice');
+        const sellingPrice = Number(sellingPriceStr);
+        if (Number.isNaN(sellingPrice)) throw new Error('sellingPrice is not a number');
+
+        const categoryName = get('categoryName');
+        const brandName = get('brandName');
+
+        let categoryId: string | undefined;
+        if (categoryName) {
+          if (categoryCache.has(categoryName)) {
+            categoryId = categoryCache.get(categoryName);
+          } else {
+            const slug = this.slugify(categoryName);
+            let cat = await this.prisma.productCategory.findFirst({ where: { tenantId, OR: [{ slug }, { name: categoryName }] } });
+            if (!cat) cat = await this.prisma.productCategory.create({ data: { tenantId, name: categoryName, slug } });
+            categoryId = cat.id;
+            categoryCache.set(categoryName, categoryId);
+          }
+        }
+
+        let brandId: string | undefined;
+        if (brandName) {
+          if (brandCache.has(brandName)) {
+            brandId = brandCache.get(brandName);
+          } else {
+            let brand = await this.prisma.brand.findFirst({ where: { tenantId, name: brandName } });
+            if (!brand) brand = await this.prisma.brand.create({ data: { tenantId, name: brandName } });
+            brandId = brand.id;
+            brandCache.set(brandName, brandId);
+          }
+        }
+
+        const costPriceStr = get('costPrice');
+        const taxRateStr = get('taxRatePercent');
+        const reorderPointStr = get('reorderPoint');
+        const data = {
+          name,
+          categoryId: categoryId ?? null,
+          brandId: brandId ?? null,
+          barcode: get('barcode') || null,
+          description: get('description') || null,
+          sellingPrice,
+          costPrice: costPriceStr ? Number(costPriceStr) : 0,
+          taxRatePercent: taxRateStr ? Number(taxRateStr) : 0,
+          trackInventory: get('trackInventory') ? /^true$/i.test(get('trackInventory')) : true,
+          isActive: get('isActive') ? /^true$/i.test(get('isActive')) : true,
+          isFeatured: get('isFeatured') ? /^true$/i.test(get('isFeatured')) : false,
+          reorderPoint: reorderPointStr ? Number(reorderPointStr) : null,
+        };
+
+        const existing = await this.prisma.product.findFirst({ where: { tenantId, sku } });
+        if (existing) {
+          await this.prisma.product.update({ where: { id: existing.id }, data });
+          updated++;
+        } else {
+          const slug = this.slugify(name);
+          await this.prisma.product.create({ data: { tenantId, sku, slug, ...data } });
+          created++;
+        }
+      } catch (e: any) {
+        errors.push({ row: rowNum, message: e?.message || 'Unknown error' });
+      }
+    }
+
+    return { created, updated, errors };
+  }
+
   async getProduct(tenantId: string, id: string) {
     const product = await this.prisma.product.findFirst({
       where: { id, tenantId },

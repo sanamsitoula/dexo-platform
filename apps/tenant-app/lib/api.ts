@@ -174,3 +174,25 @@ export const fitnessApi = {
 export const paymentApi = {
   myTransactions: (limit = 50) => api<any[]>(`/payment-gateway/transactions/me?limit=${limit}`),
 };
+
+export interface Announcement {
+  title: string;
+  message: string;
+  audience?: string;
+  sentAt: string;
+  recipients?: number;
+}
+
+/** Tenant-scoped (from JWT) announcements broadcast by staff — any authenticated user. */
+export const notificationsApi = {
+  announcements: () => api<Announcement[]>('/notifications/announcements'),
+};
+
+/** Public "message to the gym" form — no auth required, tenant resolved via subdomain. */
+export const contactApi = {
+  send: (data: { name: string; email: string; phone?: string; subject?: string; message: string; source?: string }) =>
+    api<{ success: boolean; message: string; id: string }>('/contact', {
+      method: 'POST',
+      body: JSON.stringify({ ...data, subdomain: resolveSubdomain() }),
+    }),
+};

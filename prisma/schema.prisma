@@ -3480,6 +3480,10 @@ model BusinessTypeTemplate {
   description     String
   tagline         String
   heroImage       String?
+  // Emoji icon shown on the signup wizard's industry card (e.g. "🏋️"). Nullable
+  // so existing rows fall back to the frontend's fuzzy domainType->emoji map
+  // until backfilled.
+  icon            String?
   colorPrimary    String
   colorAccent     String
   colorBg         String
@@ -3489,6 +3493,12 @@ model BusinessTypeTemplate {
   onboardingSteps Json
   dashboardLayout Json
   features        Json
+  // Platform-admin management (see BusinessTemplateModule): isActive controls
+  // visibility in the public signup wizard list; sortOrder controls display
+  // order there. Both default to "everything currently shown, name-sorted"
+  // so existing seeded rows behave exactly as before this migration.
+  isActive        Boolean    @default(true)
+  sortOrder       Int        @default(0)
   createdAt       DateTime   @default(now())
   updatedAt       DateTime   @updatedAt
 }
@@ -4455,6 +4465,11 @@ model FormSubmission {
 // radius — and is a named, saved, switchable asset rather than one ad-hoc
 // live override. See apps/tenant-website/lib/site-theme.ts for how an
 // active theme's tokens layer over (or replace) the base template's.
+enum ThemeStatus {
+  draft
+  published
+}
+
 model TenantTheme {
   id       String @id @default(uuid())
   tenant   Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
@@ -4473,7 +4488,64 @@ model TenantTheme {
   bodyFont            String?
   borderRadius        Int?
 
+  // Workstream B item 1 (website_builder_remaining.md): hero layout as a
+  // Theme Builder-editable token instead of a value permanently locked to
+  // whichever of the 60 WebsiteTemplates was picked at signup. Matches the
+  // `HeroType` union in packages/shared/src/themes/templates.ts exactly
+  // (split/fullscreen/floating-cards/editorial/bold-block). Nullable so
+  // existing themes fall back to the tenant's original template's heroType
+  // (see apps/tenant-website/lib/site-theme.ts / TemplateHome.tsx) — zero
+  // behavior change for tenants who never touch this control.
+  heroLayout String?
+
+  // Workstream B item 3 (website_builder_remaining.md): footer structure as
+  // data, same recipe as heroLayout above. Nullable JSON — no value means
+  // "use whichever hardcoded footer content SiteFooter.tsx already falls
+  // back to" (the pre-existing Home/About/Services/Book/Join/Contact link
+  // row + plain copyright line), so tenants who never touch this keep
+  // exactly what's rendering today. Shape (validated at the app/UI layer,
+  // matching PageSection.content's convention of flexible-but-structured
+  // JSON rather than a rigid Postgres schema):
+  //   { columns: [{ title: string, links: [{ label: string, url: string }] }],
+  //     socialLinks: [{ platform: string, url: string }],
+  //     showNewsletter: boolean,
+  //     copyrightText: string }
+  footerConfig Json?
+
+  // Workstream B item 4 (website_builder_remaining.md): card/button/icon
+  // style tokens as real Theme Builder-editable enums, same recipe as
+  // heroLayout/footerConfig above. Nullable String — matches the exact same
+  // string vocabularies as WebsiteTemplate.cardStyle/ctaStyle/iconStyle in
+  // packages/shared/src/themes/templates.ts (validated at the app/UI layer,
+  // not a Postgres enum, consistent with heroLayout's own free-text-field
+  // precedent) so an existing template's values remain valid choices.
+  // Nullable so existing themes fall back to the tenant's original
+  // template's cardStyle/ctaStyle/iconStyle — zero behavior change for
+  // tenants who never touch these controls.
+  //   cardStyle: elevated | image-overlay | flat-bordered | glassmorphism | thick-border
+  //   ctaStyle:  gradient-banner | full-width-banner | inline-text | floating-glow | sticky-bar
+  //   iconStyle: outline | thin-line | geometric | duotone | filled
+  cardStyle String?
+  ctaStyle  String?
+  iconStyle String?
+
   isActive Boolean @default(false)
+
+  // Phase 3 draft/live isolation (see website_builder_remaining.md): editing
+  // an ACTIVE theme's tokens previously changed the real, live site instantly
+  // for every visitor, with no draft copy and no revert. `status` mirrors the
+  // draft/published split already used by Page (PageStatus) and MenuItem
+  // (MenuItemStatus) — `published` tokens are what the public resolver
+  // (getActiveTheme, consumed by apps/tenant-website/lib/site-theme.ts)
+  // serves; `draft` edits are only visible via the signed admin preview
+  // token, until an explicit "Publish theme" action flips them live.
+  status ThemeStatus @default(published)
+
+  // One-shot "last known good" snapshot of the last-published token set —
+  // NOT full version history (explicitly descoped), just enough for a
+  // single one-click revert-to-last-published if a bad edit ships.
+  lastPublishedSnapshot Json?
+  lastPublishedAt       DateTime?
 
   createdBy String?
   updatedBy String?

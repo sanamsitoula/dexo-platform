@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import { tenantApi, tenantSettingsApi } from '@/lib/api';
+import { tenantApi } from '@/lib/api';
 import { resolveTenantAdminSubdomain } from '@/lib/subdomain';
 import { PageHeader, Card, Btn, Field, Input } from '../_ui';
 import FileUpload from '@/components/FileUpload';
@@ -20,19 +20,22 @@ export default function SettingsPage() {
 
   useEffect(() => {
     (async () => {
-      const [t, b] = await Promise.all([tenantApi.getBySubdomain(subdomain), tenantSettingsApi.getBranding(subdomain).catch(() => ({ data: null }))]);
+      const t = await tenantApi.getBySubdomain(subdomain);
       setTenant(t.data);
-      const s = { ...(t.data?.settings || {}), ...(b.data || {}) };
+      // branding lives nested under settings.branding (see
+      // provisioning.service.ts) — reading it flat off settings was this
+      // page's original bug (signup-time logo/colors/tagline never showed up).
+      const b = t.data?.settings?.branding || {};
       setForm((f) => ({
         ...f,
-        primaryColor: s.colorPrimary || s.primaryColor || f.primaryColor,
-        logo: s.logo || s.logoUrl || '',
-        tagline: s.tagline || '',
-        email: s.email || '', phone: s.phone || '', address: s.address || '',
-        facebook: s.facebook || s.social?.facebook || '',
-        instagram: s.instagram || s.social?.instagram || '',
-        tiktok: s.tiktok || s.social?.tiktok || '',
-        youtube: s.youtube || s.social?.youtube || '',
+        primaryColor: b.colorPrimary || f.primaryColor,
+        logo: b.logo || '',
+        tagline: b.tagline || '',
+        email: b.email || '', phone: b.phone || '', address: b.address || '',
+        facebook: b.social?.facebook || '',
+        instagram: b.social?.instagram || '',
+        tiktok: b.social?.tiktok || '',
+        youtube: b.social?.youtube || '',
       }));
       setLoading(false);
     })();
@@ -40,8 +43,11 @@ export default function SettingsPage() {
 
   async function save() {
     setSaving(true); setMsg(null);
-    const r = await tenantSettingsApi.saveBranding(subdomain, {
-      primaryColor: form.primaryColor, colorPrimary: form.primaryColor, logo: form.logo, tagline: form.tagline,
+    // Shallow-merged server-side into settings.branding — only sends the
+    // fields this page owns, so it never clobbers templateId/tagline/
+    // description saved by the Website Builder Overview page.
+    const r = await tenantApi.updateOwnBranding(subdomain, {
+      colorPrimary: form.primaryColor, logo: form.logo, tagline: form.tagline,
       email: form.email, phone: form.phone, address: form.address,
       social: { facebook: form.facebook, instagram: form.instagram, tiktok: form.tiktok, youtube: form.youtube },
     });

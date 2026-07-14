@@ -9,7 +9,14 @@ export class MembershipPlansController {
 
   @Get()
   findAll(@Req() req: any, @Query() query: any) {
-    return this.service.findAll(req.user.tenantId, query);
+    // Express/Nest query params always arrive as strings (`?active=true` ->
+    // the string "true", not the boolean `true`) — passing that straight to
+    // Prisma's `isActive: Boolean` filter throws a validation error, which is
+    // exactly what silently broke the member-app's `?active=true` plan fetch
+    // (portal called this with the filter, admin's own list call never did,
+    // making it look like the two were reading different data entirely).
+    const active = query?.active === undefined ? undefined : query.active === 'true' || query.active === true;
+    return this.service.findAll(req.user.tenantId, { ...query, active });
   }
 
   @Get(':id')

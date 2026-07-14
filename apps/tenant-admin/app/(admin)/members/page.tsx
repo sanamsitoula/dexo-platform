@@ -71,6 +71,7 @@ export default function MembersPage() {
                   <th className="text-left font-semibold px-4 py-3">Member</th>
                   <th className="text-left font-semibold px-4 py-3">Contact</th>
                   <th className="text-left font-semibold px-4 py-3">Plan</th>
+                  <th className="text-left font-semibold px-4 py-3">Cycle</th>
                   <th className="text-left font-semibold px-4 py-3">Status</th>
                   <th className="px-4 py-3"></th>
                 </tr>
@@ -79,6 +80,8 @@ export default function MembersPage() {
                 {filtered.map((m) => {
                   const name = `${m.user?.firstName ?? m.firstName ?? ''} ${m.user?.lastName ?? m.lastName ?? ''}`.trim() || 'Member';
                   const st = String(m.status || '').toUpperCase();
+                  const activeMembership = m.memberships?.[0];
+                  const expired = activeMembership?.endDate && new Date(activeMembership.endDate) < new Date();
                   return (
                     <tr key={m.id} className="hover:bg-gray-50">
                       <td className="px-4 py-3">
@@ -88,7 +91,15 @@ export default function MembersPage() {
                         </div>
                       </td>
                       <td className="px-4 py-3 text-gray-600">{m.user?.email || '—'}<div className="text-xs text-gray-400">{m.user?.phone || ''}</div></td>
-                      <td className="px-4 py-3 text-gray-600">{m.memberships?.[0]?.plan?.name || m.membershipType || '—'}</td>
+                      <td className="px-4 py-3 text-gray-600">{activeMembership?.plan?.name || m.membershipType || '—'}</td>
+                      <td className="px-4 py-3 text-xs">
+                        {activeMembership?.startDate && activeMembership?.endDate ? (
+                          <span className={expired ? 'text-red-600 font-semibold' : 'text-gray-500'}>
+                            {new Date(activeMembership.startDate).toLocaleDateString()} → {new Date(activeMembership.endDate).toLocaleDateString()}
+                            {expired && ' (expired)'}
+                          </span>
+                        ) : '—'}
+                      </td>
                       <td className="px-4 py-3"><Badge color={st === 'ACTIVE' ? 'green' : st.includes('PENDING') ? 'amber' : 'gray'}>{st || 'N/A'}</Badge></td>
                       <td className="px-4 py-3 text-right">
                         {!m.isVerified && <Btn variant="outline" onClick={async () => { await gymApi.members.verify(subdomain, m.id); load(); }}>Verify</Btn>}

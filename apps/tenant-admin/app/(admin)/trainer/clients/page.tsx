@@ -5,7 +5,7 @@ import Link from 'next/link';
 import { useSearchParams } from 'next/navigation';
 import { gymApi } from '@/lib/api';
 import { resolveTenantAdminSubdomain } from '@/lib/subdomain';
-import { PageHeader, Card, Btn, EmptyState, Badge } from '../../_ui';
+import { PageHeader, Card, Btn, EmptyState, Badge, SlideOver, Field, Input } from '../../_ui';
 
 export default function TrainerClients() {
   const subdomain = resolveTenantAdminSubdomain();
@@ -17,6 +17,12 @@ export default function TrainerClients() {
   const [progress, setProgress] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [q, setQ] = useState('');
+  const [checked, setChecked] = useState<Set<string>>(new Set());
+  const [announceOpen, setAnnounceOpen] = useState(false);
+  const [announceTitle, setAnnounceTitle] = useState('');
+  const [announceMessage, setAnnounceMessage] = useState('');
+  const [sending, setSending] = useState(false);
+  const [sendResult, setSendResult] = useState<string | null>(null);
 
   const load = useCallback(async () => {
     const m = await gymApi.members.list(subdomain);
@@ -45,26 +51,97 @@ export default function TrainerClients() {
   });
   const latest = [...progress].sort((a, b) => new Date(b.assessedAt).getTime() - new Date(a.assessedAt).getTime())[0];
 
+  function toggleChecked(id: string) {
+    setChecked((prev) => {
+      const next = new Set(prev);
+      next.has(id) ? next.delete(id) : next.add(id);
+      return next;
+    });
+  }
+
+  const allFilteredChecked = filtered.length > 0 && filtered.every((m) => checked.has(m.id));
+  function toggleSelectAllFiltered() {
+    setChecked((prev) => {
+      const next = new Set(prev);
+      if (allFilteredChecked) {
+        filtered.forEach((m) => next.delete(m.id));
+      } else {
+        filtered.forEach((m) => next.add(m.id));
+      }
+      return next;
+    });
+  }
+
+  function selectEveryClient() {
+    setChecked(new Set(members.map((m) => m.id)));
+  }
+
+  async function sendAnnouncement() {
+    if (!announceTitle.trim() || !announceMessage.trim() || checked.size === 0) return;
+    setSending(true);
+    setSendResult(null);
+    const r = await gymApi.announcements.send(subdomain, {
+      title: announceTitle,
+      message: announceMessage,
+      memberIds: Array.from(checked),
+    });
+    setSending(false);
+    if (r.error) { setSendResult(`Failed: ${r.error}`); return; }
+    setSendResult(`Sent to ${(r.data as any)?.audienceCount ?? checked.size} client(s).`);
+    setAnnounceTitle('');
+    setAnnounceMessage('');
+    setTimeout(() => { setAnnounceOpen(false); setSendResult(null); setChecked(new Set()); }, 1500);
+  }
+
   return (
     <div>
       <PageHeader title="Clients" subtitle="Track and coach your members"
-        action={<Link href="/trainer/workout-builder" className="rounded-lg bg-indigo-600 text-white px-4 py-2 text-sm font-semibold">+ Build workout</Link>} />
+        action={
+          <div className="flex items-center gap-2">
+            {checked.size > 0 && (
+              <Btn variant="outline" onClick={() => setAnnounceOpen(true)}>📣 Announce to {checked.size} selected</Btn>
+            )}
+            <Link href="/trainer/workout-builder" className="rounded-lg bg-indigo-600 text-white px-4 py-2 text-sm font-semibold">+ Build workout</Link>
+          </div>
+        } />
 
       <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
         {/* List */}
         <Card className="md:col-span-1">
-          <div className="p-3 border-b border-gray-100">
+          <div className="p-3 border-b border-gray-100 space-y-2">
             <input value={q} onChange={(e) => setQ(e.target.value)} placeholder="Search clients…" className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm outline-none focus:border-indigo-500" />
+            <div className="flex items-center justify-between">
+              <label className="flex items-center gap-2 text-xs text-gray-600">
+                <input type="checkbox" checked={allFilteredChecked} onChange={toggleSelectAllFiltered} />
+                Select all {q ? 'shown' : ''} ({filtered.length})
+              </label>
+              <select
+                defaultValue=""
+                onChange={(e) => {
+                  if (e.target.value === 'all') selectEveryClient();
+                  if (e.target.value === 'none') setChecked(new Set());
+                  e.target.value = '';
+                }}
+                className="text-xs border border-gray-200 rounded-md px-1.5 py-1 text-gray-600"
+              >
+                <option value="" disabled>Bulk select…</option>
+                <option value="all">Add all customers ({members.length})</option>
+                <option value="none">Clear selection</option>
+              </select>
+            </div>
           </div>
           {loading ? <div className="p-6 text-center text-gray-400">Loading…</div> : (
             <div className="divide-y divide-gray-100 max-h-[70vh] overflow-y-auto">
               {filtered.map((m) => {
                 const name = `${m.user?.firstName ?? ''} ${m.user?.lastName ?? ''}`.trim() || 'Member';
                 return (
-                  <button key={m.id} onClick={() => setSelected(m.id)} className={`w-full flex items-center gap-3 px-4 py-3 text-left hover:bg-gray-50 ${selected === m.id ? 'bg-indigo-50' : ''}`}>
-                    <div className="w-8 h-8 rounded-full bg-indigo-100 text-indigo-700 flex items-center justify-center font-bold text-sm">{name.charAt(0)}</div>
-                    <span className="text-sm font-medium text-gray-900">{name}</span>
-                  </button>
+                  <div key={m.id} className={`w-full flex items-center gap-3 px-4 py-3 hover:bg-gray-50 ${selected === m.id ? 'bg-indigo-50' : ''}`}>
+                    <input type="checkbox" checked={checked.has(m.id)} onChange={() => toggleChecked(m.id)} onClick={(e) => e.stopPropagation()} />
+                    <button onClick={() => setSelected(m.id)} className="flex items-center gap-3 text-left flex-1 min-w-0">
+                      <div className="w-8 h-8 rounded-full bg-indigo-100 text-indigo-700 flex items-center justify-center font-bold text-sm shrink-0">{name.charAt(0)}</div>
+                      <span className="text-sm font-medium text-gray-900 truncate">{name}</span>
+                    </button>
+                  </div>
                 );
               })}
             </div>
@@ -122,6 +199,17 @@ export default function TrainerClients() {
           )}
         </div>
       </div>
+
+      <SlideOver open={announceOpen} onClose={() => setAnnounceOpen(false)} title={`Announce to ${checked.size} client${checked.size === 1 ? '' : 's'}`}>
+        <Field label="Title"><Input value={announceTitle} onChange={(e: any) => setAnnounceTitle(e.target.value)} placeholder="New exercise plan available" /></Field>
+        <Field label="Message">
+          <textarea value={announceMessage} onChange={(e) => setAnnounceMessage(e.target.value)} rows={4} className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm" placeholder="Describe the exercise or update…" />
+        </Field>
+        {sendResult && <p className="text-sm text-gray-600 mb-3">{sendResult}</p>}
+        <Btn onClick={sendAnnouncement} disabled={sending || !announceTitle.trim() || !announceMessage.trim() || checked.size === 0}>
+          {sending ? 'Sending…' : `Send to ${checked.size} client${checked.size === 1 ? '' : 's'}`}
+        </Btn>
+      </SlideOver>
     </div>
   );
 }

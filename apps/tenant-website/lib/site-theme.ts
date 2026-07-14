@@ -40,6 +40,41 @@ export interface SiteTheme {
    * choice) keep working via CSS var(--x, fallback). */
   headingFont?: string;
   bodyFont?: string;
+  /** Workstream B item 1 (website_builder_remaining.md): resolved hero
+   * layout choice — the active Theme Builder theme's `heroLayout` token if
+   * it's ever been set, otherwise undefined so callers (TemplateHome.tsx)
+   * fall back to the tenant's original template's `heroType`. Same
+   * published/draft/preview resolution as every other token above. */
+  heroLayout?: string;
+  /** Workstream B item 3 (website_builder_remaining.md): resolved footer
+   * structure — the active Theme Builder theme's `footerConfig` JSON token
+   * if it's ever been set, otherwise undefined so callers (SiteFooter.tsx)
+   * fall back to the site's original hardcoded footer content. Same
+   * published/draft/preview resolution as every other token above. */
+  footerConfig?: FooterConfig;
+  /** Settings page's plain `branding.social` (Facebook/Instagram/TikTok/
+   * YouTube URLs) — a separate, older mechanism than Theme Builder's
+   * `footerConfig.socialLinks`. Only used as a fallback by SiteFooter.tsx
+   * when footerConfig (or its socialLinks) is unset, so a tenant who only
+   * ever used the Settings page's social fields still sees them rendered. */
+  brandingSocial?: { facebook?: string; instagram?: string; tiktok?: string; youtube?: string };
+  /** Workstream B item 4 (website_builder_remaining.md): resolved card/
+   * button/icon style tokens — the active Theme Builder theme's
+   * `cardStyle`/`ctaStyle`/`iconStyle` values if ever set, otherwise
+   * undefined so callers (TemplateHome.tsx, PageSectionRenderer.tsx,
+   * EcommerceHome.tsx) fall back to the tenant's original template's
+   * cardStyle/ctaStyle/iconStyle. Same published/draft/preview resolution
+   * as every other token above. */
+  cardStyle?: string;
+  ctaStyle?: string;
+  iconStyle?: string;
+}
+
+export interface FooterConfig {
+  columns: Array<{ title: string; links: Array<{ label: string; url: string }> }>;
+  socialLinks: Array<{ platform: string; url: string }>;
+  showNewsletter: boolean;
+  copyrightText: string;
 }
 
 interface ActiveTheme {
@@ -52,11 +87,17 @@ interface ActiveTheme {
   headingFont: string | null;
   bodyFont: string | null;
   borderRadius: number | null;
+  heroLayout: string | null;
+  footerConfig: FooterConfig | null;
+  cardStyle: string | null;
+  ctaStyle: string | null;
+  iconStyle: string | null;
 }
 
-async function getActiveTheme(subdomain: string): Promise<ActiveTheme | null> {
+async function getActiveTheme(subdomain: string, previewToken?: string): Promise<ActiveTheme | null> {
   try {
-    const res = await fetch(`${API_BASE_URL}/themes/public/${subdomain}/active`, { cache: 'no-store' });
+    const qs = previewToken ? `?preview=${encodeURIComponent(previewToken)}` : '';
+    const res = await fetch(`${API_BASE_URL}/themes/public/${subdomain}/active${qs}`, { cache: 'no-store' });
     if (!res.ok) return null;
     return (await res.json()) || null;
   } catch {
@@ -86,16 +127,24 @@ const LEGACY: Omit<SiteTheme, 'primary' | 'onPrimary' | 'accent' | 'onAccent' | 
   text: '#ffffff',
   sub: 'rgba(255,255,255,0.70)',
   radius: '12px',
+  blogEnabled: true,
+  bookEnabled: true,
 };
 
 export async function getSiteTheme(
   subdomain: string,
   fallbackPrimary = '#E85D24',
   fallbackAccent = '#F2A623',
+  /** Signed admin preview token (Theme Builder Phase 3) — when present and
+   * valid, bypasses the published-only filter so an admin can preview
+   * unpublished draft token edits before hitting "Publish theme". Passed
+   * through as a `?theme_preview=` query param on the public site by the
+   * tenant-admin theme editor's "Preview" link. */
+  previewToken?: string,
 ): Promise<SiteTheme> {
   const [tenant, activeTheme] = await Promise.all([
     getTenantBySubdomain(subdomain).catch(() => null),
-    getActiveTheme(subdomain),
+    getActiveTheme(subdomain, previewToken),
   ]);
   const branding = ((tenant?.settings as any) || {}).branding || {};
   const tpl: WebsiteTemplate | undefined = branding.templateId ? getTemplate(branding.templateId) : undefined;
@@ -108,6 +157,12 @@ export async function getSiteTheme(
   const headingFont = activeTheme?.headingFont || undefined;
   const bodyFont = activeTheme?.bodyFont || undefined;
   const radiusPx = activeTheme?.borderRadius ?? (tpl ? Math.min(tpl.borderRadius, 14) : 12);
+  const heroLayout = activeTheme?.heroLayout || undefined;
+  const footerConfig = activeTheme?.footerConfig || undefined;
+  const brandingSocial = branding.social && Object.values(branding.social).some(Boolean) ? branding.social : undefined;
+  const cardStyle = activeTheme?.cardStyle || undefined;
+  const ctaStyle = activeTheme?.ctaStyle || undefined;
+  const iconStyle = activeTheme?.iconStyle || undefined;
 
   const base = tpl
     ? { bg: tpl.palette.background, text: tpl.palette.text, sub: tpl.palette.textSecondary }
@@ -135,6 +190,12 @@ export async function getSiteTheme(
     radius: `${radiusPx}px`,
     headingFont,
     bodyFont,
+    heroLayout,
+    footerConfig,
+    brandingSocial,
+    cardStyle,
+    ctaStyle,
+    iconStyle,
     blogEnabled,
     bookEnabled,
   };

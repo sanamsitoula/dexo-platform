@@ -1,10 +1,11 @@
 import Link from 'next/link';
 import type { SiteTheme } from '@/lib/site-theme';
-import type { Product, ProductCategory, PublicPageSection } from '@/lib/api';
+import type { Product, ProductCategory, PublicPageSection, SiteNavLink } from '@/lib/api';
 import SiteNav from './SiteNav';
 import SiteFooter from './SiteFooter';
 import AddToCartButton from './AddToCartButton';
 import PageSectionRenderer from './PageSectionRenderer';
+import { ctaButtonClasses, ctaButtonStyle } from '@/lib/style-tokens';
 
 /**
  * Ecommerce storefront homepage — hero, category grid, featured products,
@@ -22,10 +23,12 @@ export default function EcommerceHome({
   latest,
   realSections,
   subdomain,
+  navItems,
 }: {
   theme: SiteTheme;
   name: string;
   tagline?: string;
+  navItems?: SiteNavLink[];
   categories: ProductCategory[];
   featured: Product[];
   latest: Product[];
@@ -36,11 +39,18 @@ export default function EcommerceHome({
   realSections?: PublicPageSection[];
   subdomain?: string;
 }) {
-  const cardStyle = {
-    backgroundColor: 'var(--site-surface)',
-    border: '1px solid var(--site-border)',
-    borderRadius: 'var(--site-radius)',
-  } as const;
+  // Workstream B item 4 (website_builder_remaining.md): when the tenant has
+  // set a Theme Builder cardStyle token, `thick-border`/`glassmorphism`/etc.
+  // override the plain 1px surface border below; unset (the common case for
+  // ecommerce tenants, who don't pick one of the 60 WebsiteTemplates) keeps
+  // this EXACT inline style, unchanged.
+  const cardStyle = theme.cardStyle === 'thick-border'
+    ? { backgroundColor: 'var(--site-surface)', border: '3px solid var(--site-border)', borderRadius: 'var(--site-radius)' }
+    : theme.cardStyle === 'elevated'
+      ? { backgroundColor: 'var(--site-surface)', border: 'none', borderRadius: 'var(--site-radius)', boxShadow: '0 10px 25px -5px rgba(0,0,0,0.15)' }
+      : theme.cardStyle === 'glassmorphism'
+        ? { backgroundColor: 'var(--site-surface)', border: '1px solid var(--site-border)', borderRadius: 'var(--site-radius)', backdropFilter: 'blur(6px)' }
+        : { backgroundColor: 'var(--site-surface)', border: '1px solid var(--site-border)', borderRadius: 'var(--site-radius)' };
 
   function ProductCard({ p }: { p: Product }) {
     const image = Array.isArray(p.images) && p.images.length > 0 ? p.images[0] : null;
@@ -71,7 +81,7 @@ export default function EcommerceHome({
 
   return (
     <div style={{ background: 'var(--site-bg)', color: 'var(--site-text)', minHeight: '100vh' }}>
-      <SiteNav theme={theme} name={name} active="/" showShop />
+      <SiteNav theme={theme} name={name} active="/" showShop navItems={navItems} />
 
       {/* Hero */}
       <section className="text-center px-4 py-20 max-w-3xl mx-auto">
@@ -81,8 +91,10 @@ export default function EcommerceHome({
         <div className="mt-8">
           <Link
             href="/shop"
-            className="inline-block px-8 py-3 font-semibold"
-            style={{ background: 'var(--site-primary)', color: 'var(--site-on-primary)', borderRadius: 'var(--site-radius)' }}
+            className={`inline-block px-8 py-3 ${ctaButtonClasses(theme.ctaStyle)}`}
+            style={theme.ctaStyle === 'inline-text'
+              ? { color: 'var(--site-primary)' }
+              : { ...ctaButtonStyle(theme.ctaStyle, 'var(--site-primary)'), color: 'var(--site-on-primary)', borderRadius: theme.ctaStyle ? undefined : 'var(--site-radius)' }}
           >
             Shop Now
           </Link>
@@ -90,8 +102,18 @@ export default function EcommerceHome({
       </section>
 
       {/* Real, editable Page Builder sections (from the auto-seeded Home page) */}
+      {/* Workstream B item 4 (website_builder_remaining.md): resolved
+       * cardStyle/ctaStyle/iconStyle tokens threaded through, same as
+       * TemplateHome.tsx. Ecommerce tenants don't currently pick one of the
+       * 60 WebsiteTemplates (no `tpl`), so there's no per-family default to
+       * fall back to here — `theme.cardStyle` etc. is undefined unless the
+       * tenant has explicitly set one in Theme Builder, and
+       * cardClasses/ctaButtonClasses/iconAccentClasses fall back to their
+       * own pre-existing default classes in that case (zero behavior
+       * change for ecommerce tenants who never touch these controls). */}
       {realSections?.map((section) => (
-        <PageSectionRenderer key={section.id} section={section} colorPrimary="var(--site-primary)" subdomain={subdomain || ''} />
+        <PageSectionRenderer key={section.id} section={section} colorPrimary="var(--site-primary)" subdomain={subdomain || ''}
+          cardStyle={theme.cardStyle} ctaStyle={theme.ctaStyle} iconStyle={theme.iconStyle} />
       ))}
 
       {/* Category grid */}
@@ -138,8 +160,8 @@ export default function EcommerceHome({
         <p className="mt-2 opacity-90">Browse the full catalog for the latest deals and new arrivals.</p>
         <Link
           href="/shop"
-          className="mt-6 inline-block px-8 py-3 font-semibold bg-black/80 hover:bg-black text-white"
-          style={{ borderRadius: 'var(--site-radius)' }}
+          className={`mt-6 inline-block px-8 py-3 hover:opacity-90 ${theme.ctaStyle ? ctaButtonClasses(theme.ctaStyle) : 'font-semibold bg-black/80 text-white'}`}
+          style={theme.ctaStyle === 'inline-text' ? undefined : { ...(theme.ctaStyle ? ctaButtonStyle(theme.ctaStyle, '#000000') : {}), borderRadius: theme.ctaStyle ? undefined : 'var(--site-radius)' }}
         >
           View All Products
         </Link>

@@ -11,6 +11,7 @@ const prisma = new PrismaClient();
 const TEMPLATES = [
   {
     domainType: 'FITNESS_CENTER',
+    icon: '🏋️',
     name: 'Fitness Center',
     description: 'Complete gym and fitness management platform',
     tagline: 'Transform lives, one workout at a time',
@@ -50,6 +51,7 @@ const TEMPLATES = [
   },
   {
     domainType: 'RESTAURANT_AND_CAFE',
+    icon: '🍽️',
     name: 'Restaurant & Cafe',
     description: 'POS, kitchen, tables, reservations',
     tagline: 'Serve great food, run a great business',
@@ -88,6 +90,7 @@ const TEMPLATES = [
   },
   {
     domainType: 'SALON_AND_SPA',
+    icon: '💇',
     name: 'Salon & Spa',
     description: 'Appointments, stylists, services',
     tagline: 'Relax. Refresh. Rejuvenate.',
@@ -108,6 +111,7 @@ const TEMPLATES = [
   },
   {
     domainType: 'HOTEL_AND_HOSPITALITY',
+    icon: '🏨',
     name: 'Hotel & Hospitality',
     description: 'Rooms, reservations, housekeeping',
     tagline: 'Your home, away from home',
@@ -128,6 +132,7 @@ const TEMPLATES = [
   },
   {
     domainType: 'HEALTHCARE_CLINIC',
+    icon: '🏥',
     name: 'Healthcare Clinic',
     description: 'Patients, doctors, records',
     tagline: 'Compassionate care, modern technology',
@@ -148,6 +153,7 @@ const TEMPLATES = [
   },
   {
     domainType: 'SCHOOL_AND_EDUCATION',
+    icon: '🏫',
     name: 'School & Education',
     description: 'Students, teachers, classes, exams',
     tagline: 'Building tomorrow, one student at a time',
@@ -168,6 +174,7 @@ const TEMPLATES = [
   },
   {
     domainType: 'COACHING_INSTITUTE',
+    icon: '🎓',
     name: 'Coaching Institute',
     description: 'Batches, courses, mock tests, results',
     tagline: 'Excel with expert guidance',
@@ -188,6 +195,7 @@ const TEMPLATES = [
   },
   {
     domainType: 'ECOMMERCE',
+    icon: '🛒',
     name: 'Ecommerce',
     description: 'Products, orders, shipping',
     tagline: 'Shop smarter, live better',
@@ -208,6 +216,7 @@ const TEMPLATES = [
   },
   {
     domainType: 'LOGISTICS_AND_DELIVERY',
+    icon: '🚚',
     name: 'Logistics & Delivery',
     description: 'Shipments, fleet, drivers, tracking',
     tagline: 'Move faster, deliver smarter',
@@ -228,6 +237,7 @@ const TEMPLATES = [
   },
   {
     domainType: 'TAILOR_SHOP',
+    icon: '🧵',
     name: 'Tailor Shop',
     description: 'Customers, measurements, orders',
     tagline: 'Crafted just for you',
@@ -248,6 +258,7 @@ const TEMPLATES = [
   },
   {
     domainType: 'NGO',
+    icon: '❤️',
     name: 'Non-Profit',
     description: 'Donors, campaigns, projects, volunteers',
     tagline: 'Together, we make a difference',
@@ -268,6 +279,7 @@ const TEMPLATES = [
   },
   {
     domainType: 'SME_CORPORATE',
+    icon: '🏢',
     name: 'SME / Corporate',
     description: 'CRM, HR, projects, finance, payroll',
     tagline: 'Run your business, all in one place',

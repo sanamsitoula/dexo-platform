@@ -160,7 +160,7 @@ export default function PageEditorPage() {
         }
       />
 
-      <div className={previewOpen ? 'grid grid-cols-1 lg:grid-cols-2 gap-6 items-start' : ''}>
+      <div className={previewOpen ? 'grid grid-cols-1 lg:grid-cols-[2fr_3fr] gap-6 items-start' : ''}>
         <div className="max-w-4xl">
 
       <Card className="p-5 mb-4">
@@ -200,7 +200,7 @@ export default function PageEditorPage() {
             </>
           )}
           {page.status === 'published' && (
-            <Btn variant="outline" onClick={() => runTransition(() => pageBuilderApi.archivePage(subdomain, pageId))}>Archive</Btn>
+            <Btn variant="outline" onClick={() => runTransition(() => pageBuilderApi.archive(subdomain, pageId))}>Archive</Btn>
           )}
           {page.status === 'archived' && (
             <Btn variant="outline" onClick={() => runTransition(() => pageBuilderApi.revertToDraft(subdomain, pageId))}>Restore to draft</Btn>

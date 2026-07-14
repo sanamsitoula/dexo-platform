@@ -792,6 +792,21 @@ export const platformEmailApi = {
   logs: (limit = 50) => fetchApi<any[]>(`/platform-email/logs?limit=${limit}`),
 }
 
+// Business type templates — the 12 industry cards on the tenant signup
+// wizard's step 1 (GET /business-templates is public/read-only; everything
+// here is platform-admin-only, see BusinessTemplateController).
+export const businessTemplatesApi = {
+  listAdmin: () => fetchApi<any[]>('/business-templates/admin/all'),
+  availableDomainTypes: () => fetchApi<string[]>('/business-templates/admin/available-domain-types'),
+  create: (data: Record<string, any>) => fetchApi<any>('/business-templates', { method: 'POST', body: JSON.stringify(data) }),
+  update: (id: string, data: Record<string, any>) =>
+    fetchApi<any>(`/business-templates/${id}`, { method: 'PUT', body: JSON.stringify(data) }),
+  deactivate: (id: string) => fetchApi<any>(`/business-templates/${id}`, { method: 'DELETE' }),
+  reactivate: (id: string) => fetchApi<any>(`/business-templates/${id}/reactivate`, { method: 'PUT' }),
+  reorder: (orderedIds: string[]) =>
+    fetchApi<any[]>('/business-templates/reorder', { method: 'PUT', body: JSON.stringify({ orderedIds }) }),
+}
+
 // Cross-tenant ecommerce visibility (platform-admin oversight, read-only —
 // see AdminEcommerceController on the API side).
 export const ecommerceAdminApi = {

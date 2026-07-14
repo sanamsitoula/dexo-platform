@@ -1,4 +1,4 @@
-import { Body, Controller, Delete, Get, Param, Post, Put, Req, UseGuards } from '@nestjs/common';
+import { Body, Controller, Delete, Get, Param, Post, Put, Query, Req, UseGuards } from '@nestjs/common';
 import { ApiTags, ApiOperation, ApiBearerAuth } from '@nestjs/swagger';
 import { JwtAuthGuard, Public } from '@dexo/auth';
 import { ThemeBuilderService } from './theme-builder.service';
@@ -67,11 +67,29 @@ export class ThemeBuilderController {
     return this.service.setActive(ctxFrom(req), id, false);
   }
 
+  @Post(':id/publish')
+  @ApiOperation({ summary: 'Publish this theme\'s current (draft) tokens live for every visitor' })
+  publish(@Req() req: any, @Param('id') id: string) {
+    return this.service.publish(ctxFrom(req), id);
+  }
+
+  @Post(':id/revert')
+  @ApiOperation({ summary: 'Revert to the last-published token snapshot (one-click, no version history)' })
+  revert(@Req() req: any, @Param('id') id: string) {
+    return this.service.revertToLastPublished(ctxFrom(req), id);
+  }
+
+  @Post(':id/preview-token')
+  @ApiOperation({ summary: 'Generate a signed, time-limited admin preview link for this theme\'s current (possibly draft) tokens' })
+  createPreviewToken(@Req() req: any, @Param('id') id: string) {
+    return this.service.createPreviewToken(ctxFrom(req), id);
+  }
+
   // ---- Public: unauthenticated, for the tenant-website rendering pipeline ----
   @Public()
   @Get('public/:subdomain/active')
-  @ApiOperation({ summary: "A tenant's active custom theme, if any" })
-  getActiveTheme(@Param('subdomain') subdomain: string) {
-    return this.service.getActiveTheme(subdomain);
+  @ApiOperation({ summary: "A tenant's active custom theme, if any (published tokens unless a valid preview token is supplied)" })
+  getActiveTheme(@Param('subdomain') subdomain: string, @Query('preview') preview?: string) {
+    return this.service.getActiveTheme(subdomain, preview);
   }
 }

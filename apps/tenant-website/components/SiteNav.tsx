@@ -1,34 +1,46 @@
 import Link from 'next/link';
 import type { SiteTheme } from '@/lib/site-theme';
+import type { SiteNavLink } from '@/lib/api';
 import CartBadge from './CartBadge';
 
 /**
- * Shared template-aware navigation for all public pages. Renders the nav
- * variant of the tenant's chosen design family (centered / minimal /
- * bottom-bar / classic) so inner pages match the homepage.
+ * Shared template-aware navigation for all public pages AND the homepage
+ * shell (TemplateHome.tsx) — previously those were two separate, fully
+ * hardcoded link lists (Workstream A). Both now read the same
+ * `navItems` (from Site Navigation, tenant-admin Website Builder →
+ * Navigation, auto-populated from real Pages/Blog/ecommerce-domain status)
+ * and only differ in the per-template-family visual style (centered /
+ * minimal / bottom-bar / classic), which this component still fully owns.
  */
-export default function SiteNav({ theme, name, active, memberLoginUrl, showShop }: {
+export default function SiteNav({ theme, name, active, memberLoginUrl, showShop, navItems, ctaLabel }: {
   theme: SiteTheme;
   name: string;
   active?: string;
   memberLoginUrl?: string;
-  /** Ecommerce-domain tenants only — adds a Shop link + cart badge. */
+  /** Ecommerce-domain tenants only — adds a cart/orders badge alongside
+   * whatever nav item links to /shop. */
   showShop?: boolean;
+  /** Resolved, enabled, ordered nav links — see lib/api.ts getSiteNav().
+   * Falls back to the legacy hardcoded About/Services/Blog/Book/Contact
+   * list (gated by theme.blogEnabled/bookEnabled) only when empty, so
+   * nothing regresses for a subdomain the nav API can't reach. */
+  navItems?: SiteNavLink[];
+  /** Per-template-family CTA copy (tpl.hero.cta, e.g. "Get Started") when
+   * rendered from TemplateHome — defaults to "Join Now" for inner pages,
+   * matching this component's original behavior. */
+  ctaLabel?: string;
 }) {
   const t = theme;
   const nav = t.tpl?.navigationStyle || 'classic';
-  // Blog/Book previously showed for EVERY tenant unconditionally, regardless
-  // of whether they'd ever created a blog post or wanted a booking-request
-  // page public — now gated by settings.branding.navFlags (tenant-admin
-  // Website Builder → Navigation), enabled by default.
-  const links: Array<[href: string, label: string]> = [
-    ['/about', 'About'],
-    ['/services', 'Services'],
-    ...(showShop ? ([['/shop', 'Shop']] as Array<[string, string]>) : []),
-    ...(t.blogEnabled ? ([['/blog', 'Blog']] as Array<[string, string]>) : []),
-    ...(t.bookEnabled ? ([['/book', 'Book']] as Array<[string, string]>) : []),
-    ['/contact', 'Contact'],
-  ];
+  const links: Array<[href: string, label: string]> = navItems && navItems.length > 0
+    ? navItems.map((i) => [i.href, i.label] as [string, string])
+    : [
+      ['/about', 'About'],
+      ['/services', 'Services'],
+      ...(t.blogEnabled ? ([['/blog', 'Blog']] as Array<[string, string]>) : []),
+      ...(t.bookEnabled ? ([['/book', 'Book']] as Array<[string, string]>) : []),
+      ['/contact', 'Contact'],
+    ];
 
   const linkEls = links.map(([href, label]) => (
     <Link
@@ -54,7 +66,7 @@ export default function SiteNav({ theme, name, active, memberLoginUrl, showShop 
       className="px-4 py-2 font-semibold"
       style={{ background: 'var(--site-primary)', color: 'var(--site-on-primary)', borderRadius: 'var(--site-radius)' }}
     >
-      Join Now
+      {ctaLabel || 'Join Now'}
     </Link>
   );
   const login = memberLoginUrl && (

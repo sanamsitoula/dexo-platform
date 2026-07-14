@@ -98,6 +98,22 @@ export default function GenericHome() {
           </span>
           <span className="text-gray-300">›</span>
         </Link>
+        <Link href="/announcements" className="flex items-center gap-3 bg-white rounded-xl border border-gray-100 shadow-sm p-4 hover:shadow-md transition">
+          <span className="text-xl">📣</span>
+          <span className="flex-1">
+            <span className="block text-sm font-semibold text-gray-900">Announcements</span>
+            <span className="block text-xs text-gray-500">Recent updates from {info?.name || 'us'}</span>
+          </span>
+          <span className="text-gray-300">›</span>
+        </Link>
+        <Link href="/contact" className="flex items-center gap-3 bg-white rounded-xl border border-gray-100 shadow-sm p-4 hover:shadow-md transition">
+          <span className="text-xl">✉️</span>
+          <span className="flex-1">
+            <span className="block text-sm font-semibold text-gray-900">Contact us</span>
+            <span className="block text-xs text-gray-500">Send a message to the team</span>
+          </span>
+          <span className="text-gray-300">›</span>
+        </Link>
       </div>
     </div>
   );

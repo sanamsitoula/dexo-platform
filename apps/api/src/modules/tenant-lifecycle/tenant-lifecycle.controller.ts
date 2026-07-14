@@ -1,5 +1,5 @@
 import {
-  Controller, Get, Post, Put, Delete, Body, Param, Query, UseGuards, BadRequestException,
+  Controller, Get, Post, Put, Delete, Body, Param, Query, Req, UseGuards, BadRequestException,
 } from '@nestjs/common';
 import { ApiTags, ApiOperation, ApiBearerAuth } from '@nestjs/swagger';
 import { Public, JwtAuthGuard, PlatformAdminGuard } from '@dexo/auth';
@@ -58,6 +58,43 @@ export class TenantLifecycleController {
   @ApiOperation({ summary: 'Create a new tenant (validates + reserves slug + provisions)' })
   async create(@Body() body: CreateTenantInput) {
     return this.provisioning.provisionTenant(body);
+  }
+
+  // ---- Self-service: the logged-in tenant's OWN branding settings — scoped
+  // strictly from req.user.tenantId (never a body/param tenantId), reachable
+  // by any authenticated tenant user (not platform-admin-only like the
+  // section below). Backs tenant-admin's Gym Settings page and Website
+  // Builder Overview page, both of which save their own subset of
+  // settings.branding without clobbering the other's fields (shallow merge).
+  @UseGuards(JwtAuthGuard)
+  @ApiBearerAuth()
+  @Get('me/branding')
+  @ApiOperation({ summary: "Get the current tenant's branding settings" })
+  async getOwnBranding(@Req() req: any) {
+    const tenant = await this.prisma.tenant.findUnique({
+      where: { id: req.user.tenantId },
+      select: { settings: true },
+    });
+    return ((tenant?.settings as any)?.branding) || {};
+  }
+
+  @UseGuards(JwtAuthGuard)
+  @ApiBearerAuth()
+  @Put('me/branding')
+  @ApiOperation({ summary: "Shallow-merge fields into the current tenant's settings.branding" })
+  async updateOwnBranding(@Req() req: any, @Body() body: Record<string, any>) {
+    const tenantId = req.user.tenantId;
+    const tenant = await this.prisma.tenant.findUnique({
+      where: { id: tenantId },
+      select: { settings: true },
+    });
+    const settings = ((tenant?.settings as any) || {});
+    const branding = { ...(settings.branding || {}), ...(body || {}) };
+    const updated = await this.prisma.tenant.update({
+      where: { id: tenantId },
+      data: { settings: { ...settings, branding } },
+    });
+    return ((updated.settings as any)?.branding) || {};
   }
 
   // ---- Everything below manages an EXISTING tenant's lifecycle, domain or

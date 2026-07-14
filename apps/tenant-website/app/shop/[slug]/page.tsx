@@ -1,7 +1,7 @@
 import Link from 'next/link';
 import { headers } from 'next/headers';
 import { notFound } from 'next/navigation';
-import { getProductBySlug, getProducts, getTenantBySubdomain } from '@/lib/api';
+import { getProductBySlug, getProducts, getTenantBySubdomain, getSiteNav } from '@/lib/api';
 import { getSiteTheme } from '@/lib/site-theme';
 import SiteNav from '@/components/SiteNav';
 import SiteFooter from '@/components/SiteFooter';
@@ -14,10 +14,11 @@ function resolveSubdomain(): string {
 
 export default async function ProductPage({ params }: { params: { slug: string } }) {
   const subdomain = resolveSubdomain();
-  const [tenant, theme, product] = await Promise.all([
+  const [tenant, theme, product, navItems] = await Promise.all([
     getTenantBySubdomain(subdomain),
     getSiteTheme(subdomain),
     getProductBySlug(subdomain, params.slug),
+    getSiteNav(subdomain),
   ]);
 
   if (!product) notFound();
@@ -29,7 +30,7 @@ export default async function ProductPage({ params }: { params: { slug: string }
 
   return (
     <div style={{ background: 'var(--site-bg)', color: 'var(--site-text)', minHeight: '100vh' }}>
-      <SiteNav theme={theme} name={name} active="/shop" showShop />
+      <SiteNav theme={theme} name={name} active="/shop" showShop navItems={navItems} />
 
       <section className="px-4 py-4 max-w-6xl mx-auto text-sm" style={{ color: 'var(--site-sub)' }}>
         <Link href="/shop" className="hover:underline">Shop</Link>

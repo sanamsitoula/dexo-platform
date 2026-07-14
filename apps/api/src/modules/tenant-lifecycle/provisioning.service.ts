@@ -300,16 +300,21 @@ export class ProvisioningService {
   }
 
   private async seedDefaultRoles(tenantId: string, domainType?: string): Promise<void> {
+    // `ecommerce` (the Store: Products/Categories/Brands/Orders/Customers/
+    // Inventory) is a plan-based module any tenant can enable regardless of
+    // domainType (e.g. a fitness gym selling supplements/merch) — see
+    // ModuleAccessGuard/RequireModule, which already independently gates
+    // actual access per the tenant's plan. It always belongs in the base
+    // admin/staff roles' module list so a non-ecommerce-vertical tenant that
+    // turns Store on isn't left with an admin role that can't use it (this
+    // used to be gated on isEcommerceDomain(domainType), which meant e.g. a
+    // fitness tenant's own admin never got `ecommerce:*` — surfaced as
+    // "Missing required permission: ecommerce:pick" on /inventory).
     const allModules = [
       'crm', 'blog', 'billing', 'attendance', 'subscriptions',
-      'website_builder', 'roles', 'users', 'settings', 'reports',
+      'website_builder', 'roles', 'users', 'settings', 'reports', 'ecommerce',
     ];
-    const staffModules = ['crm', 'blog', 'billing', 'attendance', 'website_builder', 'reports'];
-
-    if (this.isEcommerceDomain(domainType)) {
-      allModules.push('ecommerce');
-      staffModules.push('ecommerce');
-    }
+    const staffModules = ['crm', 'blog', 'billing', 'attendance', 'website_builder', 'reports', 'ecommerce'];
 
     const tenantRoles = [
       {

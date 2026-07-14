@@ -1,6 +1,6 @@
 import Link from 'next/link';
 import { headers } from 'next/headers';
-import { getTenantBySubdomain, getTenantBlogs } from '@/lib/api';
+import { getTenantBySubdomain, getTenantBlogs, getSiteNav } from '@/lib/api';
 import { getSiteTheme } from '@/lib/site-theme';
 import SiteNav from '@/components/SiteNav';
 import SiteFooter from '@/components/SiteFooter';
@@ -29,17 +29,18 @@ export default async function BlogListPage({
   const subdomain = resolveSubdomain();
   const page = Math.max(1, parseInt(searchParams?.page || '1', 10) || 1);
 
-  const [tenant, theme, blogs] = await Promise.all([
+  const [tenant, theme, blogs, navItems] = await Promise.all([
     getTenantBySubdomain(subdomain),
     getSiteTheme(subdomain),
     getTenantBlogs(subdomain, { page, limit: 9 }),
+    getSiteNav(subdomain),
   ]);
   const name = tenant?.name || 'Blog';
   const { data: posts, meta } = blogs;
 
   return (
     <div style={{ background: 'var(--site-bg)', color: 'var(--site-text)', minHeight: '100vh' }}>
-      <SiteNav theme={theme} name={name} active="/blog" />
+      <SiteNav theme={theme} name={name} active="/blog" navItems={navItems} />
 
       <section className="text-center px-4 py-16 max-w-3xl mx-auto">
         <p className="text-sm uppercase tracking-widest" style={{ color: 'var(--site-sub)' }}>Blog</p>

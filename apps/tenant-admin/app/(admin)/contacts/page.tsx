@@ -5,6 +5,16 @@ import { tenantCrmApi } from '@/lib/api';
 import { resolveTenantAdminSubdomain } from '@/lib/subdomain';
 import { PageHeader, KpiCard, Card, EmptyState, Badge, Btn } from '../_ui';
 
+// Known page/form sources — see apps/tenant-website/app/contact/ContactForm.tsx
+// and apps/tenant-website/app/book/BookingForm.tsx for where these values are
+// set. Anything else (e.g. future forms, webhook-sourced messages) still
+// displays via its raw `source` string, just without a friendly label.
+const SOURCES: Record<string, string> = {
+  tenant_website_contact_form: 'Contact Page',
+  tenant_website_booking_form: 'Booking Page',
+  tenant_app_contact_form: 'Member App',
+};
+
 const CHANNELS: Record<string, { icon: string; label: string }> = {
   WEBSITE: { icon: '🌐', label: 'Website' },
   EMAIL: { icon: '✉️', label: 'Email' },
@@ -48,6 +58,9 @@ export default function ContactsPage() {
   const [loading, setLoading] = useState(true);
   const [channel, setChannel] = useState('all');
   const [status, setStatus] = useState('all');
+  const [source, setSource] = useState('all');
+  const [search, setSearch] = useState('');
+  const [searchInput, setSearchInput] = useState('');
   const [page, setPage] = useState(1);
   const [pagination, setPagination] = useState<{ total: number; totalPages: number } | null>(null);
   const [showSetup, setShowSetup] = useState(false);
@@ -59,13 +72,19 @@ export default function ContactsPage() {
 
   const fetchMessages = useCallback(() => {
     setLoading(true);
-    tenantCrmApi.list(subdomain, { page, limit, channel, status }).then((r) => {
+    tenantCrmApi.list(subdomain, { page, limit, channel, status, source, search }).then((r) => {
       const body: any = r.data;
       const list = Array.isArray(body) ? body : body?.items ?? body?.data ?? [];
       setMessages(list);
       setPagination(body?.pagination ?? null);
     }).finally(() => setLoading(false));
-  }, [subdomain, page, channel, status]);
+  }, [subdomain, page, channel, status, source, search]);
+
+  // Debounce free-text search — server-side, same as channel/status/source.
+  useEffect(() => {
+    const t = setTimeout(() => { setSearch(searchInput); setPage(1); }, 400);
+    return () => clearTimeout(t);
+  }, [searchInput]);
 
   useEffect(() => { fetchMessages(); }, [fetchMessages]);
 
@@ -217,9 +236,19 @@ export default function ContactsPage() {
           </button>
         ))}
         <select
+          value={source}
+          onChange={(e) => { setSource(e.target.value); setPage(1); }}
+          className="ml-auto border border-gray-200 rounded-md px-2.5 py-1.5 text-xs text-gray-600"
+        >
+          <option value="all">All pages</option>
+          {Object.entries(SOURCES).map(([key, label]) => (
+            <option key={key} value={key}>{label}</option>
+          ))}
+        </select>
+        <select
           value={status}
           onChange={(e) => { setStatus(e.target.value); setPage(1); }}
-          className="ml-auto border border-gray-200 rounded-md px-2.5 py-1.5 text-xs text-gray-600"
+          className="border border-gray-200 rounded-md px-2.5 py-1.5 text-xs text-gray-600"
         >
           <option value="all">All status</option>
           <option value="NEW">New</option>
@@ -228,6 +257,13 @@ export default function ContactsPage() {
           <option value="ARCHIVED">Archived</option>
           <option value="SPAM">Spam</option>
         </select>
+        <input
+          type="text"
+          value={searchInput}
+          onChange={(e) => setSearchInput(e.target.value)}
+          placeholder="Search name, email, message…"
+          className="border border-gray-200 rounded-md px-2.5 py-1.5 text-xs text-gray-600 w-56"
+        />
       </div>
 
       <Card>
@@ -246,6 +282,7 @@ export default function ContactsPage() {
                     </div>
                     <div className="flex items-center gap-2">
                       <Badge color="gray">{c.label}</Badge>
+                      {m.source && <Badge color="amber">{SOURCES[m.source] || m.source}</Badge>}
                       {m.subject && <Badge color="indigo">{m.subject}</Badge>}
                       <span className="text-xs text-gray-400">{m.createdAt ? new Date(m.createdAt).toLocaleDateString() : ''}</span>
                     </div>

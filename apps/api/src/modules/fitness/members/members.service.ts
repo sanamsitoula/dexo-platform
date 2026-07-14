@@ -25,7 +25,10 @@ export class MembersService {
         user: { select: { id: true, firstName: true, lastName: true, email: true, avatarUrl: true, phone: true } },
         branch: { select: { id: true, code: true, name: true } },
         trainer: { select: { id: true, name: true, specialization: true } },
-        memberships: { where: { status: 'ACTIVE' }, take: 1, orderBy: { startDate: 'desc' } },
+        // `plan` was previously not included here, so the tenant-admin
+        // Members list's plan-name column always fell back to the generic
+        // `membershipType` string field — never the real linked plan/dates.
+        memberships: { where: { status: 'ACTIVE' }, take: 1, orderBy: { startDate: 'desc' }, include: { plan: true } },
       },
     });
   }

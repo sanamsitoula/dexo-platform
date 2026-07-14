@@ -1,4 +1,6 @@
-import { Controller, Get, Post, Put, Delete, Body, Param, Query, UseGuards, Req } from '@nestjs/common';
+import { Controller, Get, Post, Put, Delete, Body, Param, Query, UseGuards, Req, Res, UseInterceptors, UploadedFile, BadRequestException } from '@nestjs/common';
+import { FileInterceptor } from '@nestjs/platform-express';
+import type { Response } from 'express';
 import { JwtAuthGuard } from '@dexo/auth';
 import { RequireModule, RequirePermission } from '@dexo/shared';
 import { EcommerceService } from './ecommerce.service';
@@ -66,6 +68,81 @@ export class EcommerceController {
     @Query('q') search?: string,
   ) {
     return this.ecommerce.listProducts(req.user.tenantId, { categoryId, brandId, search });
+  }
+
+  /**
+   * Paginated + filterable product listing for the tenant-admin Products page.
+   * A separate method/route from `listProducts` above (which stays
+   * array-returning and unpaginated) so the AI-tool callers and the
+   * platform-admin catalog view — both of which call listProducts directly —
+   * keep their existing contract.
+   */
+  @Get('products/paginated')
+  listProductsPaginated(
+    @Req() req: any,
+    @Query('page') page?: string,
+    @Query('limit') limit?: string,
+    @Query('categoryId') categoryId?: string,
+    @Query('brandId') brandId?: string,
+    @Query('q') search?: string,
+    @Query('status') status?: 'active' | 'inactive' | 'all',
+    @Query('featured') featured?: string,
+    @Query('stockStatus') stockStatus?: 'in_stock' | 'low_stock' | 'out_of_stock',
+    @Query('minPrice') minPrice?: string,
+    @Query('maxPrice') maxPrice?: string,
+  ) {
+    return this.ecommerce.listProductsPaginated(req.user.tenantId, {
+      page: page ? parseInt(page, 10) : undefined,
+      limit: limit ? parseInt(limit, 10) : undefined,
+      categoryId,
+      brandId,
+      search,
+      status,
+      featured: featured === 'true',
+      stockStatus,
+      minPrice: minPrice ? Number(minPrice) : undefined,
+      maxPrice: maxPrice ? Number(maxPrice) : undefined,
+    });
+  }
+
+  /** Streams a CSV export of the tenant's catalog, honoring the same filter query params as the paginated list (page/limit are ignored). */
+  @Get('products/export')
+  async exportProducts(
+    @Req() req: any,
+    @Res() res: Response,
+    @Query('categoryId') categoryId?: string,
+    @Query('brandId') brandId?: string,
+    @Query('q') search?: string,
+    @Query('status') status?: 'active' | 'inactive' | 'all',
+    @Query('featured') featured?: string,
+  ) {
+    const csv = await this.ecommerce.exportProductsCsv(req.user.tenantId, {
+      categoryId,
+      brandId,
+      search,
+      status,
+      featured: featured === 'true',
+    });
+    res.setHeader('Content-Type', 'text/csv');
+    res.setHeader('Content-Disposition', 'attachment; filename="products-export.csv"');
+    res.send(csv);
+  }
+
+  /** Downloadable CSV template for bulk product import. */
+  @Get('products/import/sample')
+  getImportSample(@Res() res: Response) {
+    const csv = this.ecommerce.getImportSampleCsv();
+    res.setHeader('Content-Type', 'text/csv');
+    res.setHeader('Content-Disposition', 'attachment; filename="products-import-sample.csv"');
+    res.send(csv);
+  }
+
+  /** Bulk product import — upserts by SKU. See EcommerceService.importProductsCsv for the row-level error-tolerant behavior. */
+  @Post('products/import')
+  @UseInterceptors(FileInterceptor('file'))
+  async importProducts(@Req() req: any, @UploadedFile() file: any) {
+    if (!file) throw new BadRequestException('No file uploaded');
+    return this.ecommerce.importProductsCsv(req.user.tenantId, file.buffer);
   }
 
   @Get('products/:id')

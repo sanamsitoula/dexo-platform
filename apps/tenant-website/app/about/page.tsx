@@ -1,6 +1,6 @@
 import Link from 'next/link';
 import { headers } from 'next/headers';
-import { getFitnessInfo, getGenericTenantInfo, getPublicPage, type FitnessInfo } from '@/lib/api';
+import { getFitnessInfo, getGenericTenantInfo, getPublicPage, getSiteNav, type FitnessInfo } from '@/lib/api';
 import { getSiteTheme } from '@/lib/site-theme';
 import SiteNav from '@/components/SiteNav';
 import SiteFooter from '@/components/SiteFooter';
@@ -41,10 +41,11 @@ const card = {
 
 export default async function AboutPage() {
   const subdomain = resolveSubdomain();
-  const [info, theme, realPage] = await Promise.all([
+  const [info, theme, realPage, navItems] = await Promise.all([
     getFitnessInfo(subdomain),
     getSiteTheme(subdomain),
     getPublicPage(subdomain, 'about'),
+    getSiteNav(subdomain),
   ]);
   // getFitnessInfo() is fitness-only and returns null for every other
   // business type — getGenericTenantInfo() (tenant name/branding, not a
@@ -59,7 +60,7 @@ export default async function AboutPage() {
   if (realPage && realPage.sections.length > 0) {
     return (
       <div style={{ background: 'var(--site-bg)', color: 'var(--site-text)', minHeight: '100vh' }}>
-        <SiteNav theme={theme} name={t.name} active="/about" />
+        <SiteNav theme={theme} name={t.name} active="/about" navItems={navItems} />
         {realPage.sections.map((section) => (
           <PageSectionRenderer key={section.id} section={section} colorPrimary="var(--site-primary)" subdomain={subdomain} />
         ))}
@@ -70,7 +71,7 @@ export default async function AboutPage() {
 
   return (
     <div style={{ background: 'var(--site-bg)', color: 'var(--site-text)', minHeight: '100vh' }}>
-      <SiteNav theme={theme} name={t.name} active="/about" />
+      <SiteNav theme={theme} name={t.name} active="/about" navItems={navItems} />
 
       {/* Hero */}
       <section className="text-center px-4 py-20 max-w-3xl mx-auto">

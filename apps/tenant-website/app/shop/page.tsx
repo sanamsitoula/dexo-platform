@@ -1,6 +1,6 @@
 import Link from 'next/link';
 import { headers } from 'next/headers';
-import { getCategories, getProducts, getTenantBySubdomain } from '@/lib/api';
+import { getCategories, getProducts, getTenantBySubdomain, getSiteNav } from '@/lib/api';
 import { getSiteTheme } from '@/lib/site-theme';
 import SiteNav from '@/components/SiteNav';
 import SiteFooter from '@/components/SiteFooter';
@@ -23,11 +23,12 @@ export default async function ShopPage({
   const categoryId = searchParams?.category || '';
   const page = Math.max(1, parseInt(searchParams?.page || '1', 10) || 1);
 
-  const [tenant, theme, categories, allProducts] = await Promise.all([
+  const [tenant, theme, categories, allProducts, navItems] = await Promise.all([
     getTenantBySubdomain(subdomain),
     getSiteTheme(subdomain),
     getCategories(subdomain),
     getProducts(subdomain, { q: q || undefined, categoryId: categoryId || undefined }),
+    getSiteNav(subdomain),
   ]);
   const name = tenant?.name || 'Store';
 
@@ -53,7 +54,7 @@ export default async function ShopPage({
 
   return (
     <div style={{ background: 'var(--site-bg)', color: 'var(--site-text)', minHeight: '100vh' }}>
-      <SiteNav theme={theme} name={name} active="/shop" showShop />
+      <SiteNav theme={theme} name={name} active="/shop" showShop navItems={navItems} />
 
       <section className="text-center px-4 py-14 max-w-3xl mx-auto">
         <p className="text-sm uppercase tracking-widest" style={{ color: 'var(--site-sub)' }}>Shop</p>

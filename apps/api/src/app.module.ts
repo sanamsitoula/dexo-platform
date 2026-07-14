@@ -47,6 +47,7 @@ import { MenuBuilderModule } from './modules/menu-builder/menu-builder.module';
 import { PageBuilderModule } from './modules/page-builder/page-builder.module';
 import { FormsBuilderModule } from './modules/forms-builder/forms-builder.module';
 import { ThemeBuilderModule } from './modules/theme-builder/theme-builder.module';
+import { SiteNavigationModule } from './modules/site-navigation/site-navigation.module';
 import { FitnessAiModule } from './modules/fitness/ai-integration/fitness-ai.module';
 import { EcommerceAiModule } from './modules/ecommerce/ai-integration/ecommerce-ai.module';
 import { WebsiteAiModule } from './modules/website-ai/website-ai.module';
@@ -112,6 +113,7 @@ import { TenantStatusMiddleware } from './common/middleware/tenant-status.middle
     PageBuilderModule,
     FormsBuilderModule,
     ThemeBuilderModule,
+    SiteNavigationModule,
     AttendanceDevicesModule,
     BusinessTemplateModule,
     TenantLifecycleModule,

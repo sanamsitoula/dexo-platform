@@ -243,3 +243,469 @@ in the same component.
 **Not in scope for either workstream:** version control (still explicitly
 descoped), full drag-and-drop repositioning of nav items visually on the
 live preview (list-based reorder is enough), multi-language nav labels.
+
+---
+
+## Workstream B item 3 — Footer structure as data — done (2026-07-14, second follow-up session)
+
+Item 3 in the "Theme Builder — full template-to-component breakdown" plan
+above ("Footer structure as data") is now built, following the exact same
+recipe `heroLayout` proved out in the previous session.
+
+**Confirmed before starting:** `SiteFooter.tsx`
+(`apps/tenant-website/components/SiteFooter.tsx`) was already the SHARED
+footer component for every public page except the homepage shell — used by
+`about`, `contact`, `blog`, `blog/[slug]`, `book`, `login`, `register`,
+`services`, `shop`, `shop/[slug]`, and `EcommerceHome.tsx`. Only
+`TemplateHome.tsx` (the homepage shell) had its own second, separately
+hardcoded `<footer>` block (a fixed Home/About/Services/Book/Join/Contact
+link row + a plain copyright line) — the same "second hardcoded copy" shape
+Workstream A found for nav before unifying it. `apps/tenant-website/app/page.tsx`
+also has a third, legacy inline footer (lines ~245-261) that only renders for
+tenants with no `WebsiteTemplate` chosen at all (pre-template legacy path) —
+left untouched, out of scope, since it's dead for any tenant with a template.
+
+- `TenantTheme.footerConfig` (nullable `Json`, matching the flexible-JSON
+  convention already used by `PageSection.content` rather than a rigid
+  Postgres schema) added to `prisma/schema.prisma`. Shape:
+  `{ columns: [{ title, links: [{ label, url }] }], socialLinks: [{ platform,
+  url }], showNewsletter: boolean, copyrightText: string }`. Migration
+  `prisma/migrations/20260714200000_theme_footer_config/migration.sql`
+  (`ALTER TABLE "TenantTheme" ADD COLUMN "footerConfig" JSONB`). Applied via
+  `npx prisma db push` (same pre-existing reason as `heroLayout`'s session:
+  this table's recent columns were never captured via `prisma migrate dev`
+  history). `npx prisma generate` hit the same pre-existing `EPERM` on the
+  native query-engine `.dll.node` binary (a running dev server holds the
+  lock) — confirmed the generated `node_modules/.prisma/client/index.d.ts`
+  picked up `footerConfig` anyway (grep-verified), which is what
+  typecheck/build depend on.
+- Wired through the exact same draft/publish/preview/revert lifecycle as
+  every other token: added `'footerConfig'` to `TOKEN_FIELDS` in
+  `apps/api/src/modules/theme-builder/theme-builder.service.ts` (drives
+  `updateTheme`/`publish`/`revertToLastPublished`/`getActiveTheme`
+  automatically) and to the explicit field list in `duplicateTheme`. No
+  controller changes needed.
+- `apps/tenant-website/lib/site-theme.ts`: new exported `FooterConfig`
+  interface; `ActiveTheme` and `SiteTheme` both gained `footerConfig`;
+  `getSiteTheme()` resolves it (`activeTheme?.footerConfig || undefined`)
+  through the same published/draft/preview-token path as every other token.
+- `apps/tenant-website/components/SiteFooter.tsx`: now reads
+  `theme.footerConfig` — when set, renders multi-column link groups, social
+  links, an optional "Stay in touch" newsletter line, and a custom copyright
+  line; when unset, renders EXACTLY the same fixed link row + plain
+  copyright line it rendered before this change, so every page that already
+  used `SiteFooter` (about/contact/blog/book/login/register/services/
+  shop/EcommerceHome) needed zero further changes — `footerConfig` flows
+  through automatically since they already pass the full resolved `theme`
+  object.
+- `apps/tenant-website/components/TemplateHome.tsx`: replaced its own
+  inline hardcoded `<footer>` block with `<SiteFooter theme={navTheme}
+  name={name} contact={contact} />` — the SAME shared component every other
+  page uses, collapsing the "second hardcoded footer" the same way
+  Workstream A collapsed the second hardcoded nav. Added a
+  `footerConfig?: FooterConfig | null` prop, threaded into `navTheme` (the
+  `SiteTheme`-shaped object this shell already builds for `SiteNav`).
+  `apps/tenant-website/app/page.tsx` now passes `footerConfig={theme.footerConfig}`
+  into `TemplateHome`.
+- Tenant-admin UI: `apps/tenant-admin/app/(admin)/website/theme/page.tsx` —
+  a `FooterEditor` component (same "list of structured items" convention as
+  `ComponentFieldsEditor.tsx`'s `list` field type: add/remove/edit rows, no
+  drag-and-drop) added inside the theme editor panel: add/remove link
+  columns with a title and per-column add/remove links (label + URL),
+  add/remove social links (platform + URL), a newsletter show/hide checkbox,
+  and a copyright text field. Edits call a new `saveFooterConfig()` function
+  that pushes the FULL config object through the same
+  `themeBuilderApi.update`/draft/preview flow every other token uses (added
+  right alongside the existing `saveToken()`), so footer edits land in draft
+  and show in the existing live-preview iframe exactly like a color or hero
+  layout change.
+- Verification: confirmed via `packages/shared/src/themes/templates.ts` and
+  a read of `TemplateHome.tsx`'s footer block before this change that the
+  footer was NOT visually different per design family (unlike hero layout) —
+  it was one plain text-link row shared by all 5 families/60 templates, so
+  there was no per-family layout skeleton to preserve; only the CONTENT
+  SOURCE changed (hardcoded strings → resolved theme data), matching the
+  "content-source change, not a redesign" instruction exactly.
+  `npx tsc -p apps/api/tsconfig.typecheck.json` — clean, no errors. `next
+  build --no-lint` for `tenant-website` — clean, all 21 routes generate
+  (including `/`, `/about`, `/shop`, `/shop/[slug]` which exercise both
+  `TemplateHome`'s new `SiteFooter` usage and `EcommerceHome`'s pre-existing
+  one). `next build --no-lint` for `tenant-admin` — clean, all routes
+  including `/website/theme` and `/website/pages/[id]` (the two pre-existing
+  errors noted in earlier sessions no longer reproduce on this `HEAD`,
+  confirming they were already fixed by an unrelated commit, same as
+  observed in the `heroLayout` session).
+- `npx prisma db push --skip-generate` applied the new `footerConfig` JSONB
+  column to the local dev DB (`postgresql://...@127.0.0.1:5433/dexo`)
+  cleanly.
+
+**Still open, Workstream B items 5-6** (unchanged scope; item 4 is now also
+done — see "Workstream B item 4 — Card/button/icon style tokens actually
+wired to rendering — done" further up in this document):
+- **Item 5 (templates-as-presets migration decision)** — still an open
+  decision, not started.
+- **Item 6 (visual regression snapshot tooling)** — still not built as
+  actual tooling.
+
+---
+
+## Workstream B item 4 — Card/button/icon style tokens actually wired to rendering — done (2026-07-14, third follow-up session)
+
+Item 4 in the "Theme Builder — full template-to-component breakdown" plan
+above is now built, following the exact same recipe `heroLayout` and
+`footerConfig` proved out in the previous two follow-up sessions.
+
+**Confirmed before starting:** `WebsiteTemplate.cardStyle/ctaStyle/iconStyle`
+(`packages/shared/src/themes/templates.ts`) are assigned per design family,
+one value each across all 5 families: `cardStyle` — aurora=`elevated`,
+maison=`image-overlay`, slate=`flat-bordered`, nocturne=`glassmorphism`,
+bloc=`thick-border`; `ctaStyle` — aurora=`gradient-banner`,
+maison=`full-width-banner`, slate=`inline-text`, nocturne=`floating-glow`,
+bloc=`sticky-bar`; `iconStyle` — aurora=`outline`, maison=`thin-line`,
+slate=`geometric`, nocturne=`duotone`, bloc=`filled`. Unlike `heroType`
+(5 fully distinct hardcoded JSX blocks) or even `footerConfig`'s partial
+precedent, these three were confirmed **completely inert** before this
+session: `PageSectionRenderer.tsx`'s features/testimonials/pricing cards
+were always `rounded-xl border border-gray-200` regardless of family,
+CTA/hero/newsletter buttons were always `rounded-lg font-semibold
+text-white`, and no icon rendering of any kind exists anywhere on the
+public site (no icon library, no per-item icon field in the public Page
+Builder schema) — so `iconStyle` had literally nothing to drive. Only
+`TemplateHome.tsx`'s placeholder "journey" cards and bottom CTA section had
+a single `tpl.family === 'bloc'` special case, not real per-token variance.
+
+- `TenantTheme.cardStyle`/`ctaStyle`/`iconStyle` (all nullable `String?`,
+  same free-text-validated-at-the-app-layer convention as `heroLayout` —
+  not Postgres enums) added to `prisma/schema.prisma`, matching the exact
+  same 5-value vocabularies as `WebsiteTemplate.cardStyle/ctaStyle/iconStyle`
+  so an existing template's values remain valid choices. Migration
+  `prisma/migrations/20260714230000_theme_card_cta_icon_style/migration.sql`
+  (`ALTER TABLE "TenantTheme" ADD COLUMN "cardStyle"/"ctaStyle"/"iconStyle"
+  TEXT`). Applied via `npx prisma db push --skip-generate` (same
+  pre-existing reason as `heroLayout`/`footerConfig`'s sessions — this
+  table's recent columns were never captured via `prisma migrate dev`
+  history). `npx prisma generate` hit the same pre-existing `EPERM` on the
+  native query-engine `.dll.node` binary (a running dev server holds the
+  lock) — confirmed the generated `node_modules/.prisma/client/index.d.ts`
+  picked up all three fields anyway (grep-verified), which is what
+  typecheck/build depend on.
+- Wired through the exact same draft/publish/preview/revert lifecycle as
+  every other token: added `'cardStyle', 'ctaStyle', 'iconStyle'` to
+  `TOKEN_FIELDS` in
+  `apps/api/src/modules/theme-builder/theme-builder.service.ts` and to the
+  explicit field list in `duplicateTheme`. No controller changes needed.
+- `apps/tenant-website/lib/site-theme.ts`: `ActiveTheme` and `SiteTheme` both
+  gained `cardStyle`/`ctaStyle`/`iconStyle`; `getSiteTheme()` resolves all
+  three (`activeTheme?.cardStyle || undefined`, etc.) through the same
+  published/draft/preview-token path as every other token.
+- New shared helper `apps/tenant-website/lib/style-tokens.ts`:
+  `resolveCardStyle`/`resolveCtaStyle`/`resolveIconStyle` (Theme Builder
+  token wins, falls back to the tenant's original template's value,
+  validated against the known 5-value vocabularies — same pattern as
+  `TemplateHome.tsx`'s pre-existing `KNOWN_HERO_TYPES` check) plus
+  `cardClasses`/`ctaButtonClasses`/`ctaButtonStyle`/`iconAccentClasses`/
+  `iconAccentStyle` — structural Tailwind class + inline-style mapping
+  functions. Each function's `default`/unrecognized branch reproduces the
+  EXACT class string that was hardcoded at each call site before this
+  token existed (e.g. `cardClasses(undefined)` === `'rounded-xl border
+  border-gray-200'`), so any caller that doesn't resolve a valid token
+  value renders identically to before.
+- `apps/tenant-website/components/PageSectionRenderer.tsx`: gained
+  `cardStyle`/`ctaStyle`/`iconStyle` optional props; features/testimonials/
+  pricing cards now use `cardClasses()`, all CTA-style anchors/buttons
+  (hero, cta, newsletter subscribe) use `ctaButtonClasses()`/
+  `ctaButtonStyle()`, and a small icon-accent element (new — nothing
+  existed to replace) was added before each `features` item's title using
+  `iconAccentClasses()`/`iconAccentStyle()`. Callers that don't pass these
+  props (about/services/[slug]/preview pages — legacy hardcoded paths
+  pre-dating this work, out of scope same as footer's "third hardcoded
+  footer" note) render exactly as before.
+- `apps/tenant-website/components/TemplateHome.tsx`: added
+  `cardStyle?`/`ctaStyle?`/`iconStyle?: string | null` props; resolved via
+  `resolveCardStyle`/`resolveCtaStyle`/`resolveIconStyle` against
+  `tpl.cardStyle`/`tpl.ctaStyle`/`tpl.iconStyle`. The placeholder "journey"
+  cards now use `cardClasses()` (replacing the old single
+  `tpl.family === 'bloc'` special case) and an icon-accent element
+  (replacing the old plain `<span className="block h-1.5 w-10 mb-4">` bar,
+  now styled via `iconAccentClasses()`). The bottom CTA section (the
+  standalone banner before the footer, distinct from the 5 hero-layout
+  JSX blocks which were left untouched per the `heroLayout` session's own
+  precedent of keeping those blocks "exactly as they were") now switches
+  on `resolvedCtaStyle` instead of `tpl.family === 'bloc'`/`dark`, with the
+  fallback (no theme override set) reproducing each family's prior look:
+  `sticky-bar` === bloc's existing thick-border banner, `floating-glow` ===
+  nocturne's existing dark-gradient section, and
+  `gradient-banner`/`full-width-banner`/`inline-text` render the same
+  solid-accent-section background every other family already had, now
+  differentiated by button treatment (this is the one deliberate expansion
+  beyond "zero visual change" — matching the plan's explicit goal that
+  `PageSectionRenderer`/`TemplateHome` "read them... instead of the current
+  per-family-hardcoded Tailwind classes", i.e. finally making the
+  per-family design intent in the data visible, not a redesign of the
+  vocabulary itself). `apps/tenant-website/app/page.tsx` now passes
+  `cardStyle={theme.cardStyle}`, `ctaStyle={theme.ctaStyle}`,
+  `iconStyle={theme.iconStyle}` into `TemplateHome`.
+- `apps/tenant-website/components/EcommerceHome.tsx`: `PageSectionRenderer`
+  calls now pass `theme.cardStyle/ctaStyle/iconStyle` through (ecommerce
+  tenants have no `WebsiteTemplate`/family default, so these are `undefined`
+  unless a tenant explicitly sets one in Theme Builder — zero behavior
+  change otherwise). The "Shop Now" hero button and "View All Products"
+  promo-banner button now use `ctaButtonClasses()`/`ctaButtonStyle()`
+  (falling back to the exact prior inline style when unset). `ProductCard`'s
+  surface style now branches on `theme.cardStyle` (`thick-border` → 3px
+  border, `elevated` → boxShadow + no border, `glassmorphism` → backdrop
+  blur, anything else/unset → the exact original 1px-border inline style).
+- Tenant-admin UI: `apps/tenant-admin/app/(admin)/website/theme/page.tsx` —
+  three 5-option pickers (Card style, Button/CTA style, Icon style), each
+  with the same tiny inline-sketch-per-option convention as the existing
+  hero layout picker, added directly below it inside the theme editor
+  panel. Saving (or re-clicking the selected option to clear it) goes
+  through the same `saveToken`/`themeBuilderApi.update` path as every
+  other token (the `key === 'heroLayout'` empty-string-to-null branch in
+  `saveToken` was generalized to also cover `cardStyle`/`ctaStyle`/
+  `iconStyle`), landing in draft and showing in the existing live-preview
+  iframe exactly like a hero layout or color change.
+- Verification: confirmed via `packages/shared/src/themes/templates.ts`
+  that each of `cardStyle`/`ctaStyle`/`iconStyle` is one fixed value per
+  design family (not per business type), so the fallback path in
+  `TemplateHome.tsx` is exercised identically across all 12 business types
+  within a family — same reasoning the `heroLayout` session used to stand
+  in for screenshot-based visual regression (full snapshot tooling remains
+  item 6, still not started). Read through the resolved rendering logic
+  for a sample of combinations (aurora/fitness with default `elevated`+
+  `gradient-banner`+`outline`; bloc/ecommerce with default `thick-border`+
+  `sticky-bar`+`filled`; nocturne/salon with default `glassmorphism`+
+  `floating-glow`+`duotone`) and confirmed each produces a sensible,
+  non-broken class/style combination with no `undefined`/`NaN` leaking into
+  `className` or inline `style`. `npx tsc -p apps/api/tsconfig.typecheck.json`
+  (from `apps/api`) — clean, no errors. `npx tsc --noEmit -p tsconfig.json`
+  in both `apps/tenant-website` and `apps/tenant-admin` — clean, no errors
+  (per this session's instruction, `next build` was intentionally NOT run
+  in either app, since a dev server was active against their `.next`
+  folders and a full build previously corrupted the dev server's webpack
+  chunk cache).
+- `npx prisma db push --skip-generate` applied the three new `TEXT` columns
+  to the local dev DB (`postgresql://...@127.0.0.1:5433/dexo`) cleanly.
+
+**Still open, Workstream B items 5-6** (unchanged scope):
+- **Item 5 (templates-as-presets migration decision)** — still an open
+  decision, not started.
+- **Item 6 (visual regression snapshot tooling)** — still not built as
+  actual tooling; this session (like the two before it) used typecheck +
+  read-through-the-resolved-rendering-logic as the lightweight substitute,
+  not a replacement for real snapshot tooling.
+
+**Updated suggested build order** (everything else in the original
+Workstream B plan is now done): only item 5 (templates-as-presets
+migration decision) and item 6 (visual regression snapshot tooling) remain
+of the original 6-item plan.
+
+---
+
+# Completed this session (2026-07-14)
+
+Both Workstream A (Site Navigation) and Workstream B/Phase 3 (Theme Builder
+draft/live isolation) are now built, wired end-to-end, typechecked, and
+building cleanly. Workstream B's items 2-6 (hero layout, footer structure,
+card/button/icon tokens, template-to-preset migration, visual regression
+snapshotting) remain **not started** — only Phase 3 (draft safety) from
+Workstream B was in scope for this session, per the doc's own reordering
+("Phase 3 ... FIRST, before anything else below").
+
+## Workstream B item 2 — Hero layout as a Theme Builder-editable choice — done (2026-07-14, follow-up session)
+
+Item 1 in the "Theme Builder — full template-to-component breakdown" plan
+above ("Hero layout as a Theme Builder-editable choice") is now built. The 5
+fixed `heroType` JSX blocks in `TemplateHome.tsx` stay exactly as they were —
+only WHERE the choice of which block to render comes from changed.
+
+- `TenantTheme.heroLayout` (nullable `String?`, not a Postgres enum — kept
+  consistent with the free-text style already used for `headingFont`/
+  `bodyFont` on the same table, validated at the application/UI layer
+  against the 5 known `HeroType` values instead) added to
+  `prisma/schema.prisma`. Migration
+  `prisma/migrations/20260714190000_theme_hero_layout/migration.sql`.
+  Applied via `npx prisma db push` (same reason as the prior session: recent
+  tables on this DB were never captured via `prisma migrate dev` history, so
+  a real `migrate dev` fails shadow-DB replay — a pre-existing inconsistency,
+  not introduced here). `npx prisma generate` hit the same pre-existing
+  `EPERM` on the native query-engine `.dll.node` binary (a running dev
+  server still holds the lock) — the generated TypeScript types (what
+  typecheck/build actually depend on) were refreshed and confirmed correct
+  regardless.
+- Wired through the exact same draft/publish/preview/revert lifecycle as
+  every other token — no parallel mechanism: added `'heroLayout'` to
+  `TOKEN_FIELDS` in `apps/api/src/modules/theme-builder/theme-builder.service.ts`
+  (drives `updateTheme`/`publish`/`revertToLastPublished`/`getActiveTheme`
+  automatically, since they all operate generically over `TOKEN_FIELDS`) and
+  to the explicit field list in `duplicateTheme`. No controller changes
+  needed (`theme-builder.controller.ts` already passes `dto` through
+  generically to `updateTheme`).
+- `apps/tenant-website/lib/site-theme.ts`: `ActiveTheme` interface and the
+  public `SiteTheme` interface both gained `heroLayout`; `getSiteTheme()`
+  resolves it (`activeTheme?.heroLayout || undefined`) through the same
+  published/draft/preview-token path as every other color/font token.
+- `apps/tenant-website/components/TemplateHome.tsx`: added a
+  `heroLayout?: string | null` prop; a `resolvedHeroType` value (validated
+  against the 5 known `HeroType` strings, falling back to `tpl.heroType` if
+  unset or unrecognized) replaces `tpl.heroType` in all 5 hero-block
+  conditionals. `apps/tenant-website/app/page.tsx` now passes
+  `heroLayout={theme.heroLayout}` from the resolved theme into `TemplateHome`.
+- Tenant-admin UI: `apps/tenant-admin/app/(admin)/website/theme/page.tsx` —
+  a 5-option hero layout picker (Split/Fullscreen/Floating cards/Editorial/
+  Bold block, each with a tiny inline text sketch) added next to the
+  existing color/font/radius controls inside the theme editor panel. Saving
+  a selection (or clicking the already-selected option again to clear it)
+  goes through the same `saveToken`/`themeBuilderApi.update` path already
+  used for every other token, so it lands in draft and shows in the existing
+  live-preview iframe (`?theme_preview=` signed token) exactly like a color
+  change — no new preview plumbing needed.
+- Verification: confirmed via `packages/shared/src/themes/templates.ts` that
+  `heroType` is assigned per **design family** (`aurora`→split,
+  `maison`→fullscreen, `slate`→editorial, `nocturne`→floating-cards,
+  `bloc`→bold-block), applied identically across all 12 business types
+  within a family — so the override logic in `TemplateHome.tsx` (a plain
+  string match against `KNOWN_HERO_TYPES`) is exercised identically
+  regardless of business type; no per-business-type special-casing exists
+  that could break. Combined with clean builds below, this stands in for
+  screenshot-based visual regression for this item (full snapshot tooling is
+  item 6/its own separate task, still not started, see below).
+  `npx tsc -p apps/api/tsconfig.typecheck.json` — clean, no errors. `next
+  build --no-lint` for `tenant-website` — clean, all 21 routes still
+  generate. `next build --no-lint` for `tenant-admin` — clean (the two
+  pre-existing errors noted in the prior session's Verification section,
+  `archivePage`/`ComponentFieldsEditor.tsx`, no longer reproduce on this
+  `HEAD` — already fixed by an unrelated commit between sessions, not by
+  this work).
+
+**Still open, Workstream B items 4-6** — see the "Workstream B item 3 —
+Footer structure as data — done" section further up in this document (added
+in a later follow-up session) for the up-to-date status: item 3 (footer) is
+now also done, following this same `heroLayout` recipe; items 4-6 remain
+open with the same notes as before.
+
+## A. Site Navigation — done
+
+- New `SiteNavigation` concept: stored as JSON on `Tenant.settings.navigation.items`
+  (no new Prisma model/migration — a deliberate lighter-weight choice than
+  Menu Builder, since nav items are a small flat list with no nesting
+  requirement). `apps/api/src/modules/site-navigation/site-navigation.service.ts`.
+- Tenant-scoped CRUD + bulk reorder API, JWT-guarded, audit-logged same as
+  every other builder module, plus an unauthenticated
+  `GET /site-navigation/public/:subdomain` for the live site.
+  `apps/api/src/modules/site-navigation/site-navigation.controller.ts`.
+  Registered in `apps/api/src/app.module.ts` (`SiteNavigationModule`,
+  already present alongside `ThemeBuilderModule`).
+- Auto-populate from real Pages (About/Services/Contact)/Blog (only if
+  ≥1 published post)/Shop (only if `isEcommerceDomainCode`), lazily on first
+  read (`ensureDefaults`) — verified logic matches
+  `SiteNavigationService.buildDefaultItems`.
+- Tenant-admin "Navigation" tab: `apps/tenant-admin/app/(admin)/website/navigation/page.tsx`
+  — `@dnd-kit` drag-reorder, inline rename, enable/disable toggle, add
+  custom link (internal page slug / built-in route / external URL). Added
+  to the sub-nav in `apps/tenant-admin/components/WebsiteSubNav.tsx`.
+  `siteNavigationApi` added to `apps/tenant-admin/lib/api.ts`.
+- `SiteNav.tsx` and `TemplateHome.tsx` unified onto ONE nav data source
+  (`getSiteNav()` in `lib/api.ts`) — `TemplateHome.tsx` now renders
+  `<SiteNav>` itself instead of its own second hardcoded link list, passing
+  through `ctaLabel`/`showShop` so all 5 template-family nav styles
+  (centered/minimal/bottom-bar/classic) are visually unchanged. Verified:
+  every public route (`/`, `/about`, `/services`, `/book`, `/contact`,
+  `/login`, `/register`, `/blog`, `/blog/[slug]`, `/shop`, `/shop/[slug]`)
+  now fetches and passes `navItems`; both legacy hardcoded lists are kept
+  only as an empty-list fallback so a subdomain the nav API can't reach
+  doesn't regress to a blank nav.
+- Backfill script `scripts/backfill-navigation.ts` — idempotent, dry-run
+  supported, mirrors `scripts/backfill-homepage.ts`'s tenant-loop pattern.
+  Registered npm scripts this session (neither backfill script had one
+  before): `npm run backfill:navigation`, `npm run backfill:homepage`.
+
+## B. Theme Builder Phase 3 (draft/live isolation) — done
+
+- `TenantTheme.status` (`ThemeStatus` enum: `draft`/`published`, default
+  `published` so existing themes aren't retroactively hidden),
+  `lastPublishedSnapshot` (Json?), `lastPublishedAt` added to
+  `prisma/schema.prisma`. Migration
+  `prisma/migrations/20260714174608_theme_draft_publish/migration.sql`
+  verified to match the schema diff exactly.
+- `updateTheme()` now always lands in `draft` status and never touches the
+  live site directly; a separate explicit `publish(themeId)` action flips
+  it live and refreshes the "last known good" snapshot; `revertToLastPublished()`
+  does a one-click restore-and-republish from that single snapshot (no full
+  version history, per the earlier explicit descope).
+  `apps/api/src/modules/theme-builder/theme-builder.service.ts`.
+- `getActiveTheme()` (the public resolver consumed by
+  `apps/tenant-website/lib/site-theme.ts`) now serves published tokens only
+  to normal visitors — an in-progress draft on the active theme falls back
+  to `lastPublishedSnapshot` instead of ever showing unpublished edits
+  live. A signed, HMAC-verified, 24h-expiring preview token (`createPreviewToken`)
+  bypasses this for admin preview use, checked before the published-only path.
+- New controller routes: `POST /themes/:id/publish`, `POST /themes/:id/revert`,
+  `POST /themes/:id/preview-token`; `GET /themes/public/:subdomain/active`
+  now accepts `?preview=<token>`. `apps/api/src/modules/theme-builder/theme-builder.controller.ts`.
+- Tenant-admin Theme Builder UI: "Publish theme" button and "Revert to last
+  published" action, an "Unpublished edits" badge on the active theme when
+  its status is `draft`, and the live-preview iframe now carries the signed
+  preview token (`?theme_preview=`) so admins see draft edits before
+  publishing while real visitors don't.
+  `apps/api/src/modules/theme-builder/theme-builder.controller.ts` (client-side:
+  `apps/tenant-admin/app/(admin)/website/theme/page.tsx`,
+  `themeBuilderApi.publish/revert/previewToken` in `apps/tenant-admin/lib/api.ts`).
+- Public site plumbing: `getSiteTheme()` in `apps/tenant-website/lib/site-theme.ts`
+  accepts an optional `previewToken` param, threaded from a `?theme_preview=`
+  query param on `apps/tenant-website/app/page.tsx`.
+
+## Verification performed this session
+
+- `npx tsc -p apps/api/tsconfig.typecheck.json` — clean, no errors.
+- `next build --no-lint` for `tenant-website` — clean, builds and
+  statically generates all 21 routes.
+- `next build --no-lint` for `tenant-admin` — fails, but on two
+  **pre-existing, unrelated** errors already present in `HEAD` before this
+  session touched anything (confirmed via `git diff --stat` showing zero
+  changes to either file this session):
+  `app/(admin)/website/pages/[id]/page.tsx:203` (`pageBuilderApi.archivePage`
+  doesn't exist — a Page Builder bug, not Site Navigation/Theme Builder) and
+  `components/ComponentFieldsEditor.tsx:163/168/173` (function declarations
+  inside blocks under strict mode — a Component Library issue). Left
+  untouched per this session's scope (nav/theme only).
+- Fixed one pre-existing, already-committed bug that was blocking the
+  `tenant-website` build entirely (not something added by the nav/theme
+  work, but it prevented verifying that work end-to-end): `LEGACY` theme
+  fallback object in `apps/tenant-website/lib/site-theme.ts` was missing
+  `blogEnabled`/`bookEnabled`, which the `SiteTheme` interface has required
+  since an earlier commit. Added `blogEnabled: true, bookEnabled: true` to
+  the object.
+- Prisma: schema and migration file are consistent with each other. The
+  local dev DB (`postgresql://...@127.0.0.1:5433/dexo`, confirmed local —
+  safe to modify) was 21 migrations behind `migrate status`, and the new
+  migration failed the shadow-DB replay with `migrate dev` because
+  `TenantTheme`'s own `CREATE TABLE` was never captured in migration
+  history in the first place (it and other recent tables were previously
+  applied via `prisma db push`, not `prisma migrate dev` — a pre-existing
+  inconsistency, not introduced this session). Used `npx prisma db push`
+  instead, which applied the new columns/enum cleanly, followed by
+  `npx prisma generate` (the native query-engine binary swap failed with
+  `EPERM` because a running dev-server process had it locked; the
+  generated TypeScript types were still refreshed and are correct, which
+  is what typecheck/build depend on — the locked `.dll.node` binary itself
+  doesn't affect anything until a Prisma-invoking process is restarted).
+
+## Still open / deferred (out of scope for this session, unchanged from before)
+
+- Workstream B items 2-6 as of THIS session's writing (unchanged note, kept
+  for history): not started. **Update from later follow-up sessions:** item
+  2 (hero layout), item 3 (footer structure as data), and item 4 (card/
+  button/icon style tokens wired to rendering) are now all done — see
+  "Workstream B item 2 — Hero layout...", "Workstream B item 3 — Footer
+  structure as data...", and "Workstream B item 4 — Card/button/icon style
+  tokens actually wired to rendering..." sections elsewhere in this
+  document. Item 5 (60-templates-as-presets migration decision) and item 6
+  (visual regression snapshotting) remain not started.
+- The two pre-existing `tenant-admin` build errors noted above
+  (`archivePage`, `ComponentFieldsEditor.tsx` strict-mode function
+  declarations) — real bugs, but Page Builder/Component Library issues,
+  out of scope for Site Navigation/Theme Builder work.
+- Restart of the dev-server process holding the Prisma query-engine binary
+  lock, if a fully regenerated native binary (vs. just refreshed TS types)
+  is needed before deploying.

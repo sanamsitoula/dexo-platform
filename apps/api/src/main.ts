@@ -103,6 +103,10 @@ async function bootstrap() {
 
   const app = await NestFactory.create(AppModule, {
     logger: ['log', 'error', 'warn', 'debug', 'verbose'],
+    // Needed so the Stripe Connect webhook can verify the signature against
+    // the exact raw bytes Stripe signed — every other route still gets the
+    // normal parsed JSON body, Nest keeps both in sync automatically.
+    rawBody: true,
   });
 
   // CORS: reflect the request origin instead of "*" — browsers reject

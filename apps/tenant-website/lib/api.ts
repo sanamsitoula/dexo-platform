@@ -11,6 +11,28 @@ export async function getTenantBySubdomain(subdomain: string) {
   }
 }
 
+export interface SiteNavLink {
+  id: string
+  label: string
+  href: string
+  external: boolean
+}
+
+/** Workstream A — Site Navigation, unified across SiteNav.tsx and
+ * TemplateHome.tsx (previously two separate hardcoded link lists). Enabled
+ * items only, already sorted, already resolved to real hrefs — see
+ * apps/api/src/modules/site-navigation. No auth. */
+export async function getSiteNav(subdomain: string): Promise<SiteNavLink[]> {
+  try {
+    const res = await fetch(`${API_BASE_URL}/site-navigation/public/${subdomain}`, { cache: 'no-store' })
+    if (!res.ok) return []
+    const items = await res.json()
+    return Array.isArray(items) ? items : []
+  } catch {
+    return []
+  }
+}
+
 export interface MenuItemNode {
   id: string
   title: string
@@ -192,7 +214,12 @@ export async function getGenericTenantInfo(subdomain: string): Promise<FitnessIn
     colorPrimary: branding.colorPrimary || '#4F46E5',
     colorAccent: branding.colorAccent || '#818CF8',
     branchCount: 0,
-    contact: null,
+    // Fall back to Settings page's plain contact fields when there's no
+    // branch/HQ contact (non-fitness tenants never had one) — otherwise
+    // these fields save successfully but never appear anywhere on the site.
+    contact: (branding.email || branding.phone || branding.address)
+      ? { branch: tenant.name, address: branding.address || undefined, phone: branding.phone || undefined, email: branding.email || undefined }
+      : null,
   }
 }
 
