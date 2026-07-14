@@ -392,6 +392,20 @@ export const fitnessApi = {
       fetchApi<any>(`/fitness/memberships/${id}/freeze`, { method: 'POST', body: JSON.stringify({ days, reason }) }),
     unfreeze: (id: string) => fetchApi<any>(`/fitness/memberships/${id}/unfreeze`, { method: 'POST' }),
     cancel: (id: string) => fetchApi<any>(`/fitness/memberships/${id}/cancel`, { method: 'POST' }),
+    update: (id: string, data: { startDate?: string; endDate?: string; autoRenew?: boolean; renewBeforeDays?: number }) =>
+      fetchApi<any>(`/fitness/memberships/${id}`, { method: 'PUT', body: JSON.stringify(data) }),
+    extend: (id: string, days: number, reason?: string) =>
+      fetchApi<any>(`/fitness/memberships/${id}/extend`, { method: 'POST', body: JSON.stringify({ days, reason }) }),
+  },
+  notifications: {
+    // Signed-in user's own in-app feed (membership expiry reminders, plan
+    // extensions, …) — backs the Notifications tab.
+    mine: (params?: { page?: number; limit?: number; unreadOnly?: boolean }) => {
+      const q = new URLSearchParams(params as any).toString();
+      return fetchApi<any>(`/notifications/me${q ? `?${q}` : ''}`);
+    },
+    markRead: (id: string) => fetchApi<any>(`/notifications/${id}/read`, { method: 'POST' }),
+    markAllRead: () => fetchApi<any>('/notifications/read-all', { method: 'POST' }),
   },
   trainers: {
     list: (params?: any) => {

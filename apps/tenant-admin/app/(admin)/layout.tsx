@@ -11,7 +11,10 @@ import { tenantWebsiteUrl } from '@/lib/portal';
 const NAV_SECTIONS: { heading: string; items: { href: string; label: string }[] }[] = [
   {
     heading: 'Overview',
-    items: [{ href: '/dashboard', label: 'Dashboard' }],
+    items: [
+      { href: '/dashboard', label: 'Dashboard' },
+      { href: '/alerts', label: 'Alerts' },
+    ],
   },
   {
     heading: 'Gym',

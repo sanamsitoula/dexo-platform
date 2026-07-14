@@ -2,10 +2,15 @@ import { Injectable, NotFoundException, BadRequestException } from '@nestjs/comm
 import { PrismaService } from '@dexo/shared';
 import { randomBytes } from 'crypto';
 import { GymLedgerService } from './gym-ledger.service';
+import { AppNotificationsService } from './app-notifications.service';
 
 @Injectable()
 export class MembershipsService {
-  constructor(private prisma: PrismaService, private ledger: GymLedgerService) {}
+  constructor(
+    private prisma: PrismaService,
+    private ledger: GymLedgerService,
+    private appNotifications: AppNotificationsService,
+  ) {}
 
   async findAll(tenantId: string, params?: { memberId?: string; status?: string; branchId?: string; page?: number; limit?: number }) {
     const where: any = { tenantId };
@@ -124,6 +129,90 @@ export class MembershipsService {
         status: 'PENDING',
         qrCode: this.generateQrCode(),
       },
+    });
+  }
+
+  /**
+   * Admin edit of a membership's period. Lets the tenant admin set the
+   * from/to dates directly (e.g. correcting a wrongly entered start date).
+   * If the new endDate is in the future and the membership had EXPIRED,
+   * it comes back to ACTIVE; if the new endDate is already past on an
+   * ACTIVE membership, it flips to EXPIRED immediately rather than waiting
+   * for the nightly sweep.
+   */
+  async update(tenantId: string, id: string, dto: { startDate?: string; endDate?: string; autoRenew?: boolean; renewBeforeDays?: number }) {
+    const current = await this.findOne(tenantId, id);
+    const startDate = dto.startDate ? new Date(dto.startDate) : new Date(current.startDate);
+    const endDate = dto.endDate ? new Date(dto.endDate) : new Date(current.endDate);
+    if (isNaN(startDate.getTime()) || isNaN(endDate.getTime())) throw new BadRequestException('Invalid date');
+    if (endDate <= startDate) throw new BadRequestException('endDate must be after startDate');
+
+    const data: any = { startDate, endDate };
+    if (dto.autoRenew !== undefined) data.autoRenew = dto.autoRenew;
+    if (dto.renewBeforeDays !== undefined) data.renewBeforeDays = dto.renewBeforeDays;
+    const now = new Date();
+    if (current.status === 'EXPIRED' && endDate > now) data.status = 'ACTIVE';
+    if (current.status === 'ACTIVE' && endDate <= now) data.status = 'EXPIRED';
+
+    const updated = await this.prisma.membership.update({
+      where: { id },
+      data,
+      include: { plan: true, member: { select: { userId: true } } },
+    });
+    await this.notifyPeriodChange(updated, 'updated').catch(() => undefined);
+    return updated;
+  }
+
+  /**
+   * Extend a membership by N days at no extra charge (e.g. goodwill +15
+   * days on the same plan/price). Reactivates an EXPIRED membership when
+   * the new endDate lands in the future.
+   */
+  async extend(tenantId: string, id: string, days: number, reason?: string) {
+    if (!Number.isFinite(days) || days <= 0 || days > 366) throw new BadRequestException('days must be between 1 and 366');
+    const current = await this.findOne(tenantId, id);
+    if (current.status === 'CANCELLED') throw new BadRequestException('Cannot extend a cancelled membership');
+
+    const newEnd = new Date(new Date(current.endDate).getTime() + days * 24 * 60 * 60 * 1000);
+    const data: any = { endDate: newEnd };
+    if (current.status === 'EXPIRED' && newEnd > new Date()) data.status = 'ACTIVE';
+
+    const updated = await this.prisma.membership.update({
+      where: { id },
+      data,
+      include: { plan: true, member: { select: { userId: true } } },
+    });
+    await this.notifyPeriodChange(updated, `extended by ${days} day${days === 1 ? '' : 's'}`, reason).catch(() => undefined);
+    return updated;
+  }
+
+  /** In-app notifications after an admin changed a membership period (best-effort). */
+  private async notifyPeriodChange(
+    m: { id: string; tenantId: string; memberId: string; endDate: Date; plan?: { name: string } | null; member?: { userId: string | null } | null },
+    action: string,
+    reason?: string,
+  ) {
+    const planName = m.plan?.name || 'membership';
+    const until = new Date(m.endDate).toDateString();
+    const suffix = reason ? ` (${reason})` : '';
+    if (m.member?.userId) {
+      await this.appNotifications.create({
+        tenantId: m.tenantId,
+        audience: 'MEMBER',
+        userId: m.member.userId,
+        type: 'MEMBERSHIP_EXTENDED',
+        title: 'Membership updated',
+        message: `Your "${planName}" plan was ${action}. It is now valid until ${until}.${suffix}`,
+        data: { membershipId: m.id, memberId: m.memberId, endDate: m.endDate },
+      });
+    }
+    await this.appNotifications.create({
+      tenantId: m.tenantId,
+      audience: 'TENANT_ADMIN',
+      type: 'MEMBERSHIP_EXTENDED',
+      title: 'Membership updated',
+      message: `"${planName}" for member ${m.memberId.slice(0, 8)} ${action}; valid until ${until}.${suffix}`,
+      data: { membershipId: m.id, memberId: m.memberId, endDate: m.endDate },
     });
   }
 

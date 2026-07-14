@@ -8,6 +8,8 @@ import { MembershipsService } from './members/memberships.service';
 import { MembershipsController } from './members/memberships.controller';
 import { GymLedgerService } from './members/gym-ledger.service';
 import { MembershipReminderService } from './members/membership-reminder.service';
+import { AppNotificationsService } from './members/app-notifications.service';
+import { AppNotificationsController } from './members/app-notifications.controller';
 import { GymFinanceController } from './members/gym-finance.controller';
 import { TrainersService } from './trainers/trainers.service';
 import { TrainersController } from './trainers/trainers.controller';
@@ -54,6 +56,7 @@ import { FitnessFinanceService } from './fitness-finance.service';
     MembershipsService,
     GymLedgerService,
     MembershipReminderService,
+    AppNotificationsService,
     TrainersService,
     TrainerMessagesService,
     AssessmentsService,
@@ -78,6 +81,7 @@ import { FitnessFinanceService } from './fitness-finance.service';
     MembersController,
     MembershipPlansController,
     MembershipsController,
+    AppNotificationsController,
     GymFinanceController,
     TrainersController,
     TrainerMessagesController,

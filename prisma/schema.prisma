@@ -369,6 +369,7 @@ model Tenant {
   formFields             FormField[]
   formSubmissions        FormSubmission[]
   themes                 TenantTheme[]
+  appNotifications       AppNotification[]
 
   @@index([subdomain])
   @@index([domain])
@@ -412,6 +413,7 @@ model User {
   couponRedemptions       CouponRedemption[]
   oauthAccounts           OAuthAccount[]
   branchUsers             BranchUser[]
+  appNotifications        AppNotification[]
   // Blog relations
   blogs                   Blog[]               @relation("BlogAuthor")
   blogComments            BlogComment[]        @relation("CommentAuthor")
@@ -2858,6 +2860,44 @@ model ReminderLog {
   @@unique([membershipId, milestone])
   @@index([tenantId])
   @@index([membershipId])
+}
+
+// In-app notifications, shown in the mobile app's Notifications tab and the
+// tenant-admin dashboard bell. Two audiences:
+//   MEMBER       — targeted at one user (userId set): membership expiry
+//                  reminders, plan extensions, etc.
+//   TENANT_ADMIN — tenant-wide admin feed (userId null): "member X's plan
+//                  expires in 3 days". Any tenant admin sees the same feed,
+//                  so we don't fan out one row per admin user.
+// Written by MembershipReminderService (same milestones as its emails) and
+// by admin actions (extend/edit). Read via /notifications endpoints.
+enum AppNotificationAudience {
+  MEMBER
+  TENANT_ADMIN
+}
+
+model AppNotification {
+  id       String @id @default(uuid())
+  tenant   Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  tenantId String
+
+  audience AppNotificationAudience @default(MEMBER)
+  user     User?                   @relation(fields: [userId], references: [id], onDelete: Cascade)
+  userId   String? // recipient — required for MEMBER, null for TENANT_ADMIN
+
+  type    String // MEMBERSHIP_EXPIRING | MEMBERSHIP_EXPIRED | MEMBERSHIP_EXTENDED | GENERAL
+  title   String
+  message String @db.Text
+  data    Json? // e.g. { membershipId, memberId, daysLeft }
+
+  isRead Boolean   @default(false)
+  readAt DateTime?
+
+  createdAt DateTime @default(now())
+
+  @@index([tenantId, audience, isRead])
+  @@index([userId, isRead])
+  @@index([createdAt])
 }
 
 // Body Assessment & Health Tracking

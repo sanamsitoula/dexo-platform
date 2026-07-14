@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import {
   View,
   Text,
@@ -6,47 +6,91 @@ import {
   TouchableOpacity,
   StyleSheet,
   RefreshControl,
+  ActivityIndicator,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
+import { useAuth } from '@dexo/mobile-core/lib/auth-context';
 import { Colors, Spacing, BorderRadius, FontSize } from '@dexo/mobile-core/lib/theme';
+import { fitnessApi } from '@dexo/mobile-core/lib/api';
 
-interface Notification {
+interface AppNotification {
   id: string;
+  type: string;
   title: string;
   message: string;
-  time: string;
-  read: boolean;
+  isRead: boolean;
+  createdAt: string;
 }
 
-const sampleNotifications: Notification[] = [
-  { id: '1', title: 'Workout Reminder', message: 'Your HIIT session is scheduled for tomorrow at 7 AM', time: '2h ago', read: false },
-  { id: '2', title: 'Progress Update', message: 'You completed 4 workouts this week. Great job!', time: '1d ago', read: true },
-  { id: '3', title: 'New Feature', message: 'Check out our new nutrition tracking feature', time: '3d ago', read: true },
-  { id: '4', title: 'Team Update', message: 'A new member joined your team', time: '5d ago', read: true },
-];
+const typeIcon: Record<string, keyof typeof Ionicons.glyphMap> = {
+  MEMBERSHIP_EXPIRING: 'time-outline',
+  MEMBERSHIP_EXPIRED: 'alert-circle-outline',
+  MEMBERSHIP_EXTENDED: 'checkmark-circle-outline',
+};
+
+function timeAgo(iso: string): string {
+  const diffMs = Date.now() - new Date(iso).getTime();
+  const mins = Math.floor(diffMs / 60000);
+  if (mins < 1) return 'now';
+  if (mins < 60) return `${mins}m ago`;
+  const hours = Math.floor(mins / 60);
+  if (hours < 24) return `${hours}h ago`;
+  const days = Math.floor(hours / 24);
+  if (days < 7) return `${days}d ago`;
+  return new Date(iso).toLocaleDateString();
+}
 
 export default function NotificationsScreen() {
-  const [notifications, setNotifications] = useState(sampleNotifications);
+  const { token } = useAuth();
+  const [notifications, setNotifications] = useState<AppNotification[]>([]);
+  const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
 
-  function markAsRead(id: string) {
-    setNotifications((prev) =>
-      prev.map((n) => (n.id === id ? { ...n, read: true } : n))
-    );
+  const load = useCallback(async () => {
+    const res = await fitnessApi.notifications.mine({ limit: 50 });
+    if (res.data) setNotifications(res.data.items ?? []);
+    setLoading(false);
+    setRefreshing(false);
+  }, []);
+
+  useEffect(() => {
+    if (token) load();
+  }, [token, load]);
+
+  async function markAsRead(item: AppNotification) {
+    if (item.isRead) return;
+    // Optimistic flip; the API call confirms it in the background.
+    setNotifications((prev) => prev.map((n) => (n.id === item.id ? { ...n, isRead: true } : n)));
+    await fitnessApi.notifications.markRead(item.id);
+  }
+
+  async function markAllRead() {
+    setNotifications((prev) => prev.map((n) => ({ ...n, isRead: true })));
+    await fitnessApi.notifications.markAllRead();
   }
 
   function onRefresh() {
     setRefreshing(true);
-    setTimeout(() => setRefreshing(false), 1000);
+    load();
+  }
+
+  if (loading) {
+    return (
+      <View style={[styles.container, styles.center]}>
+        <ActivityIndicator size="large" color={Colors.primary} />
+      </View>
+    );
   }
 
   return (
     <View style={styles.container}>
       <View style={styles.header}>
         <Text style={styles.title}>Notifications</Text>
-        <TouchableOpacity onPress={() => setNotifications((prev) => prev.map((n) => ({ ...n, read: true })))}>
-          <Text style={styles.markAll}>Mark all read</Text>
-        </TouchableOpacity>
+        {notifications.some((n) => !n.isRead) && (
+          <TouchableOpacity onPress={markAllRead}>
+            <Text style={styles.markAll}>Mark all read</Text>
+          </TouchableOpacity>
+        )}
       </View>
 
       <FlatList
@@ -56,22 +100,22 @@ export default function NotificationsScreen() {
         refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={Colors.primary} />}
         renderItem={({ item }) => (
           <TouchableOpacity
-            style={[styles.card, !item.read && styles.cardUnread]}
-            onPress={() => markAsRead(item.id)}
+            style={[styles.card, !item.isRead && styles.cardUnread]}
+            onPress={() => markAsRead(item)}
           >
             <View style={styles.iconContainer}>
               <Ionicons
-                name={item.read ? 'notifications-outline' : 'notifications'}
+                name={typeIcon[item.type] ?? (item.isRead ? 'notifications-outline' : 'notifications')}
                 size={20}
-                color={item.read ? Colors.textLight : Colors.primary}
+                color={item.isRead ? Colors.textLight : Colors.primary}
               />
             </View>
             <View style={styles.cardContent}>
-              <Text style={[styles.cardTitle, !item.read && styles.cardTitleUnread]}>{item.title}</Text>
+              <Text style={[styles.cardTitle, !item.isRead && styles.cardTitleUnread]}>{item.title}</Text>
               <Text style={styles.cardMessage}>{item.message}</Text>
-              <Text style={styles.cardTime}>{item.time}</Text>
+              <Text style={styles.cardTime}>{timeAgo(item.createdAt)}</Text>
             </View>
-            {!item.read && <View style={styles.unreadDot} />}
+            {!item.isRead && <View style={styles.unreadDot} />}
           </TouchableOpacity>
         )}
         ListEmptyComponent={
@@ -89,6 +133,10 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: Colors.background,
+  },
+  center: {
+    justifyContent: 'center',
+    alignItems: 'center',
   },
   header: {
     flexDirection: 'row',

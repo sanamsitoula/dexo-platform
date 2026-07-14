@@ -1,6 +1,7 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { Cron, CronExpression } from '@nestjs/schedule';
 import { PrismaService, TenantMailService } from '@dexo/shared';
+import { AppNotificationsService } from './app-notifications.service';
 
 /**
  * MembershipReminderService — daily cron that reminds members about
@@ -26,6 +27,7 @@ export class MembershipReminderService {
   constructor(
     private prisma: PrismaService,
     private tenantMail: TenantMailService,
+    private appNotifications: AppNotificationsService,
   ) {}
 
   // Runs once a day at 08:00 server time.
@@ -67,7 +69,7 @@ export class MembershipReminderService {
         endDate: { gte: start, lt: end },
       },
       include: {
-        member: { include: { user: { select: { firstName: true, email: true } } } },
+        member: { select: { userId: true, user: { select: { firstName: true, lastName: true, email: true } } } },
         plan: { select: { name: true } },
       },
     });
@@ -78,13 +80,19 @@ export class MembershipReminderService {
 
       const email = membership.member?.user?.email;
       const firstName = membership.member?.user?.firstName || 'there';
+      const renewalNote = membership.autoRenew ? ' Your plan is set to auto-renew.' : '';
+      const message = `Hi ${firstName}, your "${membership.plan?.name || 'membership'}" plan ${label} on ${membership.endDate.toDateString()}.${renewalNote}`;
+
+      // In-app notifications go out regardless of whether the member has an
+      // email address — the mobile Notifications tab and the tenant-admin
+      // alert feed are first-class channels, not an email fallback.
+      await this.createInAppPair(membership, 'MEMBERSHIP_EXPIRING', `Membership ${label}`, message, label);
+
       if (!email) {
         await this.markSent(membership.tenantId, membership.id, milestoneKey);
         continue;
       }
 
-      const renewalNote = membership.autoRenew ? ' Your plan is set to auto-renew.' : '';
-      const message = `Hi ${firstName}, your "${membership.plan?.name || 'membership'}" plan ${label} on ${membership.endDate.toDateString()}.${renewalNote}`;
       const result = await this.tenantMail
         .send(membership.tenantId, {
           to: email,
@@ -103,6 +111,43 @@ export class MembershipReminderService {
     return sent;
   }
 
+  /** MEMBER + TENANT_ADMIN in-app notifications for one membership (best-effort). */
+  private async createInAppPair(
+    membership: {
+      id: string;
+      tenantId: string;
+      memberId: string;
+      endDate: Date;
+      plan?: { name: string } | null;
+      member?: { userId: string | null; user?: { firstName: string | null; lastName: string | null } | null } | null;
+    },
+    type: string,
+    title: string,
+    memberMessage: string,
+    label: string,
+  ) {
+    const planName = membership.plan?.name || 'membership';
+    const memberName =
+      `${membership.member?.user?.firstName ?? ''} ${membership.member?.user?.lastName ?? ''}`.trim() ||
+      membership.memberId.slice(0, 8);
+    const data = { membershipId: membership.id, memberId: membership.memberId, endDate: membership.endDate };
+    if (membership.member?.userId) {
+      await this.appNotifications
+        .create({ tenantId: membership.tenantId, audience: 'MEMBER', userId: membership.member.userId, type, title, message: memberMessage, data })
+        .catch((err) => this.logger.error(`In-app member notification failed for membership ${membership.id}: ${err?.message}`));
+    }
+    await this.appNotifications
+      .create({
+        tenantId: membership.tenantId,
+        audience: 'TENANT_ADMIN',
+        type,
+        title,
+        message: `${memberName}'s "${planName}" plan ${label} (${membership.endDate.toDateString()}).`,
+        data,
+      })
+      .catch((err) => this.logger.error(`In-app admin notification failed for membership ${membership.id}: ${err?.message}`));
+  }
+
   private async processExpired(): Promise<number> {
     const now = new Date();
     const memberships = await this.prisma.membership.findMany({
@@ -112,7 +157,7 @@ export class MembershipReminderService {
         endDate: { lt: now },
       },
       include: {
-        member: { include: { user: { select: { firstName: true, email: true } } } },
+        member: { select: { userId: true, user: { select: { firstName: true, lastName: true, email: true } } } },
         plan: { select: { name: true } },
       },
     });
@@ -123,12 +168,15 @@ export class MembershipReminderService {
 
       const email = membership.member?.user?.email;
       const firstName = membership.member?.user?.firstName || 'there';
+      const message = `Hi ${firstName}, your "${membership.plan?.name || 'membership'}" plan expired on ${membership.endDate.toDateString()}. Renew now to keep access.`;
+
+      await this.createInAppPair(membership, 'MEMBERSHIP_EXPIRED', 'Membership expired', message, `expired`);
+
       if (!email) {
         await this.markSent(membership.tenantId, membership.id, 'EXPIRED');
         continue;
       }
 
-      const message = `Hi ${firstName}, your "${membership.plan?.name || 'membership'}" plan expired on ${membership.endDate.toDateString()}. Renew now to keep access.`;
       const result = await this.tenantMail
         .send(membership.tenantId, {
           to: email,
@@ -143,6 +191,18 @@ export class MembershipReminderService {
 
       await this.markSent(membership.tenantId, membership.id, 'EXPIRED');
       sent++;
+    }
+
+    // Flip the processed memberships to EXPIRED so stale ACTIVE rows don't
+    // linger forever (check-in, member lists and the admin dashboard all key
+    // off status). Done after notifications so the queries above — which
+    // filter on ACTIVE — still found them this run. Auto-renew memberships
+    // keep their existing renewal path and are not flipped here.
+    if (memberships.length > 0) {
+      await this.prisma.membership.updateMany({
+        where: { id: { in: memberships.map((m) => m.id) }, status: 'ACTIVE' },
+        data: { status: 'EXPIRED' },
+      });
     }
     return sent;
   }

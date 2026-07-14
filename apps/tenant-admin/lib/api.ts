@@ -533,6 +533,33 @@ export const gymApi = {
     update: (s: string, id: string, data: any) => fetchApi<any>(`/fitness/membership-plans/${id}`, s, { method: 'PUT', body: JSON.stringify(data) }),
     remove: (s: string, id: string) => fetchApi<any>(`/fitness/membership-plans/${id}`, s, { method: 'DELETE' }),
   },
+  memberships: {
+    list: (s: string, params?: { memberId?: string; status?: string }) => {
+      const q = params ? `?${new URLSearchParams(params as any).toString()}` : '';
+      return fetchApi<any>(`/fitness/memberships${q}`, s);
+    },
+    expiring: (s: string, days = 7) => fetchApi<any>(`/fitness/memberships/expiring?days=${days}`, s),
+    create: (s: string, data: { memberId: string; planId: string; startDate?: string; status?: string; amountPaid?: number }) =>
+      fetchApi<any>('/fitness/memberships', s, { method: 'POST', body: JSON.stringify(data) }),
+    /** Admin edit of the membership period (from/to dates). */
+    update: (s: string, id: string, data: { startDate?: string; endDate?: string; autoRenew?: boolean }) =>
+      fetchApi<any>(`/fitness/memberships/${id}`, s, { method: 'PUT', body: JSON.stringify(data) }),
+    /** Extend by N days at the same price (e.g. goodwill +15 days). */
+    extend: (s: string, id: string, days: number, reason?: string) =>
+      fetchApi<any>(`/fitness/memberships/${id}/extend`, s, { method: 'POST', body: JSON.stringify({ days, reason }) }),
+    activatePayment: (s: string, id: string, paymentRef: string, paymentMethod: string) =>
+      fetchApi<any>(`/fitness/memberships/${id}/activate-payment`, s, { method: 'POST', body: JSON.stringify({ paymentRef, paymentMethod }) }),
+    cancel: (s: string, id: string) => fetchApi<any>(`/fitness/memberships/${id}/cancel`, s, { method: 'POST' }),
+  },
+  /** Tenant-admin in-app alert feed (membership expiry etc.). */
+  alerts: {
+    list: (s: string, params?: { unreadOnly?: boolean; limit?: number }) => {
+      const q = params ? `?${new URLSearchParams(params as any).toString()}` : '';
+      return fetchApi<any>(`/notifications/admin${q}`, s);
+    },
+    markRead: (s: string, id: string) => fetchApi<any>(`/notifications/${id}/read`, s, { method: 'POST' }),
+    markAllRead: (s: string) => fetchApi<any>('/notifications/read-all?audience=admin', s, { method: 'POST' }),
+  },
   trainers: {
     list: (s: string) => fetchApi<any>('/fitness/trainers', s),
     create: (s: string, data: any) => fetchApi<any>('/fitness/trainers', s, { method: 'POST', body: JSON.stringify(data) }),

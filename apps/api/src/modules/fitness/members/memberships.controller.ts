@@ -37,6 +37,16 @@ export class MembershipsController {
     return this.service.create(req.user.tenantId, dto);
   }
 
+  @Put(':id')
+  update(@Req() req: any, @Param('id') id: string, @Body() dto: { startDate?: string; endDate?: string; autoRenew?: boolean; renewBeforeDays?: number }) {
+    return this.service.update(req.user.tenantId, id, dto);
+  }
+
+  @Post(':id/extend')
+  extend(@Req() req: any, @Param('id') id: string, @Body() body: { days: number; reason?: string }) {
+    return this.service.extend(req.user.tenantId, id, Number(body?.days), body?.reason);
+  }
+
   @Post(':id/activate-payment')
   activatePayment(@Req() req: any, @Param('id') id: string, @Body() body: { paymentRef: string; paymentMethod: string }) {
     return this.service.activateOnPayment(req.user.tenantId, id, body.paymentRef, body.paymentMethod);
