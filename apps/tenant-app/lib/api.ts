@@ -183,9 +183,22 @@ export interface Announcement {
   recipients?: number;
 }
 
+export interface AppNotification {
+  id: string;
+  type: string;
+  title: string;
+  message: string;
+  isRead: boolean;
+  createdAt: string;
+}
+
 /** Tenant-scoped (from JWT) announcements broadcast by staff — any authenticated user. */
 export const notificationsApi = {
   announcements: () => api<Announcement[]>('/notifications/announcements'),
+  /** Personal in-app feed (membership expiry reminders, plan extensions, …). */
+  mine: (limit = 50) => api<{ items: AppNotification[]; unread: number }>(`/notifications/me?limit=${limit}`),
+  markRead: (id: string) => api<any>(`/notifications/${id}/read`, { method: 'POST' }),
+  markAllRead: () => api<any>('/notifications/read-all', { method: 'POST' }),
 };
 
 /** Public "message to the gym" form — no auth required, tenant resolved via subdomain. */
