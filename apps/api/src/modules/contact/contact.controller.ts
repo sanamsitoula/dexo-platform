@@ -94,10 +94,47 @@ export class ContactController {
   }
 
   /**
+   * Meta (WhatsApp Cloud API / Messenger / Instagram) webhook verification
+   * handshake. When you paste the callback URL into the Meta app dashboard,
+   * Meta sends GET ?hub.mode=subscribe&hub.verify_token=...&hub.challenge=...
+   * and expects the raw challenge echoed back. The verify token must be the
+   * channel's webhook secret (the one "Generate secret" produced).
+   */
+  @Get('inbound/:channel')
+  @ApiOperation({ summary: 'Webhook verification handshake (Meta hub.challenge echo)' })
+  async inboundVerify(
+    @Param('channel') channelParam: string,
+    @Query('hub.mode') mode?: string,
+    @Query('hub.verify_token') verifyToken?: string,
+    @Query('hub.challenge') challenge?: string,
+    @Query('tenant') subdomain?: string,
+    @Query('secret') secret?: string,
+  ) {
+    const channel = this.channelConfig.normalizeChannel(channelParam);
+    const tenantId = await this.resolveTenantId(subdomain);
+    const config = await this.channelConfig.findConfig(tenantId, channel);
+    const expected = config?.webhookSecret || secret;
+    if (mode === 'subscribe' && challenge) {
+      if (expected && verifyToken !== expected) {
+        throw new UnauthorizedException('verify token mismatch');
+      }
+      // Meta expects the bare challenge string back.
+      return challenge;
+    }
+    return { ok: true, channel };
+  }
+
+  /**
    * Omni-channel inbound webhook. Point each platform's webhook here:
-   *   POST /api/contact/inbound/whatsapp?tenant=<subdomain>
+   *   POST /api/contact/inbound/whatsapp?tenant=<subdomain>&secret=<secret>
    *   POST /api/contact/inbound/{tiktok|instagram|facebook|email|viber|sms|website}
-   * Body is normalized loosely: { name?, email?, phone?, message, externalId?, subject? }.
+   *
+   * Accepted payloads, normalized into ContactMessage rows:
+   *  - Simple/custom:      { name?, email?, phone?, message|text|body, externalId?, subject? }
+   *  - Meta WhatsApp:      { object: 'whatsapp_business_account', entry: [...] }
+   *  - Meta Messenger/IG:  { object: 'page' | 'instagram', entry: [{ messaging: [...] }] }
+   *  - Email inbound parse (SendGrid/Mailgun/Brevo field names) for the email channel.
+   *
    * Platforms that don't provide an email get a synthesized channel address so
    * the CRM inbox still threads by sender.
    */
@@ -111,9 +148,6 @@ export class ContactController {
     @Query('secret') secret?: string,
   ) {
     const channel = this.channelConfig.normalizeChannel(channelParam);
-    const text = dto?.message || dto?.text || dto?.body;
-    if (!text) throw new BadRequestException('message is required');
-
     const tenantId = await this.resolveTenantId(subdomain || dto?.subdomain, dto?.tenantId);
 
     // If this channel has a persisted config, enforce it. No config = open (backward compatible).
@@ -129,27 +163,123 @@ export class ContactController {
         }
       }
     }
-    const externalId = dto?.externalId || dto?.from || dto?.sender_id || null;
-    const email = dto?.email || (externalId ? `${externalId}@${channel.toLowerCase()}.channel` : `unknown@${channel.toLowerCase()}.channel`);
 
-    const message = await this.prisma.contactMessage.create({
-      data: {
-        name: dto?.name || dto?.sender_name || externalId || `${channel} user`,
-        email: String(email).toLowerCase(),
-        phone: dto?.phone || (channel === 'WHATSAPP' || channel === 'VIBER' || channel === 'SMS' ? externalId : null),
-        subject: dto?.subject || `${channel} message`,
-        message: text,
-        source: `${channel.toLowerCase()}_webhook`,
-        channel,
-        externalId,
-        status: ContactMessageStatus.NEW,
-        priority: ContactMessagePriority.NORMAL,
-        ipAddress: req.ip,
-        userAgent: req.headers?.['user-agent']?.substring(0, 500),
-        tenantId,
-      },
-    });
-    return { success: true, id: message.id, channel };
+    const normalized = this.normalizeInbound(channel, dto);
+    if (normalized.length === 0) {
+      // Meta also delivers non-message events (statuses, read receipts). Ack
+      // them with 200 so it doesn't retry/disable the webhook.
+      return { success: true, received: 0, channel };
+    }
+
+    const ids: string[] = [];
+    for (const m of normalized) {
+      const email = m.email || (m.externalId ? `${m.externalId}@${channel.toLowerCase()}.channel` : `unknown@${channel.toLowerCase()}.channel`);
+      const message = await this.prisma.contactMessage.create({
+        data: {
+          name: m.name || m.externalId || `${channel} user`,
+          email: String(email).toLowerCase(),
+          phone: m.phone || (channel === 'WHATSAPP' || channel === 'VIBER' || channel === 'SMS' ? m.externalId : null),
+          subject: m.subject || `${channel} message`,
+          message: m.text,
+          source: `${channel.toLowerCase()}_webhook`,
+          channel,
+          externalId: m.externalId || null,
+          status: ContactMessageStatus.NEW,
+          priority: ContactMessagePriority.NORMAL,
+          ipAddress: req.ip,
+          userAgent: req.headers?.['user-agent']?.substring(0, 500),
+          tenantId,
+        },
+      });
+      ids.push(message.id);
+    }
+    return { success: true, received: ids.length, id: ids[0], ids, channel };
+  }
+
+  /** Normalize the many inbound payload shapes into flat messages. */
+  private normalizeInbound(
+    channel: string,
+    dto: any,
+  ): Array<{ name?: string; email?: string; phone?: string; subject?: string; text: string; externalId?: string }> {
+    if (!dto || typeof dto !== 'object') return [];
+
+    // --- Meta WhatsApp Cloud API ---
+    if (dto.object === 'whatsapp_business_account' && Array.isArray(dto.entry)) {
+      const out: any[] = [];
+      for (const entry of dto.entry) {
+        for (const change of entry?.changes || []) {
+          const value = change?.value;
+          const names = new Map<string, string>(
+            (value?.contacts || []).map((c: any) => [c?.wa_id, c?.profile?.name]).filter(([k]: any[]) => k),
+          );
+          for (const msg of value?.messages || []) {
+            const text =
+              msg?.text?.body ||
+              msg?.button?.text ||
+              msg?.interactive?.button_reply?.title ||
+              msg?.interactive?.list_reply?.title ||
+              (msg?.type ? `[${msg.type} message]` : null);
+            if (!text) continue;
+            out.push({ name: names.get(msg?.from), phone: msg?.from, externalId: msg?.from, text });
+          }
+        }
+      }
+      return out;
+    }
+
+    // --- Meta Messenger / Instagram DMs ---
+    if ((dto.object === 'page' || dto.object === 'instagram') && Array.isArray(dto.entry)) {
+      const out: any[] = [];
+      for (const entry of dto.entry) {
+        for (const event of entry?.messaging || []) {
+          const text = event?.message?.text;
+          if (!text || event?.message?.is_echo) continue; // skip echoes/read receipts/deliveries
+          out.push({ externalId: event?.sender?.id, text });
+        }
+      }
+      return out;
+    }
+
+    // --- Email inbound-parse providers (SendGrid/Mailgun/Brevo) ---
+    if (channel === 'EMAIL') {
+      // Brevo posts { items: [{ From: { Address, Name }, Subject, RawTextBody, ... }] }
+      if (Array.isArray(dto.items)) {
+        return dto.items
+          .map((i: any) => ({
+            name: i?.From?.Name,
+            email: i?.From?.Address,
+            subject: i?.Subject,
+            text: i?.ExtractedMarkdownMessage || i?.RawTextBody || i?.RawHtmlBody,
+          }))
+          .filter((m: any) => m.text);
+      }
+      const text = dto.message || dto.text || dto['stripped-text'] || dto['body-plain'] || dto.html;
+      if (text) {
+        const rawFrom = dto.email || dto.sender || dto.from || '';
+        // "Jane Doe <jane@x.com>" → name + address
+        const match = /^(.*?)\s*<([^>]+)>\s*$/.exec(String(rawFrom));
+        return [{
+          name: dto.name || (match ? match[1].replace(/^"|"$/g, '') : undefined),
+          email: match ? match[2] : (String(rawFrom).includes('@') ? String(rawFrom) : undefined),
+          subject: dto.subject,
+          text,
+        }];
+      }
+      return [];
+    }
+
+    // --- Simple/custom shape (n8n, Zapier, manual integrations) ---
+    const text = dto.message || dto.text || dto.body;
+    if (!text) throw new BadRequestException('message is required');
+    const externalId = dto.externalId || dto.from || dto.sender_id || undefined;
+    return [{
+      name: dto.name || dto.sender_name,
+      email: dto.email,
+      phone: dto.phone,
+      subject: dto.subject,
+      text,
+      externalId,
+    }];
   }
 
   @Get()
