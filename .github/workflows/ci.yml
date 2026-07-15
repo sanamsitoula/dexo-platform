@@ -90,6 +90,9 @@ jobs:
           username: ${{ secrets.AZURE_VM_USER }}
           key: ${{ secrets.AZURE_VM_SSH_KEY }}
           port: ${{ secrets.AZURE_VM_SSH_PORT }}
+          # Full cold deploy (npm ci + turbo build of all workspaces) takes
+          # well over ssh-action's 10m default command timeout.
+          command_timeout: 40m
           script_stop: true
           script: |
             bash /var/www/dexo-platform/scripts/deploy.sh
