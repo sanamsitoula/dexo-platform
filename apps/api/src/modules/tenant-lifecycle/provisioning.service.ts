@@ -10,7 +10,7 @@ import { DomainProvisioningService } from '../domain/domain-provisioning.service
 // src import crashes node with MODULE_NOT_FOUND on boot. The deep import is a
 // client-bundle trick for Next apps; the API is server code and must not use it.
 import { getTemplate } from '@dexo/shared';
-import { getComponentDef, mapTemplateSectionToComponent } from '@dexo/shared/src/page-builder';
+import { getComponentDef, mapTemplateSectionToComponent } from '@dexo/shared';
 
 export interface CreateTenantInput {
   slug: string;

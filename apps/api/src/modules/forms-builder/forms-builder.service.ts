@@ -1,6 +1,7 @@
 import { BadRequestException, ForbiddenException, Injectable, NotFoundException } from '@nestjs/common';
 import { PrismaService, AuditService } from '@dexo/shared';
-import { getFieldTypeDef } from '@dexo/shared/src/forms-builder';
+// Root import — deep '@dexo/shared/src/*' paths crash at runtime (see provisioning.service.ts).
+import { getFieldTypeDef } from '@dexo/shared';
 
 interface ActorCtx {
   tenantId: string;

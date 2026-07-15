@@ -1,6 +1,8 @@
 import { ForbiddenException, Injectable, NotFoundException } from '@nestjs/common';
 import { PrismaService, AuditService } from '@dexo/shared';
-import { getComponentDef } from '@dexo/shared/src/page-builder';
+// Root import — deep '@dexo/shared/src/*' paths only exist at compile time and
+// crash node with MODULE_NOT_FOUND on boot (see provisioning.service.ts).
+import { getComponentDef } from '@dexo/shared';
 
 interface ActorCtx {
   tenantId: string;
