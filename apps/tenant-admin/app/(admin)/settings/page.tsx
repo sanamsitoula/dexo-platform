@@ -1,6 +1,7 @@
 'use client';
 
 import { useEffect, useState } from 'react';
+import Link from 'next/link';
 import { tenantApi } from '@/lib/api';
 import { resolveTenantAdminSubdomain } from '@/lib/subdomain';
 import { PageHeader, Card, Btn, Field, Input } from '../_ui';
@@ -9,8 +10,11 @@ import FileUpload from '@/components/FileUpload';
 export default function SettingsPage() {
   const subdomain = resolveTenantAdminSubdomain();
   const [tenant, setTenant] = useState<any>(null);
+  // Brand color and tagline are deliberately NOT edited here — the Theme
+  // Builder (Website → Theme) is the single owner of visual branding, so the
+  // two surfaces can't fight over the same settings.branding keys.
   const [form, setForm] = useState({
-    primaryColor: '#4f46e5', logo: '', tagline: '',
+    logo: '',
     email: '', phone: '', address: '',
     facebook: '', instagram: '', tiktok: '', youtube: '',
   });
@@ -28,9 +32,7 @@ export default function SettingsPage() {
       const b = t.data?.settings?.branding || {};
       setForm((f) => ({
         ...f,
-        primaryColor: b.colorPrimary || f.primaryColor,
         logo: b.logo || '',
-        tagline: b.tagline || '',
         email: b.email || '', phone: b.phone || '', address: b.address || '',
         facebook: b.social?.facebook || '',
         instagram: b.social?.instagram || '',
@@ -44,10 +46,11 @@ export default function SettingsPage() {
   async function save() {
     setSaving(true); setMsg(null);
     // Shallow-merged server-side into settings.branding — only sends the
-    // fields this page owns, so it never clobbers templateId/tagline/
-    // description saved by the Website Builder Overview page.
+    // fields this page owns (logo + contact + socials), so it never clobbers
+    // colorPrimary/tagline/templateId owned by the Theme Builder and Website
+    // Builder pages.
     const r = await tenantApi.updateOwnBranding(subdomain, {
-      colorPrimary: form.primaryColor, logo: form.logo, tagline: form.tagline,
+      logo: form.logo,
       email: form.email, phone: form.phone, address: form.address,
       social: { facebook: form.facebook, instagram: form.instagram, tiktok: form.tiktok, youtube: form.youtube },
     });
@@ -63,32 +66,32 @@ export default function SettingsPage() {
       <PageHeader title="Gym Settings" subtitle={`${tenant?.name || subdomain} · these details power your public website`} />
 
       <Card className="p-6 mb-4">
-        <div className="font-bold text-gray-900 mb-4">Brand</div>
-        <div className="grid grid-cols-2 gap-3">
-          <Field label="Primary color">
-            <div className="flex items-center gap-2">
-              <input type="color" value={form.primaryColor} onChange={set('primaryColor')} className="h-9 w-12 rounded border border-gray-300" />
-              <Input value={form.primaryColor} onChange={set('primaryColor')} />
-            </div>
-          </Field>
-          <Field label="Logo">
-            <FileUpload
-              subdomain={subdomain}
-              documentType="LOGO"
-              isPublic
-              preview={
-                form.logo ? (
-                  // eslint-disable-next-line @next/next/no-img-element
-                  <img src={form.logo} alt="Logo preview" className="w-16 h-16 rounded-lg object-cover mb-2 border border-gray-200" />
-                ) : undefined
-              }
-              onUploaded={(files) => {
-                if (files[0]) setForm((f) => ({ ...f, logo: files[0].url }));
-              }}
-            />
-          </Field>
-        </div>
-        <Field label="Tagline"><Input value={form.tagline} onChange={set('tagline')} placeholder="Transform your body. Transform your life." /></Field>
+        <div className="font-bold text-gray-900 mb-1">Logo</div>
+        <p className="text-xs text-gray-400 mb-4">
+          Colors, tagline and fonts are managed in{' '}
+          <Link href="/website/theme" className="text-indigo-600 hover:underline font-medium">Website → Theme Builder</Link>{' '}
+          so your site stays consistent. If you don&apos;t upload a logo, your website shows its default.
+        </p>
+        <Field label="Logo">
+          <FileUpload
+            subdomain={subdomain}
+            documentType="LOGO"
+            isPublic
+            preview={
+              form.logo ? (
+                // eslint-disable-next-line @next/next/no-img-element
+                <img src={form.logo} alt="Logo preview" className="w-16 h-16 rounded-lg object-cover mb-2 border border-gray-200" />
+              ) : (
+                <div className="w-16 h-16 rounded-lg mb-2 border border-dashed border-gray-300 bg-gray-50 flex items-center justify-center text-xl font-bold text-gray-400">
+                  {(tenant?.name || subdomain || '?').charAt(0).toUpperCase()}
+                </div>
+              )
+            }
+            onUploaded={(files) => {
+              if (files[0]) setForm((f) => ({ ...f, logo: files[0].url }));
+            }}
+          />
+        </Field>
       </Card>
 
       <Card className="p-6 mb-4">
