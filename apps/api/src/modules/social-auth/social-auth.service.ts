@@ -44,7 +44,7 @@ export class SocialAuthService {
 
   // ===================== PLATFORM-LEVEL OAUTH =====================
 
-  async getPlatformAuthUrl(provider: OAuthProvider, redirectUri?: string): Promise<string> {
+  async getPlatformAuthUrl(provider: OAuthProvider, returnUrl?: string): Promise<string> {
     const config = await this.prisma.platformOAuthConfig.findUnique({
       where: { provider },
     });
@@ -53,8 +53,12 @@ export class SocialAuthService {
       throw new BadRequestException(`Platform ${provider} OAuth is not configured`);
     }
 
-    const finalRedirectUri = redirectUri || config.redirectUri;
-    const state = this.generateState();
+    // The provider redirect URI must ALWAYS be the API callback registered in
+    // the provider's console — callers can't override it (the token exchange
+    // must reuse the same URI). Where the USER ends up afterwards travels in
+    // `state` as a validated returnUrl instead.
+    const finalRedirectUri = config.redirectUri;
+    const state = this.generateState(undefined, this.validateReturnUrl(returnUrl));
 
     switch (provider) {
       case OAuthProvider.google:
@@ -76,19 +80,39 @@ export class SocialAuthService {
 
   // ===================== TENANT-LEVEL OAUTH =====================
 
-  async getTenantAuthUrl(tenantId: string, provider: OAuthProvider, redirectUri?: string): Promise<string> {
-    const config = await this.prisma.tenantOAuthConfig.findUnique({
-      where: { tenantId_provider: { tenantId, provider } },
-    });
-
-    if (!config || !config.isEnabled) {
-      throw new BadRequestException(`Tenant ${provider} OAuth is not configured`);
+  async getTenantAuthUrl(tenantId: string, provider: OAuthProvider, returnUrl?: string): Promise<string> {
+    // A tenant may bring its own OAuth app; otherwise FALL BACK to the
+    // platform's app. The fallback uses the platform's fixed callback URI, so
+    // one whitelisted redirect URI in the provider console serves EVERY
+    // tenant — tenant ids are dynamic in a multi-tenant platform and can't
+    // each be registered with Google.
+    const config = await this.resolveOAuthConfig(tenantId, provider);
+    if (!config) {
+      throw new BadRequestException(`${provider} OAuth is not configured (neither for this tenant nor platform-wide)`);
     }
 
-    const finalRedirectUri = redirectUri || config.redirectUri;
-    const state = this.generateState(tenantId);
+    // See getPlatformAuthUrl: provider redirect stays fixed; the user's
+    // destination travels in state.
+    const state = this.generateState(tenantId, this.validateReturnUrl(returnUrl));
+    this.logger.log(`OAuth start: provider=${provider} tenant=${tenantId} via=${config.source} returnUrl=${returnUrl || '-'}`);
 
-    return this.buildProviderAuthUrl(provider, config.clientId, finalRedirectUri, config.scope, state);
+    return this.buildProviderAuthUrl(provider, config.clientId, config.redirectUri, config.scope, state);
+  }
+
+  /** Tenant's own config if enabled, else the platform config (shared app). */
+  private async resolveOAuthConfig(
+    tenantId: string | null,
+    provider: OAuthProvider,
+  ): Promise<{ clientId: string; clientSecret: string | null; redirectUri: string; scope: string | null; source: 'tenant' | 'platform' } | null> {
+    if (tenantId) {
+      const own = await this.prisma.tenantOAuthConfig.findUnique({
+        where: { tenantId_provider: { tenantId, provider } },
+      });
+      if (own?.isEnabled) return { ...own, source: 'tenant' };
+    }
+    const platform = await this.prisma.platformOAuthConfig.findUnique({ where: { provider } });
+    if (platform?.isEnabled) return { ...platform, source: 'platform' };
+    return null;
   }
 
   // ===================== OAUTH CALLBACK HANDLER =====================
@@ -103,24 +127,40 @@ export class SocialAuthService {
     const tenantId = this.extractTenantFromState(state);
     const isPlatformLevel = !tenantId;
 
-    const config = isPlatformLevel
-      ? await this.prisma.platformOAuthConfig.findUnique({ where: { provider } })
-      : await this.prisma.tenantOAuthConfig.findUnique({
-          where: { tenantId_provider: { tenantId: tenantId!, provider } },
-        });
-
+    // Must mirror getTenantAuthUrl's resolution exactly: a tenant flow that
+    // started on the platform's shared app must exchange the code with the
+    // SAME client + redirect URI it authorized with.
+    const config = await this.resolveOAuthConfig(tenantId, provider);
     if (!config) {
+      this.logger.error(`OAuth callback with no usable config: provider=${provider} tenant=${tenantId || '-'}`);
       throw new BadRequestException(`${provider} OAuth is not configured`);
     }
 
-    // Exchange code for tokens
-    const tokens = await this.exchangeCodeForTokens(provider, code, config.clientId, config.clientSecret, redirectUri || config.redirectUri);
+    try {
+      // Exchange code for tokens
+      const tokens = await this.exchangeCodeForTokens(provider, code, config.clientId, config.clientSecret, redirectUri || config.redirectUri);
 
-    // Get user profile
-    const profile = await this.fetchUserProfile(provider, tokens);
+      // Get user profile
+      const profile = await this.fetchUserProfile(provider, tokens);
 
-    // Find or create user
-    const result = await this.findOrCreateUser(profile, tenantId, isPlatformLevel);
+      // Find or create user
+      const result = await this.findOrCreateUser(profile, tenantId, isPlatformLevel);
+      this.logger.log(
+        `OAuth success: provider=${provider} tenant=${tenantId || 'platform'} via=${config.source} email=${profile.email} newUser=${result.isNewUser}`,
+      );
+      return this.issueTokens(provider, result);
+    } catch (err: any) {
+      this.logger.error(
+        `OAuth callback failed: provider=${provider} tenant=${tenantId || 'platform'} via=${config.source} — ${err?.response?.data ? JSON.stringify(err.response.data) : err?.message}`,
+      );
+      throw err;
+    }
+  }
+
+  private issueTokens(
+    provider: OAuthProvider,
+    result: { user: any; isNewUser: boolean },
+  ): { accessToken: string; refreshToken: string; user: any; isNewUser: boolean } {
 
     // Generate JWT tokens
     const accessToken = this.jwtService.sign(
@@ -155,7 +195,7 @@ export class SocialAuthService {
   }
 
   async updatePlatformConfig(provider: OAuthProvider, data: any) {
-    return this.prisma.platformOAuthConfig.upsert({
+    const saved = await this.prisma.platformOAuthConfig.upsert({
       where: { provider },
       create: {
         provider,
@@ -173,6 +213,68 @@ export class SocialAuthService {
         isEnabled: data.isEnabled !== false,
       },
     });
+    this.logger.log(`Platform OAuth config updated: provider=${provider} enabled=${saved.isEnabled} redirectUri=${saved.redirectUri}`);
+    return saved;
+  }
+
+  /**
+   * Lightweight, non-interactive config check — curl-able via
+   * GET /api/auth/platform/:provider/test. Validates that the saved fields
+   * are present and well-formed, that the redirect URI matches the platform
+   * callback this API actually serves, and that the provider's endpoints are
+   * reachable. A full client-secret validation only happens during a real
+   * sign-in (OAuth has no "verify secret" call), so this is a best-effort
+   * pre-flight — it catches the common "wrong redirect URI / blank key /
+   * typo'd client id" mistakes before the user ever clicks Sign in with Google.
+   */
+  async testPlatformConfig(provider: OAuthProvider, expectedCallback: string) {
+    const config = await this.prisma.platformOAuthConfig.findUnique({ where: { provider } });
+    const checks: { label: string; ok: boolean; detail?: string }[] = [];
+
+    if (!config) {
+      checks.push({ label: 'Config saved', ok: false, detail: 'No platform config for this provider yet — enter your keys and Save first.' });
+      this.logger.warn(`OAuth test: no config for provider=${provider}`);
+      return { ok: false, provider, checks, redirectUri: null, expectedCallback, authUrl: null };
+    }
+
+    checks.push({ label: 'Client ID set', ok: !!config.clientId });
+    checks.push({ label: 'Client secret set', ok: !!config.clientSecret });
+    checks.push({ label: 'Redirect URI set', ok: !!config.redirectUri });
+    checks.push({ label: 'Enabled', ok: config.isEnabled });
+    const redirectMatches = !!config.redirectUri && config.redirectUri.replace(/\/+$/, '') === expectedCallback.replace(/\/+$/, '');
+    checks.push({
+      label: 'Redirect URI matches this API',
+      ok: redirectMatches,
+      detail: redirectMatches ? undefined : `stored "${config.redirectUri}" ≠ expected "${expectedCallback}"`,
+    });
+
+    let authUrl: string | null = null;
+    try {
+      authUrl = this.buildProviderAuthUrl(provider, config.clientId, config.redirectUri, config.scope, this.generateState());
+      checks.push({ label: 'Auth URL builds', ok: true });
+    } catch (e) {
+      checks.push({ label: 'Auth URL builds', ok: false, detail: (e as Error).message });
+    }
+
+    // Reachability: GET the token endpoint. Healthy providers answer 4xx
+    // (method not allowed / bad request) — never 5xx — so any sub-500 reply
+    // means the provider is up and our network can reach it.
+    try {
+      const resp = await firstValueFrom(
+        this.httpService.get(this.getTokenEndpoints(provider).token, {
+          validateStatus: () => true,
+          timeout: 8000,
+        }),
+      );
+      const reachable = resp.status < 500;
+      checks.push({ label: 'Provider reachable', ok: reachable, detail: `HTTP ${resp.status}` });
+    } catch (e) {
+      checks.push({ label: 'Provider reachable', ok: false, detail: (e as Error).message });
+    }
+
+    const ok = checks.every((c) => c.ok);
+    this.logger.log(`OAuth test provider=${provider}: ok=${ok} (${checks.filter((c) => c.ok).length}/${checks.length})`);
+    return { ok, provider, checks, redirectUri: config.redirectUri, expectedCallback, authUrl };
   }
 
   async getTenantConfigs(tenantId: string) {
@@ -624,17 +726,60 @@ export class SocialAuthService {
     return { token: endpoints[provider] };
   }
 
-  private generateState(tenantId?: string): string {
-    const random = Math.random().toString(36).substring(2, 15);
-    const prefix = tenantId ? `t:${tenantId}:` : 'p:';
-    return prefix + random;
+  /**
+   * OAuth `state` carries everything needed to route the user BACK to the app
+   * they started sign-in from (platform web, platform admin, any tenant's
+   * website or admin) — no env vars, no per-tenant hardcoding. v2 states are
+   * base64url JSON: { n: nonce, t?: tenantId, r?: returnUrl }.
+   */
+  private generateState(tenantId?: string, returnUrl?: string): string {
+    const payload = {
+      n: Math.random().toString(36).substring(2, 15),
+      ...(tenantId ? { t: tenantId } : {}),
+      ...(returnUrl ? { r: returnUrl } : {}),
+    };
+    return 'v2.' + Buffer.from(JSON.stringify(payload)).toString('base64url');
+  }
+
+  /** Decode a state (v2 JSON or legacy `t:<id>:...` / `p:...`). */
+  extractStateData(state: string): { tenantId: string | null; returnUrl: string | null } {
+    if (state?.startsWith('v2.')) {
+      try {
+        const payload = JSON.parse(Buffer.from(state.slice(3), 'base64url').toString('utf8'));
+        return { tenantId: payload.t || null, returnUrl: payload.r || null };
+      } catch {
+        return { tenantId: null, returnUrl: null };
+      }
+    }
+    if (state?.startsWith('t:')) return { tenantId: state.split(':')[1], returnUrl: null };
+    return { tenantId: null, returnUrl: null };
   }
 
   private extractTenantFromState(state: string): string | null {
-    if (state.startsWith('t:')) {
-      return state.split(':')[1];
+    return this.extractStateData(state).tenantId;
+  }
+
+  /**
+   * Open-redirect guard: only send tokens back to the platform's own domains
+   * (apex, any subdomain — every tenant site qualifies automatically) or
+   * localhost during development.
+   */
+  validateReturnUrl(returnUrl?: string): string | undefined {
+    if (!returnUrl) return undefined;
+    try {
+      const url = new URL(returnUrl);
+      if (url.protocol !== 'https:' && url.protocol !== 'http:') return undefined;
+      const platformDomain = (this.configService.get('PLATFORM_DOMAIN') || 'onedexo.com').toLowerCase();
+      const host = url.hostname.toLowerCase();
+      const ok =
+        host === platformDomain ||
+        host.endsWith(`.${platformDomain}`) ||
+        host === 'localhost' ||
+        host.endsWith('.localhost');
+      return ok ? returnUrl : undefined;
+    } catch {
+      return undefined;
     }
-    return null;
   }
 
   // ===================== ACCOUNT LINKING =====================

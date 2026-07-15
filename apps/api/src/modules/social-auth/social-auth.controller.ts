@@ -18,9 +18,12 @@ export class SocialAuthController {
   async getTenantAuthUrl(
     @Param('tenantId') tenantId: string,
     @Param('provider') provider: any,
+    // `returnUrl` = where the user should land after sign-in (their app's
+    // /auth/callback page). `redirectUri` kept as a deprecated alias.
+    @Query('returnUrl') returnUrl?: string,
     @Query('redirectUri') redirectUri?: string,
   ) {
-    const url = await this.socialAuthService.getTenantAuthUrl(tenantId, provider, redirectUri);
+    const url = await this.socialAuthService.getTenantAuthUrl(tenantId, provider, returnUrl || redirectUri);
     return { url, provider, tenantId };
   }
 
@@ -33,18 +36,23 @@ export class SocialAuthController {
     @Res() res: Response,
   ) {
     const result = await this.socialAuthService.handleProviderCallback(provider, code, state);
-    // Send the user back to THEIR tenant's website, not a global FRONTEND_URL —
-    // with one env var every tenant's Google login would land on the same site.
-    const tenant = await this.prisma.tenant.findUnique({
-      where: { id: tenantId },
-      select: { subdomain: true },
-    });
-    const platformDomain = process.env.PLATFORM_DOMAIN || 'onedexo.com';
-    const base = tenant?.subdomain
-      ? `https://${tenant.subdomain}.${platformDomain}`
-      : process.env.FRONTEND_URL || 'http://localhost:3000';
-    const redirectUrl = `${base}/auth/callback?token=${result.accessToken}&refresh=${result.refreshToken}&new=${result.isNewUser}`;
-    res.redirect(redirectUrl);
+    // Priority: the exact page that started the flow (carried in state) →
+    // the tenant's own subdomain → global FRONTEND_URL. Never a fixed URL for
+    // all tenants: this is a multi-tenant platform.
+    const { returnUrl } = this.socialAuthService.extractStateData(state);
+    let base = this.socialAuthService.validateReturnUrl(returnUrl || undefined);
+    if (!base) {
+      const tenant = await this.prisma.tenant.findUnique({
+        where: { id: tenantId },
+        select: { subdomain: true },
+      });
+      const platformDomain = process.env.PLATFORM_DOMAIN || 'onedexo.com';
+      base = tenant?.subdomain
+        ? `https://${tenant.subdomain}.${platformDomain}/auth/callback`
+        : `${process.env.FRONTEND_URL || 'http://localhost:3000'}/auth/callback`;
+    }
+    const sep = base.includes('?') ? '&' : '?';
+    res.redirect(`${base}${sep}token=${result.accessToken}&refresh=${result.refreshToken}&new=${result.isNewUser}`);
   }
 
   @Post('tenant/:tenantId/:provider/config')

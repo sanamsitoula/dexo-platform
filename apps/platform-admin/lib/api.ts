@@ -614,6 +614,15 @@ export const socialAuthApi = {
     method: 'POST',
     body: JSON.stringify(data),
   }),
+
+  testPlatformConfig: (provider: string) => fetchApi<{
+    ok: boolean;
+    provider: string;
+    redirectUri: string | null;
+    expectedCallback: string;
+    authUrl: string | null;
+    checks: { label: string; ok: boolean; detail?: string }[];
+  }>(`/auth/platform/${provider}/test`),
 };
 
 // Blog API
@@ -790,6 +799,19 @@ export const platformEmailApi = {
   }) => fetchApi<any>('/platform-email/config', { method: 'PUT', body: JSON.stringify(data) }),
   test: (to: string) => fetchApi<{ success: boolean; error?: string }>('/platform-email/test', { method: 'POST', body: JSON.stringify({ to }) }),
   logs: (limit = 50) => fetchApi<any[]>(`/platform-email/logs?limit=${limit}`),
+}
+
+// Social login (OAuth) — platform-wide provider apps (Google etc.). The
+// platform app is also the automatic fallback for every tenant that hasn't
+// configured its own, so one set of keys powers sign-in everywhere.
+export const socialLoginApi = {
+  getConfigs: () => fetchApi<any[]>('/auth/platform/configs'),
+  save: (provider: string, data: { clientId: string; clientSecret: string; redirectUri: string; scope?: string; isEnabled?: boolean }) =>
+    fetchApi<any>(`/auth/platform/${provider}/config`, { method: 'POST', body: JSON.stringify(data) }),
+  test: (provider: string) =>
+    fetchApi<{ ok: boolean; provider: string; checks: { label: string; ok: boolean; detail?: string }[]; redirectUri: string | null; expectedCallback: string }>(
+      `/auth/platform/${provider}/test`,
+    ),
 }
 
 // Business type templates — the 12 industry cards on the tenant signup

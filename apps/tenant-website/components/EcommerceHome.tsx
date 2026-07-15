@@ -5,6 +5,7 @@ import SiteNav from './SiteNav';
 import SiteFooter from './SiteFooter';
 import AddToCartButton from './AddToCartButton';
 import PageSectionRenderer from './PageSectionRenderer';
+import ProductCard from './ecommerce/ProductCard';
 import { ctaButtonClasses, ctaButtonStyle } from '@/lib/style-tokens';
 
 /**

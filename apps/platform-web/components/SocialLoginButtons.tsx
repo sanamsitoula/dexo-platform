@@ -123,14 +123,15 @@ export default function SocialLoginButtons({
   const handleSocialLogin = async (provider: string) => {
     setLoadingProvider(provider);
     try {
-      const redirectUri = `${window.location.origin}/auth/social/callback`;
+      // Where the API should land us (with tokens) after the provider flow.
+      const returnUrl = `${window.location.origin}/auth/callback`;
 
       let url: string | null = null;
 
       if (mode === 'platform') {
         // Platform-level OAuth
         const res = await fetch(
-          `${API_BASE_URL}/auth/platform/${provider}/url?redirectUri=${encodeURIComponent(redirectUri)}`
+          `${API_BASE_URL}/auth/platform/${provider}/url?returnUrl=${encodeURIComponent(returnUrl)}`
         );
         const data = await res.json();
         url = data.url;
@@ -138,7 +139,7 @@ export default function SocialLoginButtons({
         // Tenant-level OAuth - use 'fitness' as default if no tenantId
         const effectiveTenantId = tenantId || 'fitness';
         const res = await fetch(
-          `${API_BASE_URL}/auth/social/tenant/${effectiveTenantId}/${provider}/url?redirectUri=${encodeURIComponent(redirectUri)}`
+          `${API_BASE_URL}/auth/social/tenant/${effectiveTenantId}/${provider}/url?returnUrl=${encodeURIComponent(returnUrl)}`
         );
         const data = await res.json();
         url = data.url;

@@ -229,6 +229,98 @@ export const COMPONENT_LIBRARY: ComponentDef[] = [
     ],
     defaultContent: { title: 'Stay in the loop', subtitle: '', ctaLabel: 'Subscribe' },
   },
+  {
+    key: 'ecommerce-hero',
+    label: 'Store Hero',
+    category: 'commerce',
+    icon: '🛍️',
+    description: 'Premium storefront hero — headline, subtext, two CTAs, and a lifestyle image. Modeled on Nike/Shopify storefronts.',
+    fields: [
+      { key: 'eyebrow', label: 'Eyebrow (small label)', type: 'text' },
+      { key: 'title', label: 'Headline', type: 'text' },
+      { key: 'subtitle', label: 'Subheadline', type: 'textarea' },
+      { key: 'image', label: 'Image', type: 'image' },
+      { key: 'primaryCtaLabel', label: 'Primary button text', type: 'text' },
+      { key: 'primaryCtaUrl', label: 'Primary button link', type: 'url' },
+      { key: 'secondaryCtaLabel', label: 'Secondary button text', type: 'text' },
+      { key: 'secondaryCtaUrl', label: 'Secondary button link', type: 'url' },
+    ],
+    defaultContent: {
+      eyebrow: 'New season',
+      title: 'Premium products for modern living',
+      subtitle: 'Discover quality products with fast delivery and unbeatable prices.',
+      image: '',
+      primaryCtaLabel: 'Shop Now',
+      primaryCtaUrl: '/shop',
+      secondaryCtaLabel: 'Explore Collection',
+      secondaryCtaUrl: '/shop',
+    },
+  },
+  {
+    key: 'featured-products',
+    label: 'Featured Products',
+    category: 'commerce',
+    icon: '⭐',
+    description: 'Live grid of products flagged "Featured" in your catalog — auto-updates as you feature products in tenant-admin.',
+    fields: [
+      { key: 'title', label: 'Section title', type: 'text' },
+      { key: 'subtitle', label: 'Supporting text', type: 'textarea' },
+      { key: 'limit', label: 'Max products (1-12)', type: 'text' },
+    ],
+    defaultContent: { title: 'Featured Products', subtitle: 'Hand-picked favourites our customers love.', limit: '8' },
+  },
+  {
+    key: 'product-grid',
+    label: 'Product Grid',
+    category: 'commerce',
+    icon: '🧩',
+    description: 'Live grid of your newest products — auto-updates as you add products in tenant-admin.',
+    fields: [
+      { key: 'title', label: 'Section title', type: 'text' },
+      { key: 'subtitle', label: 'Supporting text', type: 'textarea' },
+      { key: 'limit', label: 'Max products (1-12)', type: 'text' },
+    ],
+    defaultContent: { title: 'New Arrivals', subtitle: 'Fresh in this week.', limit: '8' },
+  },
+  {
+    key: 'category-grid',
+    label: 'Category Grid',
+    category: 'commerce',
+    icon: '🗂️',
+    description: 'Live tiles of your store categories — auto-updates as you manage categories in tenant-admin.',
+    fields: [
+      { key: 'title', label: 'Section title', type: 'text' },
+      { key: 'subtitle', label: 'Supporting text', type: 'textarea' },
+    ],
+    defaultContent: { title: 'Shop by Category', subtitle: 'Browse our collections' },
+  },
+  {
+    key: 'trust-badges',
+    label: 'Trust Badges',
+    category: 'commerce',
+    icon: '🛡️',
+    description: 'Reassurance row — free shipping, secure payments, easy returns, support — to lift conversion.',
+    fields: [
+      { key: 'title', label: 'Section title (optional)', type: 'text' },
+      {
+        key: 'items', label: 'Badges', type: 'list',
+        itemFields: [
+          { key: 'icon', label: 'Emoji icon', type: 'text' },
+          { key: 'title', label: 'Title', type: 'text' },
+          { key: 'description', label: 'Description', type: 'textarea' },
+        ],
+      },
+    ],
+    defaultContent: {
+      title: '',
+      items: [
+        { icon: '🚚', title: 'Free Shipping', description: 'Fast delivery on all orders.' },
+        { icon: '🔒', title: 'Secure Payment', description: '100% protected checkout.' },
+        { icon: '↩️', title: 'Easy Returns', description: '30-day return policy.' },
+        { icon: '💬', title: '24/7 Support', description: 'Dedicated customer support.' },
+      ],
+    },
+  },
 ];
 
 export function getComponentDef(key: string): ComponentDef | undefined {
@@ -249,6 +341,11 @@ export function mapTemplateSectionToComponent(sectionKeyword: string): string | 
   const key = sectionKeyword.toLowerCase();
   if (key === 'footer') return null;
   if (key === 'hero') return 'hero';
+  // Ecommerce storefront sections — previously fell through to 'richtext'.
+  if (key === 'categories') return 'category-grid';
+  if (key === 'products' || key === 'featured') return 'featured-products';
+  if (key === 'new-arrivals' || key === 'arrivals') return 'product-grid';
+  if (key === 'offers') return 'cta';
   if (key.includes('testimonial')) return 'testimonials';
   if (key.includes('pricing') || key.includes('membership') || key.includes('plans')) return 'pricing';
   if (key === 'faq') return 'faq';

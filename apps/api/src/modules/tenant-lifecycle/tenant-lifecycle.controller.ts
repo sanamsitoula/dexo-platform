@@ -60,6 +60,37 @@ export class TenantLifecycleController {
     return this.provisioning.provisionTenant(body);
   }
 
+  // ---- Public: resolve "the current tenant" for shared rendering (platform-web
+  // TenantProvider, and any front-end that needs branding on a tenant host).
+  // Resolves by ?subdomain= or by deriving the subdomain from the request's
+  // Origin/Referer host (<slug>.<platformDomain>). Returns 200 with
+  // { tenant: null } when there is no tenant (e.g. the apex marketing site) —
+  // never 404, so public pages don't log a console error on every load.
+  @Public()
+  @Get('current')
+  @ApiOperation({ summary: 'Public: resolve the current tenant by subdomain/host' })
+  async getCurrentTenant(@Req() req: any, @Query('subdomain') subdomain?: string) {
+    const platformDomain = (process.env.PLATFORM_DOMAIN || 'onedexo.com').toLowerCase();
+    let slug = subdomain || '';
+    if (!slug) {
+      const raw = req.headers?.origin || req.headers?.referer || '';
+      try {
+        const host = new URL(raw).hostname.toLowerCase();
+        if (host.endsWith(`.${platformDomain}`) && host !== platformDomain && host !== `www.${platformDomain}`) {
+          slug = host.slice(0, -(platformDomain.length + 1));
+        }
+      } catch {
+        /* not a URL — leave slug empty */
+      }
+    }
+    if (!slug) return { tenant: null };
+    const tenant = await this.prisma.tenant.findUnique({
+      where: { subdomain: slug },
+      select: { id: true, name: true, subdomain: true, status: true, settings: true },
+    });
+    return { tenant };
+  }
+
   // ---- Self-service: the logged-in tenant's OWN branding settings — scoped
   // strictly from req.user.tenantId (never a body/param tenantId), reachable
   // by any authenticated tenant user (not platform-admin-only like the

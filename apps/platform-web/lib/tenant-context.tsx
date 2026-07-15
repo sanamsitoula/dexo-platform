@@ -64,9 +64,9 @@ export function TenantProvider({ children }: { children: ReactNode }) {
     setError(null)
 
     try {
-      // Get tenant identifier from headers or cookies
-      // In a real implementation, this would be passed from server component
-      const response = await fetch('/api/tenant/current')
+      // Resolve the current tenant (by host) via the public endpoint. Returns
+      // 200 with { tenant: null } on the apex marketing site — no 404 noise.
+      const response = await fetch('/api/tenants/current')
 
       if (!response.ok) {
         if (response.status === 404) {

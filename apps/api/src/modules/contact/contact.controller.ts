@@ -8,6 +8,7 @@ import {
   Query,
   UseGuards,
   Req,
+  Logger,
   BadRequestException,
   NotFoundException,
   ForbiddenException,
@@ -36,6 +37,8 @@ interface CreateContactDto {
 @ApiTags('contact')
 @Controller('contact')
 export class ContactController {
+  private readonly logger = new Logger(ContactController.name);
+
   constructor(
     private prisma: PrismaService,
     private audit: AuditService,
@@ -116,8 +119,10 @@ export class ContactController {
     const expected = config?.webhookSecret || secret;
     if (mode === 'subscribe' && challenge) {
       if (expected && verifyToken !== expected) {
+        this.logger.warn(`Webhook verify FAILED: channel=${channel} tenant=${tenantId || '-'} (token mismatch)`);
         throw new UnauthorizedException('verify token mismatch');
       }
+      this.logger.log(`Webhook verified: channel=${channel} tenant=${tenantId || '-'} challenge echoed`);
       // Meta expects the bare challenge string back.
       return challenge;
     }
@@ -154,45 +159,64 @@ export class ContactController {
     const config = await this.channelConfig.findConfig(tenantId, channel);
     if (config) {
       if (!config.enabled) {
+        this.logger.warn(`Inbound rejected: channel=${channel} tenant=${tenantId || '-'} (disabled)`);
         throw new ForbiddenException(`Channel ${channel} is disabled`);
       }
       if (config.webhookSecret) {
         const provided = secret || req.headers?.['x-webhook-secret'];
         if (!provided || provided !== config.webhookSecret) {
+          this.logger.warn(`Inbound rejected: channel=${channel} tenant=${tenantId || '-'} (bad/missing secret)`);
           throw new UnauthorizedException('Invalid or missing webhook secret');
         }
       }
     }
 
-    const normalized = this.normalizeInbound(channel, dto);
+    let normalized: ReturnType<ContactController['normalizeInbound']>;
+    try {
+      normalized = this.normalizeInbound(channel, dto);
+    } catch (err) {
+      this.logger.error(
+        `Inbound normalize failed: channel=${channel} tenant=${tenantId || '-'} — ${(err as Error).message}`,
+      );
+      throw err;
+    }
     if (normalized.length === 0) {
       // Meta also delivers non-message events (statuses, read receipts). Ack
       // them with 200 so it doesn't retry/disable the webhook.
+      this.logger.debug(`Inbound ack (no text payloads): channel=${channel} tenant=${tenantId || '-'}`);
       return { success: true, received: 0, channel };
     }
 
     const ids: string[] = [];
-    for (const m of normalized) {
-      const email = m.email || (m.externalId ? `${m.externalId}@${channel.toLowerCase()}.channel` : `unknown@${channel.toLowerCase()}.channel`);
-      const message = await this.prisma.contactMessage.create({
-        data: {
-          name: m.name || m.externalId || `${channel} user`,
-          email: String(email).toLowerCase(),
-          phone: m.phone || (channel === 'WHATSAPP' || channel === 'VIBER' || channel === 'SMS' ? m.externalId : null),
-          subject: m.subject || `${channel} message`,
-          message: m.text,
-          source: `${channel.toLowerCase()}_webhook`,
-          channel,
-          externalId: m.externalId || null,
-          status: ContactMessageStatus.NEW,
-          priority: ContactMessagePriority.NORMAL,
-          ipAddress: req.ip,
-          userAgent: req.headers?.['user-agent']?.substring(0, 500),
-          tenantId,
-        },
-      });
-      ids.push(message.id);
+    try {
+      for (const m of normalized) {
+        const email = m.email || (m.externalId ? `${m.externalId}@${channel.toLowerCase()}.channel` : `unknown@${channel.toLowerCase()}.channel`);
+        const message = await this.prisma.contactMessage.create({
+          data: {
+            name: m.name || m.externalId || `${channel} user`,
+            email: String(email).toLowerCase(),
+            phone: m.phone || (channel === 'WHATSAPP' || channel === 'VIBER' || channel === 'SMS' ? m.externalId : null),
+            subject: m.subject || `${channel} message`,
+            message: m.text,
+            source: `${channel.toLowerCase()}_webhook`,
+            channel,
+            externalId: m.externalId || null,
+            status: ContactMessageStatus.NEW,
+            priority: ContactMessagePriority.NORMAL,
+            ipAddress: req.ip,
+            userAgent: req.headers?.['user-agent']?.substring(0, 500),
+            tenantId,
+          },
+        });
+        ids.push(message.id);
+      }
+    } catch (err) {
+      this.logger.error(
+        `Inbound persist failed: channel=${channel} tenant=${tenantId || '-'} stored=${ids.length} — ${(err as Error).message}`,
+      );
+      throw err;
     }
+    this.logger.log(`Inbound delivered: channel=${channel} tenant=${tenantId || '-'} messages=${ids.length}`);
     return { success: true, received: ids.length, id: ids[0], ids, channel };
   }
 

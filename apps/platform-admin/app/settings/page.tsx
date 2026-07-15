@@ -130,6 +130,22 @@ export default function SettingsPage() {
           </div>
         </Link>
 
+        <Link href="/settings/social-login" className="group">
+          <div className="bg-white rounded-lg shadow p-6 hover:shadow-lg transition-shadow border-l-4 border-sky-500">
+            <div className="flex items-center">
+              <div className="flex-shrink-0 bg-sky-500 rounded-md p-3">
+                <svg className="h-6 w-6 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 7a2 2 0 012 2m4 0a6 6 0 01-7.743 5.743L11 17H9v2H7v2H4a1 1 0 01-1-1v-2.586a1 1 0 01.293-.707l5.964-5.964A6 6 0 1121 9z" />
+                </svg>
+              </div>
+              <div className="ml-4">
+                <h3 className="text-lg font-medium text-gray-900 group-hover:text-sky-600">Social Login</h3>
+                <p className="text-sm text-gray-500">Google & OAuth keys, callback URL, config test</p>
+              </div>
+            </div>
+          </div>
+        </Link>
+
         <Link href="/settings/chat" className="group">
           <div className="bg-white rounded-lg shadow p-6 hover:shadow-lg transition-shadow border-l-4 border-blue-500">
             <div className="flex items-center">
@@ -141,6 +157,22 @@ export default function SettingsPage() {
               <div className="ml-4">
                 <h3 className="text-lg font-medium text-gray-900 group-hover:text-blue-600">Chat (Chatwoot)</h3>
                 <p className="text-sm text-gray-500">Self-hosted messaging — customer↔tenant & tenant↔platform</p>
+              </div>
+            </div>
+          </div>
+        </Link>
+
+        <Link href="/settings/oauth" className="group">
+          <div className="bg-white rounded-lg shadow p-6 hover:shadow-lg transition-shadow border-l-4 border-rose-500">
+            <div className="flex items-center">
+              <div className="flex-shrink-0 bg-rose-500 rounded-md p-3">
+                <svg className="h-6 w-6 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 16l-4-4m0 0l4-4m-4 4h14m-5 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h7a3 3 0 013 3v1" />
+                </svg>
+              </div>
+              <div className="ml-4">
+                <h3 className="text-lg font-medium text-gray-900 group-hover:text-rose-600">Social Login (OAuth)</h3>
+                <p className="text-sm text-gray-500">Google / GitHub / Microsoft keys — one redirect URI serves all tenants</p>
               </div>
             </div>
           </div>

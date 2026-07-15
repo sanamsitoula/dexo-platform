@@ -1,5 +1,5 @@
 import { Controller, Get, Post, Body, Param, UseGuards, Req, Query, HttpCode, BadRequestException } from '@nestjs/common';
-import { JwtAuthGuard } from '@dexo/auth';
+import { JwtAuthGuard, Public } from '@dexo/auth';
 import { DomainService } from './domain.service';
 import { DomainProvisioningService } from './domain-provisioning.service';
 
@@ -11,16 +11,22 @@ export class DomainController {
     private domainProvisioningService: DomainProvisioningService,
   ) {}
 
+  // Reference/lookup data that the public marketing site and tenant websites
+  // render before sign-in — themes, menus, widgets, the industry list. These
+  // are read-only, so @Public() overrides the class-level JwtAuthGuard.
+  @Public()
   @Get()
   getAllDomains() {
     return this.domainService.getAllDomains();
   }
 
+  @Public()
   @Get(':code')
   getDomainByCode(@Param('code') code: string) {
     return this.domainService.getDomainByCode(code);
   }
 
+  @Public()
   @Get(':code/menus')
   getDomainMenus(
     @Param('code') code: string,
@@ -29,6 +35,7 @@ export class DomainController {
     return this.domainService.getDomainMenus(code, roleCode);
   }
 
+  @Public()
   @Get(':code/widgets')
   getDomainWidgets(
     @Param('code') code: string,
@@ -37,6 +44,7 @@ export class DomainController {
     return this.domainService.getDomainWidgets(code, roleCode);
   }
 
+  @Public()
   @Get(':code/theme')
   getDomainTheme(@Param('code') code: string) {
     return this.domainService.getDomainTheme(code);

@@ -31,6 +31,17 @@ import { PaymentGatewayService } from '../payment-gateway/payment-gateway.servic
  * shipment.created, shipment.status_changed, product.low_stock) via
  * WebhooksService — the same "plug and play" bus any other module can use.
  */
+/**
+ * Minimum catalog size enforced on delete. A storefront with fewer than this
+ * many products/categories renders an empty/sparse grid and looks broken —
+ * which is exactly what the demo seed (see ProvisioningService) exists to
+ * prevent. Tenants must grow their catalog above the floor before trimming
+ * the demo rows. Count-based (no isDemo flag on the schema) so it protects
+ * user-created rows too, not just the seeded ones.
+ */
+const MIN_CATALOG_PRODUCTS = 5;
+const MIN_CATALOG_CATEGORIES = 5;
+
 @Injectable()
 export class EcommerceService {
   constructor(
@@ -87,6 +98,12 @@ export class EcommerceService {
 
   async deleteCategory(tenantId: string, id: string) {
     await this.assertExists(this.prisma.productCategory, tenantId, id, 'Category');
+    const total = await this.prisma.productCategory.count({ where: { tenantId } });
+    if (total <= MIN_CATALOG_CATEGORIES) {
+      throw new BadRequestException(
+        `A storefront needs at least ${MIN_CATALOG_CATEGORIES} categories to look complete. Please add more categories first, then remove this one.`,
+      );
+    }
     return this.prisma.productCategory.delete({ where: { id } });
   }
 
@@ -499,6 +516,12 @@ export class EcommerceService {
 
   async deleteProduct(tenantId: string, id: string) {
     await this.assertExists(this.prisma.product, tenantId, id, 'Product');
+    const total = await this.prisma.product.count({ where: { tenantId } });
+    if (total <= MIN_CATALOG_PRODUCTS) {
+      throw new BadRequestException(
+        `A storefront needs at least ${MIN_CATALOG_PRODUCTS} products to look complete. Please add more products first, then remove this one.`,
+      );
+    }
     return this.prisma.product.delete({ where: { id } });
   }
 

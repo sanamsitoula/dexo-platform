@@ -1,6 +1,9 @@
 import DOMPurify from 'isomorphic-dompurify';
 import type { PublicPageSection } from '@/lib/api';
 import PublicFormRenderer from './PublicFormRenderer';
+import FeaturedProducts, { ProductGridSection } from './ecommerce/FeaturedProducts';
+import CategoryGrid from './ecommerce/CategoryGrid';
+import TrustBadges from './ecommerce/TrustBadges';
 import { cardClasses, ctaButtonClasses, ctaButtonStyle, iconAccentClasses, iconAccentStyle } from '@/lib/style-tokens';
 
 /** Renders one PageSection per its componentType — the Component Library's
@@ -180,6 +183,49 @@ export default function PageSectionRenderer({ section, colorPrimary, subdomain, 
           </form>
         </section>
       );
+
+    case 'ecommerce-hero':
+      return (
+        <section className="overflow-hidden" style={{ background: 'linear-gradient(135deg, color-mix(in srgb, var(--site-primary) 8%, var(--site-bg)), var(--site-bg))' }}>
+          <div className="max-w-6xl mx-auto px-4 py-16 sm:py-24 grid md:grid-cols-2 gap-10 items-center">
+            <div>
+              {c.eyebrow && (
+                <span className="inline-block rounded-full px-3 py-1 text-xs font-semibold uppercase tracking-widest" style={{ background: 'color-mix(in srgb, var(--site-primary) 15%, transparent)', color: 'var(--site-primary)' }}>
+                  {c.eyebrow}
+                </span>
+              )}
+              {c.title && <h1 className="mt-4 text-4xl sm:text-5xl font-extrabold leading-tight tracking-tight">{c.title}</h1>}
+              {c.subtitle && <p className="mt-4 text-lg opacity-70">{c.subtitle}</p>}
+              <div className="mt-8 flex flex-wrap gap-3">
+                {c.primaryCtaLabel && c.primaryCtaUrl && (
+                  <a href={c.primaryCtaUrl} className={`inline-block rounded-full px-7 py-3 font-semibold ${ctaCls}`} style={{ ...ctaSty, color: 'var(--site-on-primary, #fff)' }}>{c.primaryCtaLabel}</a>
+                )}
+                {c.secondaryCtaLabel && c.secondaryCtaUrl && (
+                  <a href={c.secondaryCtaUrl} className="inline-block rounded-full border px-7 py-3 font-semibold transition-colors hover:opacity-70" style={{ borderColor: 'var(--site-border)', color: 'var(--site-text)' }}>{c.secondaryCtaLabel}</a>
+                )}
+              </div>
+            </div>
+            {c.image && (
+              <div className="relative aspect-[4/3] rounded-3xl overflow-hidden shadow-xl" style={{ border: '1px solid var(--site-border)' }}>
+                {/* eslint-disable-next-line @next/next/no-img-element */}
+                <img src={c.image} alt={c.title || ''} className="h-full w-full object-cover" />
+              </div>
+            )}
+          </div>
+        </section>
+      );
+
+    case 'featured-products':
+      return <FeaturedProducts subdomain={subdomain} content={c} />;
+
+    case 'product-grid':
+      return <ProductGridSection subdomain={subdomain} content={c} />;
+
+    case 'category-grid':
+      return <CategoryGrid subdomain={subdomain} content={c} />;
+
+    case 'trust-badges':
+      return <TrustBadges content={c} />;
 
     default:
       return null;

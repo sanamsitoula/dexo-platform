@@ -39,9 +39,11 @@ export default function TenantSocialLoginButtons({ tenantId }: { tenantId: strin
   const handleSocialLogin = async (provider: string) => {
     setLoadingProvider(provider);
     try {
-      const redirectUri = `${window.location.origin}/auth/callback`;
+      // Where the API should land us (with tokens) after the provider flow —
+      // this tenant's own /auth/callback, carried through OAuth state.
+      const returnUrl = `${window.location.origin}/auth/callback`;
       const res = await fetch(
-        `${API_BASE_URL}/auth/social/tenant/${tenantId}/${provider}/url?redirectUri=${encodeURIComponent(redirectUri)}`
+        `${API_BASE_URL}/auth/social/tenant/${tenantId}/${provider}/url?returnUrl=${encodeURIComponent(returnUrl)}`
       );
       const data = await res.json();
       if (data?.url) {

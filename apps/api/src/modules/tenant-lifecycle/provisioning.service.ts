@@ -401,10 +401,15 @@ export class ProvisioningService {
   }
 
   /**
-   * Ecommerce tenant defaults — the minimum needed to start selling with no
-   * manual setup: a default warehouse (required before any stock can be
-   * tracked) and an "Uncategorized" catalog bucket. Deliberately does NOT
-   * seed fake demo products into what will become the tenant's live store.
+   * Ecommerce tenant defaults — everything a new store needs to look alive on
+   * day one: a default warehouse (required before stock can be tracked), an
+   * "Uncategorized" bucket, plus a curated showcase catalog (6 categories +
+   * 8 products with real photography). The demo rows are fully editable and
+   * deletable from tenant-admin like any other product; a minimum-5 guard in
+   * EcommerceService keeps the storefront from being emptied to a blank shell
+   * (see deleteProduct/deleteCategory). Without these rows the storefront
+   * renders an empty grid — which is why a freshly-provisioned store looks
+   * "broken". Idempotent: upserts by slug/sku so re-provisioning won't crash.
    */
   private async seedEcommerceDefaults(tenantId: string): Promise<void> {
     await this.prisma.warehouse.create({
@@ -413,5 +418,139 @@ export class ProvisioningService {
     await this.prisma.productCategory.create({
       data: { tenantId, name: 'Uncategorized', slug: 'uncategorized' },
     });
+
+    for (const c of ECOM_DEMO_CATEGORIES) {
+      await this.prisma.productCategory.upsert({
+        where: { tenantId_slug: { tenantId, slug: c.slug } },
+        create: { tenantId, name: c.name, slug: c.slug },
+        update: { name: c.name },
+      });
+    }
+
+    const cats = await this.prisma.productCategory.findMany({
+      where: { tenantId, slug: { in: ECOM_DEMO_CATEGORIES.map((c) => c.slug) } },
+      select: { id: true, slug: true },
+    });
+    const catBySlug = new Map(cats.map((c) => [c.slug, c.id]));
+
+    for (const p of ECOM_DEMO_PRODUCTS) {
+      await this.prisma.product.upsert({
+        where: { tenantId_sku: { tenantId, sku: p.sku } },
+        create: {
+          tenantId,
+          categoryId: catBySlug.get(p.categorySlug) || null,
+          sku: p.sku,
+          name: p.name,
+          slug: p.slug,
+          description: p.description,
+          images: p.images,
+          costPrice: p.costPrice,
+          sellingPrice: p.sellingPrice,
+          taxRatePercent: 13,
+          trackInventory: false,
+          isActive: true,
+          isFeatured: p.isFeatured,
+          metaTitle: p.name,
+          metaDescription: p.description,
+        },
+        update: {
+          name: p.name,
+          description: p.description,
+          images: p.images,
+          sellingPrice: p.sellingPrice,
+          isFeatured: p.isFeatured,
+        },
+      });
+    }
   }
 }
+
+// Showcase catalog seeded for every ecommerce tenant so the storefront looks
+// complete (not an empty grid) the moment onboarding finishes. Images are
+// stable Unsplash photo URLs (royalty-free). Tenants edit/replace these from
+// tenant-admin → Products like any other row.
+interface DemoCategory {
+  name: string;
+  slug: string;
+}
+interface DemoProduct {
+  sku: string;
+  slug: string;
+  name: string;
+  description: string;
+  categorySlug: string;
+  images: string[];
+  costPrice: number;
+  sellingPrice: number;
+  isFeatured: boolean;
+}
+
+const U = (id: string) => `https://images.unsplash.com/photo-${id}?w=800&q=80&auto=format&fit=crop`;
+
+const ECOM_DEMO_CATEGORIES: DemoCategory[] = [
+  { name: 'Fashion', slug: 'fashion' },
+  { name: 'Electronics', slug: 'electronics' },
+  { name: 'Home & Living', slug: 'home-living' },
+  { name: 'Beauty', slug: 'beauty' },
+  { name: 'Sports & Outdoors', slug: 'sports-outdoors' },
+  { name: 'Accessories', slug: 'accessories' },
+];
+
+const ECOM_DEMO_PRODUCTS: DemoProduct[] = [
+  {
+    sku: 'DEMO-0001', slug: 'aurora-running-shoes', name: 'Aurora Running Shoes',
+    description: 'Lightweight, breathable knit upper with responsive cushioning — built for daily miles and weekend adventures.',
+    categorySlug: 'fashion',
+    images: [U('1542291026-7eec264c27ff'), U('1556906781-9a412961c28c')],
+    costPrice: 3000, sellingPrice: 4999, isFeatured: true,
+  },
+  {
+    sku: 'DEMO-0002', slug: 'luxe-chronograph-watch', name: 'Luxe Chronograph Watch',
+    description: 'Minimalist stainless-steel case, sapphire glass, and a precision quartz movement. Quietly confident.',
+    categorySlug: 'accessories',
+    images: [U('1523275335684-37898b6baf30'), U('1524805444758-089113d48a6d')],
+    costPrice: 7500, sellingPrice: 12999, isFeatured: true,
+  },
+  {
+    sku: 'DEMO-0003', slug: 'wireless-noise-cancel-headphones', name: 'Wireless Noise-Cancel Headphones',
+    description: 'Studio-grade active noise cancellation, 40-hour battery, and plush memory-foam ear cups.',
+    categorySlug: 'electronics',
+    images: [U('1505740420928-5e560c06d30e'), U('1484704849700-f032a568e944')],
+    costPrice: 4200, sellingPrice: 6999, isFeatured: true,
+  },
+  {
+    sku: 'DEMO-0004', slug: 'minimalist-leather-backpack', name: 'Minimalist Leather Backpack',
+    description: 'Full-grain vegan leather, padded 15" laptop sleeve, and weather-resistant lining. Commute-ready.',
+    categorySlug: 'fashion',
+    images: [U('1553062407-98eeb64c6a62'), U('1547949003-9792a18a2601')],
+    costPrice: 2400, sellingPrice: 3999, isFeatured: false,
+  },
+  {
+    sku: 'DEMO-0005', slug: 'smart-fitness-band', name: 'Smart Fitness Band',
+    description: '24/7 heart-rate, SpO2, sleep tracking, and a 10-day battery. IP68 water resistant.',
+    categorySlug: 'sports-outdoors',
+    images: [U('1576243345690-4e4b79b63288'), U('1510915225267-6b6b6b6b6b6b')],
+    costPrice: 1800, sellingPrice: 2999, isFeatured: true,
+  },
+  {
+    sku: 'DEMO-0006', slug: 'ceramic-aroma-diffuser', name: 'Ceramic Aroma Diffuser',
+    description: 'Ultrasonic mist with 7-color ambient lighting. Whisper-quiet, auto shut-off. Turns any room into a retreat.',
+    categorySlug: 'home-living',
+    images: [U('1608571423902-eed4a5ad8108'), U('1556228720-195a672e8a03')],
+    costPrice: 1100, sellingPrice: 1999, isFeatured: false,
+  },
+  {
+    sku: 'DEMO-0007', slug: 'matte-lipstick-set', name: 'Matte Lipstick Set',
+    description: 'Six long-wearing, transfer-proof nude-matte shades. Enriched with vitamin E and shea butter.',
+    categorySlug: 'beauty',
+    images: [U('1586495777744-4413f21062fa'), U('1522335789203-aabd1fc54bc9')],
+    costPrice: 900, sellingPrice: 1499, isFeatured: false,
+  },
+  {
+    sku: 'DEMO-0008', slug: 'polarized-sunglasses', name: 'Polarized Sunglasses',
+    description: 'UV400 polarized lenses in a lightweight acetate frame. Timeless wayfarer silhouette.',
+    categorySlug: 'accessories',
+    images: [U('1572635196237-14b3f281503f'), U('1577803645773-f96470509666')],
+    costPrice: 2100, sellingPrice: 3499, isFeatured: true,
+  },
+];
