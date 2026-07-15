@@ -1,12 +1,16 @@
 import { Controller, Get, Post, Put, Body, Param, Query, UseGuards, Req, Res } from '@nestjs/common';
 import type { Response } from 'express';
 import { JwtAuthGuard } from '@dexo/auth';
+import { PrismaService } from '@dexo/shared';
 import { SocialAuthService } from './social-auth.service';
 import { OAuthProvider } from './social-auth.service';
 
 @Controller('auth/social')
 export class SocialAuthController {
-  constructor(private socialAuthService: SocialAuthService) {}
+  constructor(
+    private socialAuthService: SocialAuthService,
+    private prisma: PrismaService,
+  ) {}
 
   // ===================== TENANT-LEVEL OAUTH =====================
 
@@ -29,7 +33,17 @@ export class SocialAuthController {
     @Res() res: Response,
   ) {
     const result = await this.socialAuthService.handleProviderCallback(provider, code, state);
-    const redirectUrl = `${process.env.FRONTEND_URL || 'http://localhost:3000'}/auth/callback?token=${result.accessToken}&refresh=${result.refreshToken}&new=${result.isNewUser}`;
+    // Send the user back to THEIR tenant's website, not a global FRONTEND_URL —
+    // with one env var every tenant's Google login would land on the same site.
+    const tenant = await this.prisma.tenant.findUnique({
+      where: { id: tenantId },
+      select: { subdomain: true },
+    });
+    const platformDomain = process.env.PLATFORM_DOMAIN || 'onedexo.com';
+    const base = tenant?.subdomain
+      ? `https://${tenant.subdomain}.${platformDomain}`
+      : process.env.FRONTEND_URL || 'http://localhost:3000';
+    const redirectUrl = `${base}/auth/callback?token=${result.accessToken}&refresh=${result.refreshToken}&new=${result.isNewUser}`;
     res.redirect(redirectUrl);
   }
 
