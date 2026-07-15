@@ -3,10 +3,8 @@ import type { SiteTheme } from '@/lib/site-theme';
 import type { Product, ProductCategory, PublicPageSection, SiteNavLink } from '@/lib/api';
 import SiteNav from './SiteNav';
 import SiteFooter from './SiteFooter';
-import AddToCartButton from './AddToCartButton';
 import PageSectionRenderer from './PageSectionRenderer';
 import ProductCard from './ecommerce/ProductCard';
-import { ctaButtonClasses, ctaButtonStyle } from '@/lib/style-tokens';
 
 /**
  * Ecommerce storefront homepage — hero, category grid, featured products,
@@ -40,65 +38,46 @@ export default function EcommerceHome({
   realSections?: PublicPageSection[];
   subdomain?: string;
 }) {
-  // Workstream B item 4 (website_builder_remaining.md): when the tenant has
-  // set a Theme Builder cardStyle token, `thick-border`/`glassmorphism`/etc.
-  // override the plain 1px surface border below; unset (the common case for
-  // ecommerce tenants, who don't pick one of the 60 WebsiteTemplates) keeps
-  // this EXACT inline style, unchanged.
-  const cardStyle = theme.cardStyle === 'thick-border'
-    ? { backgroundColor: 'var(--site-surface)', border: '3px solid var(--site-border)', borderRadius: 'var(--site-radius)' }
-    : theme.cardStyle === 'elevated'
-      ? { backgroundColor: 'var(--site-surface)', border: 'none', borderRadius: 'var(--site-radius)', boxShadow: '0 10px 25px -5px rgba(0,0,0,0.15)' }
-      : theme.cardStyle === 'glassmorphism'
-        ? { backgroundColor: 'var(--site-surface)', border: '1px solid var(--site-border)', borderRadius: 'var(--site-radius)', backdropFilter: 'blur(6px)' }
-        : { backgroundColor: 'var(--site-surface)', border: '1px solid var(--site-border)', borderRadius: 'var(--site-radius)' };
-
-  function ProductCard({ p }: { p: Product }) {
-    const image = Array.isArray(p.images) && p.images.length > 0 ? p.images[0] : null;
-    return (
-      <div className="flex flex-col overflow-hidden" style={cardStyle}>
-        <Link href={`/shop/${p.slug}`} className="block aspect-square" style={{ background: 'var(--site-bg)' }}>
-          {image ? (
-            // eslint-disable-next-line @next/next/no-img-element
-            <img src={image} alt={p.name} className="w-full h-full object-cover" />
-          ) : (
-            <div className="w-full h-full flex items-center justify-center text-4xl opacity-30">📦</div>
-          )}
-        </Link>
-        <div className="p-4 flex flex-col flex-1">
-          <Link href={`/shop/${p.slug}`} className="font-semibold hover:underline line-clamp-2">
-            {p.name}
-          </Link>
-          <p className="mt-2 text-lg font-bold">
-            {p.sellingPrice != null ? `Rs ${Number(p.sellingPrice).toLocaleString()}` : '—'}
-          </p>
-          <div className="mt-auto pt-3">
-            <AddToCartButton product={p} />
-          </div>
-        </div>
-      </div>
-    );
-  }
-
   return (
     <div style={{ background: 'var(--site-bg)', color: 'var(--site-text)', minHeight: '100vh' }}>
       <SiteNav theme={theme} name={name} active="/" showShop navItems={navItems} />
 
-      {/* Hero */}
-      <section className="text-center px-4 py-20 max-w-3xl mx-auto">
-        <p className="text-sm uppercase tracking-widest" style={{ color: 'var(--site-sub)' }}>Welcome to</p>
-        <h1 className="mt-3 text-4xl sm:text-5xl font-extrabold leading-tight">{name}</h1>
-        {tagline && <p className="mt-4 text-lg" style={{ color: 'var(--site-sub)' }}>{tagline}</p>}
-        <div className="mt-8">
-          <Link
-            href="/shop"
-            className={`inline-block px-8 py-3 ${ctaButtonClasses(theme.ctaStyle)}`}
-            style={theme.ctaStyle === 'inline-text'
-              ? { color: 'var(--site-primary)' }
-              : { ...ctaButtonStyle(theme.ctaStyle, 'var(--site-primary)'), color: 'var(--site-on-primary)', borderRadius: theme.ctaStyle ? undefined : 'var(--site-radius)' }}
-          >
-            Shop Now
-          </Link>
+      {/* Hero — premium split layout (eyebrow + headline + sub + two CTAs) */}
+      <section className="overflow-hidden" style={{ background: 'linear-gradient(135deg, color-mix(in srgb, var(--site-primary) 8%, var(--site-bg)), var(--site-bg))' }}>
+        <div className="mx-auto grid max-w-6xl items-center gap-10 px-4 py-16 md:grid-cols-2 sm:py-24">
+          <div>
+            <span className="inline-block rounded-full px-3 py-1 text-xs font-semibold uppercase tracking-widest" style={{ background: 'color-mix(in srgb, var(--site-primary) 15%, transparent)', color: 'var(--site-primary)' }}>
+              Welcome to {name}
+            </span>
+            <h1 className="mt-4 text-4xl font-extrabold leading-tight tracking-tight sm:text-5xl">
+              {tagline || 'Premium products for modern living'}
+            </h1>
+            <p className="mt-4 text-lg opacity-70">
+              Discover quality products with fast delivery, secure checkout, and unbeatable prices.
+            </p>
+            <div className="mt-8 flex flex-wrap gap-3">
+              <Link
+                href="/shop"
+                className="inline-block rounded-full px-7 py-3 font-semibold transition-transform hover:-translate-y-0.5"
+                style={{ background: 'var(--site-primary)', color: 'var(--site-on-primary, #fff)' }}
+              >
+                Shop Now
+              </Link>
+              <Link
+                href="/shop"
+                className="inline-block rounded-full border px-7 py-3 font-semibold transition-colors hover:opacity-70"
+                style={{ borderColor: 'var(--site-border)', color: 'var(--site-text)' }}
+              >
+                Explore Collection
+              </Link>
+            </div>
+          </div>
+          {featured[0] && Array.isArray(featured[0].images) && featured[0].images[0] && (
+            <Link href={`/shop/${featured[0].slug}`} className="relative aspect-[4/3] overflow-hidden rounded-3xl shadow-xl" style={{ border: '1px solid var(--site-border)' }}>
+              {/* eslint-disable-next-line @next/next/no-img-element */}
+              <img src={featured[0].images[0]} alt={featured[0].name} className="h-full w-full object-cover" />
+            </Link>
+          )}
         </div>
       </section>
 
@@ -117,23 +96,26 @@ export default function EcommerceHome({
           cardStyle={theme.cardStyle} ctaStyle={theme.ctaStyle} iconStyle={theme.iconStyle} />
       ))}
 
-      {/* Category grid */}
-      {categories.length > 0 && (
+      {/* Category grid — premium gradient tiles */}
+      {categories.filter((c) => c.slug !== 'uncategorized').length > 0 && (
         <section className="px-4 pb-16 max-w-6xl mx-auto">
-          <h2 className="text-2xl font-bold text-center mb-8">Browse Categories</h2>
+          <h2 className="text-3xl font-bold text-center mb-10">Shop by Category</h2>
           <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-4">
-            {categories.slice(0, 12).map((c) => (
+            {categories.filter((c) => c.slug !== 'uncategorized').slice(0, 8).map((c) => (
               <Link
                 key={c.id}
                 href={`/shop?category=${c.id}`}
-                className="aspect-[4/3] flex items-end p-4 font-semibold hover:opacity-90 transition-opacity"
+                className="group relative aspect-[4/3] flex items-end overflow-hidden p-5 font-semibold transition-transform duration-300 hover:-translate-y-1"
                 style={{
-                  background: 'var(--site-surface)',
-                  border: '1px solid var(--site-border)',
                   borderRadius: 'var(--site-radius)',
+                  background: 'linear-gradient(135deg, var(--site-primary), var(--site-accent, var(--site-primary)))',
+                  color: 'var(--site-on-primary, #fff)',
                 }}
               >
-                {c.name}
+                <span className="pointer-events-none absolute right-3 top-2 text-5xl font-black opacity-20 transition-transform duration-500 group-hover:scale-125">
+                  {(c.name || '?').charAt(0).toUpperCase()}
+                </span>
+                <span className="relative text-lg">{c.name}</span>
               </Link>
             ))}
           </div>
@@ -143,8 +125,8 @@ export default function EcommerceHome({
       {/* Featured products */}
       {featured.length > 0 && (
         <section className="px-4 pb-16 max-w-6xl mx-auto">
-          <h2 className="text-2xl font-bold text-center mb-8">Featured Products</h2>
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
+          <h2 className="text-3xl font-bold text-center mb-10">Featured Products</h2>
+          <div className="grid grid-cols-2 lg:grid-cols-4 gap-5">
             {featured.slice(0, 8).map((p) => (
               <ProductCard key={p.id} p={p} />
             ))}
@@ -161,8 +143,8 @@ export default function EcommerceHome({
         <p className="mt-2 opacity-90">Browse the full catalog for the latest deals and new arrivals.</p>
         <Link
           href="/shop"
-          className={`mt-6 inline-block px-8 py-3 hover:opacity-90 ${theme.ctaStyle ? ctaButtonClasses(theme.ctaStyle) : 'font-semibold bg-black/80 text-white'}`}
-          style={theme.ctaStyle === 'inline-text' ? undefined : { ...(theme.ctaStyle ? ctaButtonStyle(theme.ctaStyle, '#000000') : {}), borderRadius: theme.ctaStyle ? undefined : 'var(--site-radius)' }}
+          className="mt-6 inline-block rounded-full px-8 py-3 font-semibold transition-transform hover:-translate-y-0.5"
+          style={{ background: 'rgba(0,0,0,0.25)', color: 'var(--site-on-primary, #fff)' }}
         >
           View All Products
         </Link>
@@ -171,14 +153,32 @@ export default function EcommerceHome({
       {/* New arrivals */}
       {latest.length > 0 && (
         <section className="px-4 py-16 max-w-6xl mx-auto">
-          <h2 className="text-2xl font-bold text-center mb-8">New Arrivals</h2>
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
+          <h2 className="text-3xl font-bold text-center mb-10">New Arrivals</h2>
+          <div className="grid grid-cols-2 lg:grid-cols-4 gap-5">
             {latest.slice(0, 8).map((p) => (
               <ProductCard key={p.id} p={p} />
             ))}
           </div>
         </section>
       )}
+
+      {/* Trust badges */}
+      <section className="px-4 pb-16 max-w-6xl mx-auto">
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-4 md:gap-6">
+          {[
+            { icon: '🚚', title: 'Free Shipping', desc: 'Fast delivery on all orders.' },
+            { icon: '🔒', title: 'Secure Payment', desc: '100% protected checkout.' },
+            { icon: '↩️', title: 'Easy Returns', desc: '30-day return policy.' },
+            { icon: '💬', title: '24/7 Support', desc: 'Dedicated customer support.' },
+          ].map((b) => (
+            <div key={b.title} className="flex flex-col items-center rounded-2xl px-4 py-6 text-center" style={{ backgroundColor: 'var(--site-surface)', border: '1px solid var(--site-border)', borderRadius: 'var(--site-radius)' }}>
+              <span className="mb-3 text-4xl">{b.icon}</span>
+              <h3 className="font-semibold">{b.title}</h3>
+              <p className="mt-1 text-sm opacity-70">{b.desc}</p>
+            </div>
+          ))}
+        </div>
+      </section>
 
       <SiteFooter theme={theme} name={name} />
     </div>

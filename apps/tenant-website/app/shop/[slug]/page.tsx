@@ -5,6 +5,7 @@ import { getProductBySlug, getProducts, getTenantBySubdomain, getSiteNav } from 
 import { getSiteTheme } from '@/lib/site-theme';
 import SiteNav from '@/components/SiteNav';
 import SiteFooter from '@/components/SiteFooter';
+import ProductCard from '@/components/ecommerce/ProductCard';
 import ProductDetail from './ProductDetail';
 
 function resolveSubdomain(): string {
@@ -28,8 +29,28 @@ export default async function ProductPage({ params }: { params: { slug: string }
     ? (await getProducts(subdomain, { categoryId: product.category.id })).filter((p) => p.id !== product.id).slice(0, 4)
     : [];
 
+  // Product structured data (schema.org) for rich search results — the user's
+  // spec asked for Product Schema. Built server-side from the fetched product.
+  const jsonLd = {
+    '@context': 'https://schema.org',
+    '@type': 'Product',
+    name: product.name,
+    image: Array.isArray(product.images) ? product.images : [],
+    description: product.description || product.metaDescription || undefined,
+    sku: product.sku,
+    brand: product.brand?.name ? { '@type': 'Brand', name: product.brand.name } : undefined,
+    category: product.category?.name || undefined,
+    offers: {
+      '@type': 'Offer',
+      priceCurrency: 'NPR',
+      price: Number(product.sellingPrice),
+      availability: 'https://schema.org/InStock',
+    },
+  };
+
   return (
     <div style={{ background: 'var(--site-bg)', color: 'var(--site-text)', minHeight: '100vh' }}>
+      <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }} />
       <SiteNav theme={theme} name={name} active="/shop" showShop navItems={navItems} />
 
       <section className="px-4 py-4 max-w-6xl mx-auto text-sm" style={{ color: 'var(--site-sub)' }}>
@@ -42,32 +63,11 @@ export default async function ProductPage({ params }: { params: { slug: string }
 
       {related.length > 0 && (
         <section className="px-4 py-14 max-w-6xl mx-auto">
-          <h2 className="text-2xl font-bold mb-6">You may also like</h2>
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
-            {related.map((p) => {
-              const image = Array.isArray(p.images) && p.images.length > 0 ? p.images[0] : null;
-              return (
-                <Link
-                  key={p.id}
-                  href={`/shop/${p.slug}`}
-                  className="block overflow-hidden hover:opacity-90"
-                  style={{ backgroundColor: 'var(--site-surface)', border: '1px solid var(--site-border)', borderRadius: 'var(--site-radius)' }}
-                >
-                  <div className="aspect-square" style={{ background: 'var(--site-bg)' }}>
-                    {image ? (
-                      // eslint-disable-next-line @next/next/no-img-element
-                      <img src={image} alt={p.name} className="w-full h-full object-cover" />
-                    ) : (
-                      <div className="w-full h-full flex items-center justify-center text-3xl opacity-30">📦</div>
-                    )}
-                  </div>
-                  <div className="p-3">
-                    <p className="text-sm font-semibold line-clamp-2">{p.name}</p>
-                    <p className="mt-1 font-bold">Rs {Number(p.sellingPrice).toLocaleString()}</p>
-                  </div>
-                </Link>
-              );
-            })}
+          <h2 className="text-2xl font-bold mb-8">You may also like</h2>
+          <div className="grid grid-cols-2 lg:grid-cols-4 gap-5">
+            {related.map((p) => (
+              <ProductCard key={p.id} p={p} />
+            ))}
           </div>
         </section>
       )}

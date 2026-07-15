@@ -529,7 +529,7 @@ const ECOM_DEMO_PRODUCTS: DemoProduct[] = [
     sku: 'DEMO-0005', slug: 'smart-fitness-band', name: 'Smart Fitness Band',
     description: '24/7 heart-rate, SpO2, sleep tracking, and a 10-day battery. IP68 water resistant.',
     categorySlug: 'sports-outdoors',
-    images: [U('1576243345690-4e4b79b63288'), U('1510915225267-6b6b6b6b6b6b')],
+    images: [U('1576243345690-4e4b79b63288'), U('1575311373937-040b8e1fd5b6')],
     costPrice: 1800, sellingPrice: 2999, isFeatured: true,
   },
   {

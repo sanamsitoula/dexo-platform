@@ -4,7 +4,7 @@ import { getCategories, getProducts, getTenantBySubdomain, getSiteNav } from '@/
 import { getSiteTheme } from '@/lib/site-theme';
 import SiteNav from '@/components/SiteNav';
 import SiteFooter from '@/components/SiteFooter';
-import AddToCartButton from '@/components/AddToCartButton';
+import ProductCard from '@/components/ecommerce/ProductCard';
 
 function resolveSubdomain(): string {
   const h = headers();
@@ -35,12 +35,6 @@ export default async function ShopPage({
   const total = allProducts.length;
   const products = allProducts.slice(0, page * PAGE_SIZE);
   const hasMore = products.length < total;
-
-  const cardStyle = {
-    backgroundColor: 'var(--site-surface)',
-    border: '1px solid var(--site-border)',
-    borderRadius: 'var(--site-radius)',
-  } as const;
 
   function buildUrl(params: Record<string, string | undefined>) {
     const merged = { q, category: categoryId, page: '1', ...params };
@@ -120,36 +114,10 @@ export default async function ShopPage({
             {q || categoryId ? 'No products match your search.' : 'No products are available yet — check back soon.'}
           </p>
         ) : (
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
-            {products.map((p) => {
-              const image = Array.isArray(p.images) && p.images.length > 0 ? p.images[0] : null;
-              return (
-                <div key={p.id} className="flex flex-col overflow-hidden" style={cardStyle}>
-                  <Link href={`/shop/${p.slug}`} className="block aspect-square" style={{ background: 'var(--site-bg)' }}>
-                    {image ? (
-                      // eslint-disable-next-line @next/next/no-img-element
-                      <img src={image} alt={p.name} className="w-full h-full object-cover" />
-                    ) : (
-                      <div className="w-full h-full flex items-center justify-center text-4xl opacity-30">📦</div>
-                    )}
-                  </Link>
-                  <div className="p-4 flex flex-col flex-1">
-                    <Link href={`/shop/${p.slug}`} className="font-semibold hover:underline line-clamp-2">
-                      {p.name}
-                    </Link>
-                    {p.category?.name && (
-                      <p className="text-xs mt-1" style={{ color: 'var(--site-sub)' }}>{p.category.name}</p>
-                    )}
-                    <p className="mt-2 text-lg font-bold">
-                      {p.sellingPrice != null ? `Rs ${Number(p.sellingPrice).toLocaleString()}` : '—'}
-                    </p>
-                    <div className="mt-auto pt-3">
-                      <AddToCartButton product={p} />
-                    </div>
-                  </div>
-                </div>
-              );
-            })}
+          <div className="grid grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-5">
+            {products.map((p) => (
+              <ProductCard key={p.id} p={p} />
+            ))}
           </div>
         )}
 

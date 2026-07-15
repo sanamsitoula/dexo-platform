@@ -396,6 +396,8 @@ export interface Product {
   name: string
   slug: string
   description: string | null
+  metaTitle?: string | null
+  metaDescription?: string | null
   images: string[] | null
   sellingPrice: number
   taxRatePercent: number
