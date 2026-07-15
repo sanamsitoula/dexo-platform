@@ -381,12 +381,15 @@ export class SocialAuthService {
 
     // Create new user
     if (!isPlatformLevel && tenantId) {
-      // For tenant-level, check if auto-create is enabled
+      // Tenant sites are customer-facing member portals, so Google sign-in
+      // doubles as sign-up by default. A tenant that brings its OWN OAuth
+      // config can still opt out by leaving autoCreateUser=false there; with
+      // the platform-app fallback (no tenant config row) auto-create is on.
       const config = await this.prisma.tenantOAuthConfig.findUnique({
         where: { tenantId_provider: { tenantId, provider: profile.provider } },
       });
 
-      if (!config?.autoCreateUser) {
+      if (config && !config.autoCreateUser) {
         throw new UnauthorizedException(
           'Account not found. Please contact your administrator or use a different sign-in method.',
         );
@@ -403,7 +406,11 @@ export class SocialAuthService {
         emailVerified: profile.emailVerified,
         status: profile.emailVerified ? 'active' : 'pending_verification',
         tenantId: tenantId,
-        isPlatformAdmin: isPlatformLevel,
+        // NEVER auto-grant platform admin: previously any Google account
+        // signing in through the platform flow was created with
+        // isPlatformAdmin=true — a full privilege-escalation hole. Platform
+        // admin is granted manually by an existing admin.
+        isPlatformAdmin: false,
       },
     });
 
