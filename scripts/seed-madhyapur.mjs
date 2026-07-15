@@ -272,8 +272,11 @@ async function main() {
         const s = await api(`/pages/${about.id}/sections`, { method: 'POST', token, body: { componentType, content } });
         s.ok ? done(`section ${componentType}`) : warn(`section ${componentType} failed: ${s.status} ${JSON.stringify(s.data)}`);
       }
-      const pub = await api(`/pages/${about.id}/publish`, { method: 'POST', token, body: {} });
-      pub.ok ? done('about-us published') : warn(`publish failed: ${pub.status} ${JSON.stringify(pub.data)}`);
+      // Pages follow a review workflow: draft → in_review → approved → published.
+      for (const stepName of ['submit-review', 'approve', 'publish']) {
+        const r = await api(`/pages/${about.id}/${stepName}`, { method: 'POST', token, body: {} });
+        r.ok ? done(`page ${stepName}`) : warn(`page ${stepName} failed: ${r.status} ${JSON.stringify(r.data)}`);
+      }
     }
   }
 
