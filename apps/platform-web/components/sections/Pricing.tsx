@@ -1,7 +1,4 @@
-'use client'
-
 import Link from 'next/link'
-import { motion } from 'framer-motion'
 import StatCounter from '@/components/StatCounter'
 
 const PLANS = [
@@ -15,13 +12,7 @@ export default function Pricing() {
   return (
     <section id="pricing" className="relative bg-[#08080f] px-4 py-24 sm:px-6 lg:px-8">
       <div className="mx-auto max-w-7xl">
-        <motion.div
-          initial={{ opacity: 0, y: 30 }}
-          whileInView={{ opacity: 1, y: 0 }}
-          viewport={{ once: true, margin: '-100px' }}
-          transition={{ duration: 0.7 }}
-          className="mx-auto max-w-2xl text-center"
-        >
+        <div className="mx-auto max-w-2xl text-center">
           <h2
             className="text-3xl font-bold text-white sm:text-4xl"
             style={{ fontFamily: 'var(--font-grotesk), Space Grotesk, system-ui, sans-serif' }}
@@ -29,17 +20,13 @@ export default function Pricing() {
             Simple, transparent pricing
           </h2>
           <p className="mt-4 text-lg text-zinc-400">Start free. Scale as you grow.</p>
-        </motion.div>
+        </div>
 
         <div className="mt-14 grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-4">
-          {PLANS.map((p, i) => (
-            <motion.div
+          {PLANS.map((p) => (
+            <div
               key={p.name}
-              initial={{ opacity: 0, y: 30 }}
-              whileInView={{ opacity: 1, y: 0 }}
-              viewport={{ once: true, margin: '-60px' }}
-              transition={{ duration: 0.5, delay: i * 0.08 }}
-              className={`flex flex-col rounded-2xl border p-6 backdrop-blur-md ${
+              className={`flex flex-col rounded-2xl border p-6 ${
                 p.highlight
                   ? 'border-cyan-400/50 bg-gradient-to-b from-indigo-500/10 to-cyan-400/5 shadow-[0_0_40px_rgba(34,211,238,0.15)]'
                   : 'border-white/10 bg-white/5'
@@ -53,7 +40,7 @@ export default function Pricing() {
               <h3 className="text-xl font-bold text-white">{p.name}</h3>
               <div className="mt-2 flex items-end gap-1">
                 <span className="text-sm text-zinc-400">$</span>
-                <StatCounter value={p.price} label="" duration={1.2} />
+                <StatCounter value={p.price} label="" />
               </div>
               <span className="-mt-2 text-xs text-zinc-500">/mo</span>
               <ul className="mt-4 flex-1 space-y-2 text-sm text-zinc-400">
@@ -69,7 +56,7 @@ export default function Pricing() {
               >
                 Get started
               </Link>
-            </motion.div>
+            </div>
           ))}
         </div>
       </div>

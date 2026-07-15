@@ -1,7 +1,6 @@
 'use client'
 
 import { useState, type FormEvent } from 'react'
-import { motion } from 'framer-motion'
 import MagneticButton from '@/components/MagneticButton'
 
 export default function Contact() {
@@ -15,13 +14,7 @@ export default function Contact() {
   return (
     <section id="contact-section" className="relative bg-[#08080f] px-4 py-24 sm:px-6 lg:px-8">
       <div className="mx-auto max-w-3xl">
-        <motion.div
-          initial={{ opacity: 0, y: 30 }}
-          whileInView={{ opacity: 1, y: 0 }}
-          viewport={{ once: true, margin: '-100px' }}
-          transition={{ duration: 0.7 }}
-          className="text-center"
-        >
+        <div className="text-center">
           <h2
             className="text-3xl font-bold text-white sm:text-4xl"
             style={{ fontFamily: 'var(--font-grotesk), Space Grotesk, system-ui, sans-serif' }}
@@ -31,15 +24,9 @@ export default function Contact() {
           <p className="mt-4 text-lg text-zinc-400">
             Have questions or want a guided walkthrough? Send us a message.
           </p>
-        </motion.div>
+        </div>
 
-        <motion.div
-          initial={{ opacity: 0, y: 30 }}
-          whileInView={{ opacity: 1, y: 0 }}
-          viewport={{ once: true, margin: '-60px' }}
-          transition={{ duration: 0.6, delay: 0.1 }}
-          className="mt-12 rounded-3xl border border-white/10 bg-white/5 p-8 backdrop-blur-md"
-        >
+        <div className="mt-12 rounded-3xl border border-white/10 bg-white/5 p-8">
           {submitted ? (
             <div className="py-10 text-center text-zinc-200">
               Thanks — we received your message and will be in touch shortly.
@@ -97,7 +84,7 @@ export default function Contact() {
               </div>
             </form>
           )}
-        </motion.div>
+        </div>
 
         <div className="mt-8 flex justify-center">
           <MagneticButton href="/contact" variant="secondary">

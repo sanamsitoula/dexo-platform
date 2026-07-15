@@ -1,7 +1,3 @@
-'use client'
-
-import { motion } from 'framer-motion'
-
 const testimonials = [
   {
     quote:
@@ -24,13 +20,7 @@ export default function Testimonials() {
   return (
     <section className="relative bg-[#05050a] px-4 py-24 sm:px-6 lg:px-8">
       <div className="mx-auto max-w-7xl">
-        <motion.div
-          initial={{ opacity: 0, y: 30 }}
-          whileInView={{ opacity: 1, y: 0 }}
-          viewport={{ once: true, margin: '-100px' }}
-          transition={{ duration: 0.7 }}
-          className="mx-auto max-w-2xl text-center"
-        >
+        <div className="mx-auto max-w-2xl text-center">
           <h2
             className="text-3xl font-bold text-white sm:text-4xl"
             style={{ fontFamily: 'var(--font-grotesk), Space Grotesk, system-ui, sans-serif' }}
@@ -40,21 +30,17 @@ export default function Testimonials() {
           <p className="mt-4 text-sm uppercase tracking-widest text-zinc-500">
             Illustrative feedback based on typical Dexo deployments
           </p>
-        </motion.div>
+        </div>
 
         <div className="mt-14 grid grid-cols-1 gap-6 md:grid-cols-3">
-          {testimonials.map((t, i) => (
-            <motion.div
+          {testimonials.map((t) => (
+            <div
               key={t.role}
-              initial={{ opacity: 0, y: 30 }}
-              whileInView={{ opacity: 1, y: 0 }}
-              viewport={{ once: true, margin: '-60px' }}
-              transition={{ duration: 0.5, delay: i * 0.1 }}
-              className="flex h-full flex-col justify-between rounded-2xl border border-white/10 bg-white/5 p-6 backdrop-blur-md"
+              className="flex h-full flex-col justify-between rounded-2xl border border-white/10 bg-white/5 p-6"
             >
               <p className="text-zinc-200">&ldquo;{t.quote}&rdquo;</p>
               <p className="mt-6 text-sm font-medium text-cyan-300">{t.role}</p>
-            </motion.div>
+            </div>
           ))}
         </div>
       </div>
