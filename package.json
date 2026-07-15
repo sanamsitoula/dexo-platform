@@ -25,7 +25,7 @@
     "release": "turbo run build && changeset publish",
     "db:generate": "prisma generate",
     "db:push": "prisma db push",
-    "db:migrate": "prisma migrate dev",
+    "db:migrate": "node scripts/db-migrate.mjs",
     "db:seed": "ts-node --transpile-only scripts/seed/index.ts",
     "db:seed:v5": "ts-node --transpile-only scripts/seed/index.ts",
     "db:seed:clean": "ts-node --transpile-only scripts/seed/clean.ts",
