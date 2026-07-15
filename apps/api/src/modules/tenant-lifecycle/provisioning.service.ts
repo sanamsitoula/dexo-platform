@@ -5,7 +5,11 @@ import { ConfigService } from '@nestjs/config';
 import { SlugService } from './slug.service';
 import { ChatwootService } from '../chatwoot/chatwoot.service';
 import { DomainProvisioningService } from '../domain/domain-provisioning.service';
-import { getTemplate } from '@dexo/shared/src/themes';
+// Root import (not the deep '@dexo/shared/src/themes' one): the src/ path only
+// exists at compile time — at runtime the package resolves to dist/, so a deep
+// src import crashes node with MODULE_NOT_FOUND on boot. The deep import is a
+// client-bundle trick for Next apps; the API is server code and must not use it.
+import { getTemplate } from '@dexo/shared';
 import { getComponentDef, mapTemplateSectionToComponent } from '@dexo/shared/src/page-builder';
 
 export interface CreateTenantInput {

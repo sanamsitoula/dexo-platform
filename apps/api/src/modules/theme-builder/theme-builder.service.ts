@@ -1,6 +1,7 @@
 import { Injectable, NotFoundException, ForbiddenException } from '@nestjs/common';
 import { PrismaService, AuditService } from '@dexo/shared';
-import { getTemplate } from '@dexo/shared/src/themes';
+// Root import — see provisioning.service.ts: deep src/ imports crash at runtime.
+import { getTemplate } from '@dexo/shared';
 import * as crypto from 'crypto';
 
 interface ActorCtx {
